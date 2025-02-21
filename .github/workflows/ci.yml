@@ -3,7 +3,7 @@ name: Build Installers
 on:
   push:
     branches:
-      - main  # 当 main 分支有推送时触发构建，你可以根据需要修改分支名称
+      - main
 
 jobs:
   build:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 16  # 你可以根据项目需求调整 Node.js 版本
+          node-version: 16
 
       - name: Install dependencies
         run: npm install
