@@ -65,6 +65,13 @@
                 "width": 600,
                 "height": 400
             }
+        },
+        "linux": {
+            "target": [
+                "AppImage",
+                "deb"
+            ],
+            "artifactName": "${productName}_${version}.${ext}"
         }
     }
 }

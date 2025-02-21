@@ -1,0 +1,34 @@
+name: Build Installers
+
+on:
+  push:
+    branches:
+      - main  # 当 main 分支有推送时触发构建，你可以根据需要修改分支名称
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16  # 你可以根据项目需求调整 Node.js 版本
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build installers
+        run: npm run build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-installers
+          path: dist
