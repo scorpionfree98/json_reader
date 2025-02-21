@@ -1,0 +1,70 @@
+{
+    "name": "json-formatter",
+    "version": "1.3.0",
+    "description": "JSON 格式化工具",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "electron-builder"
+    },
+    "devDependencies": {
+        "electron": "^22.0.0",
+        "electron-builder": "^23.0.0"
+    },
+    "build": {
+        "appId": "com.example.jsonformatter",
+        "productName": "JSON 格式化工具",
+        "directories": {
+            "output": "dist"
+        },
+        "files": [
+            "**/*",
+            "!node_modules/**/*",
+            "!dist/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "nsis": {
+            "oneClick": false,
+            "perMachine": true,
+            "allowToChangeInstallationDirectory": true,
+            "deleteAppDataOnUninstall": true,
+            "allowElevation": true,
+            "runAfterFinish": true,
+            "shortcutName": "JSON 格式化工具",
+            "artifactName": "${productName}_Installer_${version}.${ext}"
+        },
+        "portable": {
+            "artifactName": "${productName}_Portable_${version}.${ext}"
+        },
+        "mac": {
+            "target": [
+                "dmg",
+                "zip"
+            ],
+            "artifactName": "${productName}_${version}.${ext}",
+            "category": "public.app-category.developer-tools"
+        },
+        "dmg": {
+            "iconSize": 100,
+            "window": {
+                "width": 600,
+                "height": 400
+            }
+        }
+    }
+}

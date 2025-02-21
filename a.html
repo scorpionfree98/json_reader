@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>JSON格式化工具</title>
+    <!-- 引入Layui的CSS样式 -->
+    <link rel="stylesheet" href="lib/layui/css/layui.css">
+    <style>
+        /* 自定义CSS样式 */
+        #json-display {
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre;
+            border: 1px solid #e6e6e6;
+            padding: 15px;
+            background-color: #2d2d2d;
+            /* 深色背景 */
+            border-radius: 5px;
+            max-height: 500px;
+            overflow: auto;
+            color: #00CED1;
+            /* 默认字体颜色 */
+            font-weight: bold;
+            /* 增加字体粗细 */
+            font-size: 14px;
+            /* 可根据需要调整字体大小 */
+            line-height: 1.5em;
+            /* 调整行高 */
+        }
+
+        .json-object,
+        .json-array {
+            margin-left: 1em;
+            position: relative;
+        }
+
+        .json-key::after {
+            content: ': ';
+            margin-right: 0.5em;
+        }
+
+        .json-string {
+            color: #00FA9A;
+            /* 蓝绿色 */
+        }
+
+        .json-number {
+            color: #d3869b;
+            /* 粉色 */
+        }
+
+        .json-boolean {
+            color: #fe8019;
+            /* 橙色 */
+        }
+
+        .json-null {
+            color: #b8bb26;
+            /* 黄色 */
+        }
+
+        /* 添加缩进辅助线 */
+        .json-children {
+            position: relative;
+            margin-left: 1em;
+            /* 子元素的缩进 */
+            padding-left: 0.5em;
+            border-left: 1px solid #555;
+            /* 竖线的颜色 */
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .json-children>li {
+            position: relative;
+        }
+
+        .json-toggle {
+            text-decoration: none;
+            color: #ebdbb2;
+            /* 浅灰色 */
+            margin-left: -1em;
+            margin-right: 0.5em;
+            /* 箭头和内容之间的空格 */
+            display: inline-block;
+            width: 1em;
+            cursor: pointer;
+            font-weight: bold;
+            /* 增加符号的字体粗细 */
+            vertical-align: middle;
+            /* 使箭头与文本对齐 */
+        }
+
+        .json-toggle+* {
+            margin-left: 0.5em;
+        }
+
+        /* 适应Layui的样式 */
+        .layui-textarea {
+            font-family: monospace;
+        }
+
+        .container {
+            margin: 20px;
+        }
+
+        .layui-btn-group {
+            margin-top: 10px;
+        }
+
+        #sourceText {
+            resize: none;
+        }
+
+        #valid-result {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .es-pass {
+            color: green;
+        }
+
+        .es-fail {
+            color: red;
+        }
+
+        /* 可拖动区域 */
+        .drag-region {
+            -webkit-app-region: drag;
+        }
+
+        /* 不可拖动区域 */
+        .no-drag {
+            -webkit-app-region: no-drag;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container  drag-region">
+        <fieldset class="layui-elem-field layui-field-title">
+            <legend>JSON格式化工具</legend>
+        </fieldset>
+        <!-- 添加自定义窗口控制按钮 -->
+
+        <div class="layui-form">
+            <div class="layui-form-item layui-form-text">
+                <label class="layui-form-label">JSON字符串：</label>
+                <div class="layui-input-block no-drag">
+                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <div class="layui-input-block no-drag">
+                    <div class="layui-btn-group">
+                        <button id="pasteBtn" class="layui-btn"><i class="layui-icon layui-icon-read"></i>
+                            从剪贴板读取</button>
+                        <button id="formatBtn" class="layui-btn"><i class="layui-icon layui-icon-release"></i>
+                            格式化JSON</button>
+                        <button id="clearBtn" class="layui-btn layui-btn-primary"><i
+                                class="layui-icon layui-icon-delete"></i> 清空</button>
+                    </div>
+
+                    <div class="layui-btn-group">
+
+                        <button id="minimize" class="layui-btn layui-bg-blue"><i
+                                class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
+                        <button id="close" class="layui-btn layui-bg-red"><i
+                                class="layui-icon  layui-icon-close"></i>关闭</button>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="valid-result" style="display: none;"></div>
+        <div id="json-display" class="no-drag"></div>
+    </div>
+
+    <!-- 引入Layui的JavaScript文件 -->
+    <script src="lib/layui/layui.js"></script>
+    <script>
+        const { ipcRenderer } = require('electron');
+        var myJsonTool = {
+            copyToClipboard: function (value) {
+
+                console.log(value);
+                var valueText = String(value); // 转换为字符串
+                navigator.clipboard.writeText(valueText).then(function () {
+                    layer.msg('已复制: ' + valueText, { time: 3000 });
+                }).catch(function (err) {
+                    layer.msg('复制失败：' + err);
+                });
+            },
+        }
+        layui.use(['layer'], function () {
+            var layer = layui.layer;
+
+            var jsonTool = {
+                /**
+                 * 设置文本框的值
+                 * @param objId id选择器
+                 * @param value 值
+                 */
+                resetTextAreaValue: function (objId, value) {
+                    document.getElementById(objId).value = value;
+                    document.getElementById(objId).focus();
+                },
+
+                jsonFormat: function () {
+                    var text = document.getElementById("sourceText").value;
+                    try {
+                        var jsonObj = JSON.parse(text);
+                        var jsonText = JSON.stringify(jsonObj, null, 4);
+                        this.resetTextAreaValue('sourceText', jsonText);
+                        document.getElementById("valid-result").style.display = 'none';
+
+                        // 显示可折叠的JSON结构
+                        var html = this.renderJson(jsonObj);
+                        document.getElementById('json-display').replaceChildren(html);
+                        this.addEventListeners();
+
+                    } catch (e) {
+                        document.getElementById("valid-result").innerHTML = '<i class="layui-icon layui-icon-close-fill"></i> 格式错误：' + e.message;
+                        document.getElementById("valid-result").classList.add("es-fail");
+                        document.getElementById("valid-result").classList.remove("es-pass");
+                        document.getElementById("valid-result").style.display = 'block';
+                        document.getElementById('json-display').innerHTML = "";
+                    }
+                },
+
+
+                renderJson: function (obj, path = '') {
+                    var type = typeof obj;
+
+                    var span = document.createElement('span');
+
+                    if (obj === null) {
+                        span.className = 'json-null';
+                        span.textContent = 'null';
+                        span.ondblclick = () => myJsonTool.copyToClipboard(null);
+                        return span;
+                    } else if (type === 'number') {
+                        span.className = 'json-number';
+                        span.textContent = obj;
+                        span.ondblclick = () => myJsonTool.copyToClipboard(obj);
+                        return span;
+                    } else if (type === 'boolean') {
+                        span.className = 'json-boolean';
+                        span.textContent = obj;
+                        span.ondblclick = () => myJsonTool.copyToClipboard(obj);
+                        return span;
+                    } else if (type === 'string') {
+                        span.className = 'json-string';
+                        span.textContent = `"${obj}"`;
+                        span.ondblclick = () => myJsonTool.copyToClipboard(obj);
+                        return span;
+                    } else if (Array.isArray(obj)) {
+                        var div = document.createElement('div');
+                        div.className = 'json-array';
+
+                        var toggleSpan = document.createElement('span');
+                        toggleSpan.className = 'json-toggle';
+                        toggleSpan.textContent = '▼';
+                        div.appendChild(toggleSpan);
+
+                        var arrayBracket = document.createTextNode('[');
+                        div.appendChild(arrayBracket);
+
+                        var ul = document.createElement('ul');
+                        ul.className = 'json-children';
+
+                        obj.forEach((item, i) => {
+                            var li = document.createElement('li');
+                            li.appendChild(this.renderJson(item, path + '[' + i + ']'));
+                            if (i < obj.length - 1) {
+                                li.appendChild(document.createTextNode(','));
+                            }
+                            ul.appendChild(li);
+                        });
+
+                        div.appendChild(ul);
+                        div.appendChild(document.createTextNode(']'));
+                        return div;
+                    } else if (type === 'object') {
+                        var keys = Object.keys(obj);
+
+                        var div = document.createElement('div');
+                        div.className = 'json-object';
+
+                        var toggleSpan = document.createElement('span');
+                        toggleSpan.className = 'json-toggle';
+                        toggleSpan.textContent = '▼';
+                        div.appendChild(toggleSpan);
+
+                        div.appendChild(document.createTextNode('{'));
+
+                        var ul = document.createElement('ul');
+                        ul.className = 'json-children';
+
+                        keys.forEach((key, index) => {
+                            var li = document.createElement('li');
+
+                            var keySpan = document.createElement('span');
+                            keySpan.className = 'json-key';
+                            var templateKey = '["' + String(key).replace(/"/g, '\\"') + '"]';
+                            var newPath = path ? path + templateKey : templateKey;
+                            keySpan.textContent = `"${key}"`;
+                            keySpan.ondblclick = () => myJsonTool.copyToClipboard(newPath);
+
+                            li.appendChild(keySpan);
+                            li.appendChild(this.renderJson(obj[key], newPath));
+
+                            if (index < keys.length - 1) {
+                                li.appendChild(document.createTextNode(','));
+                            }
+
+                            ul.appendChild(li);
+                        });
+
+                        div.appendChild(ul);
+                        div.appendChild(document.createTextNode('}'));
+                        return div;
+                    }
+                },
+
+
+
+
+
+                addEventListeners: function () {
+                    var toggles = document.getElementById('json-display').getElementsByClassName('json-toggle');
+                    for (var i = 0; i < toggles.length; i++) {
+                        toggles[i].addEventListener('click', function (e) {
+                            e.preventDefault();
+                            var parent = e.target.parentNode;
+                            var children = parent.getElementsByClassName('json-children')[0];
+                            if (children.style.display === 'none') {
+                                children.style.display = '';
+                                e.target.textContent = '▼';
+                            } else {
+                                children.style.display = 'none';
+                                e.target.textContent = '▶';
+                            }
+                        });
+                    }
+                },
+
+                showPath: function (path) {
+                    navigator.clipboard.writeText(path).then(function () {
+                        ipcRenderer.send('copy-from-app');
+                        layer.msg('Key Path copied to clipboard: ' + path, { time: 3000 });
+                    });
+                },
+
+                showValue: function (path, value) {
+                    var valueText = 'Value at ' + path + ': ' + value;
+                    navigator.clipboard.writeText(valueText).then(function () {
+                        ipcRenderer.send('copy-from-app');
+                        layer.msg(valueText + ' copied to clipboard', { time: 3000 });
+                    });
+                },
+
+                readFromClipboard: function () {
+                    var that = this;
+                    navigator.clipboard.readText().then(function (text) {
+                        that.resetTextAreaValue('sourceText', text);
+                        that.jsonFormat();
+                    }).catch(function (err) {
+                        layer.msg('无法读取剪贴板内容：' + err);
+                    });
+                },
+
+                registerPasteShortcut: function () {
+                    window.addEventListener('keydown', function (event) {
+                        if (event.ctrlKey && event.key === 'v') {  // 检测Ctrl + V组合键
+                            event.preventDefault();  // 阻止默认的粘贴操作
+                            document.getElementById('pasteBtn').click();  // 自动触发“从剪贴板读取”按钮
+                        }
+                    });
+                },
+
+                init: function () {
+                    var that = this;
+                    document.getElementById('formatBtn').addEventListener('click', function () {
+                        that.jsonFormat();
+                    });
+                    document.getElementById('clearBtn').addEventListener('click', function () {
+                        that.resetTextAreaValue('sourceText', '');
+                        document.getElementById('json-display').innerHTML = '';
+                        document.getElementById('valid-result').innerHTML = '';
+                        document.getElementById('valid-result').style.display = 'none';
+                    });
+                    document.getElementById('pasteBtn').addEventListener('click', function () {
+                        that.readFromClipboard();
+                    });
+                    this.registerPasteShortcut();
+                }
+            };
+
+            // 初始化事件
+            jsonTool.init();
+        });
+
+
+
+
+        document.getElementById('minimize').addEventListener('click', () => {
+            ipcRenderer.send('window-control', 'minimize');
+        });
+
+        document.getElementById('close').addEventListener('click', () => {
+            ipcRenderer.send('window-control', 'close');
+        });
+
+        // 监听来自主进程的消息
+        ipcRenderer.on('trigger-paste', () => {
+            // 模拟点击 "从剪贴板读取" 按钮
+            document.getElementById('pasteBtn').click();
+        });
+    </script>
+
+</body>
+
+</html>
