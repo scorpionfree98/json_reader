@@ -1,0 +1,45 @@
+{
+  "identifier": "com.example.jsonformatter",
+  "productName": "JSON 格式化工具",
+  "version": "0.1.0",
+  "build": {
+    "beforeDevCommand": "vite",
+    "beforeBuildCommand": "vite build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "security": {
+      "csp": null,
+      "capabilities": [
+        "default"
+      ]
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "JSON 格式化工具",
+        "width": 900,
+        "height": 800,
+        "visible": false,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": []
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "<YOUR_UPDATER_PUBLIC_KEY>",
+      "endpoints": [
+        "https://example.com/updates/{{target}}-{{arch}}/{{current_version}}"
+      ]
+    }
+  }
+}
