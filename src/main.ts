@@ -13,24 +13,14 @@ import { readText as readClipboardText, writeText as writeClipboardText } from '
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
 
-declare global {
-  interface Window { myJsonTool?: { copyToClipboard: (v: unknown) => Promise<void> }; }
-}
+// json_tool.ts
+declare const layer: {
+  msg: (text: string, options?: { time?: number }) => void;
+};
 
 const appWindow = getCurrentWebviewWindow();
 
 // 0) expose copy util used by the page (keeps a-tauri.html compatibility)
-window.myJsonTool = {
-  copyToClipboard: async (value: unknown) => {
-    const valueText = String(value ?? '');
-    try {
-      await writeClipboardText(valueText);
-      console.log('已复制:', valueText);
-    } catch (e) {
-      console.error('复制失败:', e);
-    }
-  }
-};
 
 // 1) restore window state ASAP to avoid flash
 document.addEventListener('DOMContentLoaded', async () => {
@@ -47,7 +37,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   byId('pasteBtn')?.on('click', () => tryPasteFromClipboard());
   byId('clearBtn')?.on('click', () => clearInputContent());
   byId('formatBtn')?.on('click', () => formatJson());
-  // 你也可以在这里绑定 paste/format/clear 等按钮
 });
 
 // persist on exit
@@ -83,6 +72,7 @@ const unlistenFns: Array<() => void> = [];
     // v2 更稳妥的写法：根据 available 字段判断
     if (res?.available) {
       console.log('发现新版本:', res.version, '当前:', res.currentVersion);
+      
       await res.downloadAndInstall();
       await relaunch();
     } else {
@@ -106,7 +96,7 @@ export async function clearInputContent() {
   const validResult = $('#valid-result');
   if (validResult) {
     validResult.html('');
-    validResult.hide();
+    validResult.removeClass("es-fail").addClass("es-empty");
   }
 }
 

@@ -4,9 +4,9 @@ import { readText as readClipboardText, writeText as writeClipboardText } from '
 interface JsonTool {
     resetTextAreaValue(objId: string, value: string): void;
     jsonFormat(): void;
-    renderJson(obj: any): JQuery;
+    renderJson(obj: any, path: string): JQuery;
     addEventListeners(): void;
-    copyToClipboard(value: any): void ;
+    copyToClipboard(value: any): void;
 
 }
 // json_tool.ts
@@ -37,7 +37,7 @@ export const jsonTool: JsonTool = {
                 .removeClass("es-fail").addClass("es-empty");
 
             // 显示可折叠的JSON结构
-            const html = this.renderJson(jsonObj);
+            const html = this.renderJson(jsonObj, "");
             $('#json-display').html(html);
             this.addEventListeners();
 
@@ -56,16 +56,16 @@ export const jsonTool: JsonTool = {
 
 
     copyToClipboard: async (value: any) => {
-    const valueText = String(value ?? '');
-    try {
-      await writeClipboardText(valueText);
-      console.log('已复制:', valueText);
-      layer.msg(`已复制到剪贴板: ${valueText}`, { time: 1000 });
-    } catch (e) {
-      console.error('复制失败:', e);
-      layer.msg(`复制失败: ${(e as Error).message}`, { time: 1000 });
-    }
-  },
+        const valueText = String(value ?? '');
+        try {
+            await writeClipboardText(valueText);
+            console.log('已复制:', valueText);
+            layer.msg(`已复制到剪贴板: ${valueText}`, { time: 1000 });
+        } catch (e) {
+            console.error('复制失败:', e);
+            layer.msg(`复制失败: ${(e as Error).message}`, { time: 1000 });
+        }
+    },
     renderJson(obj: any, path: string = ''): JQuery {
         const type = typeof obj;
 
@@ -82,10 +82,14 @@ export const jsonTool: JsonTool = {
                 .on('dblclick', () => this.copyToClipboard(obj));
         }
         else if (type === 'string') {
-            return $('<span>')
-                .addClass('json-string')
-                .text(`"${obj}"`)
-                .on('dblclick', () => this.copyToClipboard(obj));
+            const $info = $('<span>')
+            .addClass('json-string')
+            .text(`"${obj}"`)
+            .on('dblclick', () => this.copyToClipboard(obj));
+            const $toggle = $('<span>').addClass('json-toggle-string').text("-").append($info);
+            
+            const $div = $('<span>').addClass('json-combine');
+            return $div.append($toggle,  $info); 
         }
         else if (Array.isArray(obj)) {
             const $div = $('<div>').addClass('json-array');
@@ -117,7 +121,7 @@ export const jsonTool: JsonTool = {
                     .on('dblclick', () => this.copyToClipboard(newPath))
                     .appendTo($li);
 
-                $li.append(': ', this.renderJson(obj[key], newPath));
+                $li.append( this.renderJson(obj[key], newPath,));
                 if (index < keys.length - 1) $li.append(',');
                 $ul.append($li);
             });
@@ -131,21 +135,34 @@ export const jsonTool: JsonTool = {
 
 
     addEventListeners(): void {
-        const toggles = document.getElementById('json-display')!.getElementsByClassName('json-toggle');
-        for (let i = 0; i < toggles.length; i++) {
-            toggles[i].addEventListener('click', function (this: HTMLElement, e: Event) {
-                e.preventDefault();
-                const parent = this.parentNode as HTMLElement;
-                const children = parent.getElementsByClassName('json-children')[0] as HTMLElement;
-                if (children.style.display === 'none') {
-                    children.style.display = '';
-                    this.textContent = '▼';
-                } else {
-                    children.style.display = 'none';
-                    this.textContent = '▶';
-                }
-            });
-        }
+        $('#json-display .json-toggle').on('click', function (e) {
+            e.preventDefault();
+            const $parent = $(this).parent();
+            const $children = $parent.find('.json-children').first();
+            if ($children.is(':visible')) {
+                $children.hide(); // 相当于 display: none
+                $(this).text('▶');
+            } else {
+                $children.show(); // 恢复显示
+                $(this).text('▼');
+            }
+        });
+        $('#json-display .json-toggle-string').on('click', function (e) {
+            e.preventDefault();
+            // const $parent = $(this);
+            const $parent = $(this).parent();
+            const $children = $parent.find('.json-string').first();
+            
+   
+            
+            if ($children.is(':visible')) {
+                $children.hide(); // 相当于 display: none
+                $(this).text('+');
+            } else {
+                $children.show(); // 恢复显示
+                $(this).text('-');
+            }
+        });
     }
 };
 

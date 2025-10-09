@@ -145,7 +145,7 @@
 
 <body>
 
-    <div class="container" data-tauri-drag-region>
+    <div data-tauri-drag-region class="container">
         <fieldset class="layui-elem-field layui-field-title">
             <legend>JSON格式化工具</legend>
         </fieldset>
@@ -172,8 +172,9 @@
 
                     <div class="layui-btn-group">
 
-                        <button id="minimize" class="layui-btn layui-bg-blue"><i
-                                class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
+                        <input id="explain" type="checkbox" title="ON|OFF" lay-skin="switch">保留转义
+                        <button id="close" class="layui-btn layui-bg-red"><i
+                                class="layui-icon  layui-icon-close"></i>关闭</button>
                         <button id="close" class="layui-btn layui-bg-red"><i
                                 class="layui-icon  layui-icon-close"></i>关闭</button>
 
@@ -182,18 +183,18 @@
             </div>
         </div>
 
-        <div id="valid-result" ></div>
-        <div id="json-display" class="no-drag"></div>
+        <div id="valid-result"></div>
+        <div id="json-display"></div>
     </div>
 
     <!-- 引入Layui的JavaScript文件 -->
     <script src="./lib/layui/layui.js"></script>
-    
-
-    
 
 
-<script type="module" src="/main.ts"></script>
+
+
+
+    <script type="module" src="/main.ts"></script>
 </body>
 
 </html>
