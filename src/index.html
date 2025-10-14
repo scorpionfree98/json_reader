@@ -53,27 +53,21 @@
 
         .json-number {
             color: #d3869b;
-            /* 粉色 */
         }
 
         .json-boolean {
             color: #fe8019;
-            /* 橙色 */
         }
 
         .json-null {
             color: #b8bb26;
-            /* 黄色 */
         }
 
-        /* 添加缩进辅助线 */
         .json-children {
             position: relative;
             margin-left: 1em;
-            /* 子元素的缩进 */
             padding-left: 0.5em;
             border-left: 1px solid #555;
-            /* 竖线的颜色 */
             list-style: none;
             margin: 0;
             padding: 0;
@@ -86,17 +80,13 @@
         .json-toggle {
             text-decoration: none;
             color: #ebdbb2;
-            /* 浅灰色 */
             margin-left: -1em;
             margin-right: 0.5em;
-            /* 箭头和内容之间的空格 */
             display: inline-block;
             width: 1em;
             cursor: pointer;
             font-weight: bold;
-            /* 增加符号的字体粗细 */
             vertical-align: middle;
-            /* 使箭头与文本对齐 */
         }
 
         .json-toggle+* {
@@ -114,6 +104,7 @@
 
         .layui-btn-group {
             margin-top: 10px;
+            margin-bottom: 10px;
         }
 
         #sourceText {
@@ -142,85 +133,71 @@
             -webkit-app-region: drag;
         }
 
-
         /* 不可拖动区域 */
         .no-drag {
+            -webkit-app-region: no-drag;
+        }
+
+        .no-drag * {
             -webkit-app-region: no-drag;
         }
     </style>
 </head>
 
 <body>
-    <div class="container drag-region">
+    <div class="container no-drag">
         <div class="drag-region">
             <fieldset class="layui-elem-field layui-field-title">
                 <legend>JSON格式化工具</legend>
             </fieldset>
         </div>
 
-        <div>
-            <!-- 添加自定义窗口控制按钮 -->
-
-            <div class="layui-form">
-                <div class="layui-form-item layui-form-text">
-                    <label class="layui-form-label">JSON字符串：</label>
-                    <div class="layui-input-block no-drag">
-                        <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
-                    </div>
+        <div class="layui-form no-drag">
+            <!-- 关键：添加与JS对应 -->
+            <div class="layui-form-item layui-form-text">
+                <label class="layui-form-label ">JSON字符串：</label>
+                <div class="layui-input-block no-drag">
+                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
                 </div>
-
-                <div class="layui-form-item">
-                    <div class="layui-input-block no-drag">
-                        <div class="layui-btn-group">
-                            <button id="pasteBtn" class="layui-btn"><i class="layui-icon layui-icon-read"></i>
-                                从剪贴板读取</button>
-                            <button id="formatBtn" class="layui-btn"><i class="layui-icon layui-icon-release"></i>
-                                格式化JSON</button>
-                            <button id="clearBtn" class="layui-btn layui-btn-primary"><i
-                                    class="layui-icon layui-icon-delete"></i> 清空</button>
-                        </div>
-
-                        <div class="layui-btn-group">
-
-
-                            <button id="minimize" class="layui-btn layui-bg-blue"><i
-                                    class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
-                            <button id="close" class="layui-btn layui-bg-red"><i
-                                    class="layui-icon  layui-icon-close"></i>关闭</button>
-
-                            <button id="checkUpdate" class="layui-btn" ><i
-                                    class="layui-icon layui-icon-radio"></i>检查更新</button>
-
-
-                            <!-- <input id="explain" type="checkbox" title="ON|OFF" lay-skin="switch">保留转义 -->
-
-
-                        </div>
-                        <div>
-                            <!-- <button id="explainBtn" class="layui-btn" value="false"><i
-                                    class="layui-icon layui-icon-radio"></i>转义：开</button> -->
-                            <div class="layui-form">
-                                <input type="checkbox" id="explain" title="转义">
-                                <input type="checkbox" id="topCheck" title="置顶">
-                                <input type="checkbox" id="autoStart" title="开机自启">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="valid-result"></div>
             </div>
-            <div id="json-display" class="layui-panel"></div>
+
+            <div class="layui-form-item no-drag">
+                <div class="layui-input-block no-drag">
+                    <div class="layui-btn-group no-drag">
+                        <button id="pasteBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-read"></i>
+                            从剪贴板读取</button>
+                        <button id="formatBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-release"></i>
+                            格式化JSON</button>
+                        <button id="clearBtn" class="layui-btn layui-btn-primary no-drag"><i
+                                class="layui-icon layui-icon-delete"></i> 清空</button>
+                    </div>
+
+                    <div class="layui-btn-group no-drag">
+                        <button id="minimize" class="layui-btn layui-bg-blue no-drag"><i
+                                class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
+                        <button id="close" class="layui-btn layui-bg-red no-drag"><i
+                                class="layui-icon  layui-icon-close"></i>关闭</button>
+                        <button id="checkUpdate" class="layui-btn no-drag"><i
+                                class="layui-icon layui-icon-radio"></i>检查更新</button>
+                    </div>
+
+                    <div class="layui-form no-drag" style="margin-top: 10px;">
+                        <!-- 关键：每个复选框设置name属性，并保持lay-filter一致 -->
+                        <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
+                        <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
+                        <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
+                    </div>
+                </div>
+            </div>
+
+            <div id="valid-result" class="no-drag"></div>
+            <div id="json-display" class="layui-panel no-drag"></div>
         </div>
+    </div>
 
-        <!-- 引入Layui的JavaScript文件 -->
-        <script src="./lib/layui/layui.js"></script>
-
-
-
-
-
-        <script type="module" src="/main.ts"></script>
+    <!-- 引入外部资源 -->
+    <script src="./lib/layui/layui.js"></script>
+    <script type="module" src="/main.ts"></script>
 </body>
 
 </html>
