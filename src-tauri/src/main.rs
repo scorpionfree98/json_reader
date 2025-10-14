@@ -7,6 +7,10 @@
   use tauri::menu::{CheckMenuItem, Menu, MenuItem};
   use tauri::tray::TrayIconBuilder;
   
+
+  
+
+
   fn build_tray(app: &tauri::AppHandle) -> anyhow::Result<()> {
     // Create menu items with IDs so we can match in the handler
     let show_i         = MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?;
@@ -86,6 +90,7 @@
         "quit" => app.exit(0),
         _ => {}
       })
+     .icon(app.default_window_icon().unwrap().clone())
       .build(app)?;
   
     Ok(())

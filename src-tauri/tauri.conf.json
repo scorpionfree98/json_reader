@@ -20,11 +20,12 @@
       {
         "label": "main",
         "title": "JSON 格式化工具",
-        "width": 900,
+        "width": 800,
         "height": 800,
         "visible": true,
         "decorations": false,
-        "resizable": true
+        "resizable": true,
+        "acceptFirstMouse": true
       }
     ]
   },
@@ -32,8 +33,11 @@
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,
-    "icon": []
+    "icon": [
+      "icons/*"
+    ]
   },
+  
   "plugins": {
     "updater": {
       "active": true,
@@ -42,5 +46,6 @@
         "https://example.com/updates/{{target}}-{{arch}}/{{current_version}}"
       ]
     }
+    
   }
 }

@@ -68,7 +68,9 @@ export const jsonTool: JsonTool = {
     },
     renderJson(obj: any, path: string = ''): JQuery {
         const type = typeof obj;
-
+        const isExplain = $('#explainBtn').val() === 'false';
+        console.log($('#explainBtn').val());
+        console.log(isExplain);
         if (obj === null) {
             return $('<span>')
                 .addClass('json-null')
@@ -83,13 +85,21 @@ export const jsonTool: JsonTool = {
         }
         else if (type === 'string') {
             const $info = $('<span>')
-            .addClass('json-string')
-            .text(`"${obj}"`)
-            .on('dblclick', () => this.copyToClipboard(obj));
+                .addClass('json-string')
+                .text(`"${obj}"`)
+                .on('dblclick', () => this.copyToClipboard(obj));
+            if (!isExplain) {
+
+                // $info.append($("pre").html(`${obj}`));
+
+                $info.html(`<span>${JSON.stringify(obj, null, 2)}</span>`);
+                $info.addClass('preserve-whitespace');
+
+            }
             const $toggle = $('<span>').addClass('json-toggle-string').text("-").append($info);
-            
+
             const $div = $('<span>').addClass('json-combine');
-            return $div.append($toggle,  $info); 
+            return $div.append($toggle, $info);
         }
         else if (Array.isArray(obj)) {
             const $div = $('<div>').addClass('json-array');
@@ -121,7 +131,7 @@ export const jsonTool: JsonTool = {
                     .on('dblclick', () => this.copyToClipboard(newPath))
                     .appendTo($li);
 
-                $li.append( this.renderJson(obj[key], newPath,));
+                $li.append(this.renderJson(obj[key], newPath,));
                 if (index < keys.length - 1) $li.append(',');
                 $ul.append($li);
             });
@@ -152,9 +162,6 @@ export const jsonTool: JsonTool = {
             // const $parent = $(this);
             const $parent = $(this).parent();
             const $children = $parent.find('.json-string').first();
-            
-   
-            
             if ($children.is(':visible')) {
                 $children.hide(); // 相当于 display: none
                 $(this).text('+');

@@ -11,7 +11,13 @@
         #json-display {
             margin-top: 20px;
             font-family: monospace;
-            white-space: pre;
+            /* white-space: pre; */
+            white-space: pre-wrap;
+            /* 修改为pre-wrap以保留格式同时允许换行 */
+            word-wrap: break-word;
+            /* 确保长单词或字符串能自动换行 */
+            overflow-wrap: break-word;
+            /* 更现代的属性，效果与word-wrap相同 */
             border: 1px solid #e6e6e6;
             padding: 15px;
             background-color: #2d2d2d;
@@ -136,6 +142,7 @@
             -webkit-app-region: drag;
         }
 
+
         /* 不可拖动区域 */
         .no-drag {
             -webkit-app-region: no-drag;
@@ -144,57 +151,76 @@
 </head>
 
 <body>
-
-    <div data-tauri-drag-region class="container">
-        <fieldset class="layui-elem-field layui-field-title">
-            <legend>JSON格式化工具</legend>
-        </fieldset>
-        <!-- 添加自定义窗口控制按钮 -->
-
-        <div class="layui-form">
-            <div class="layui-form-item layui-form-text">
-                <label class="layui-form-label">JSON字符串：</label>
-                <div class="layui-input-block no-drag">
-                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
-                </div>
-            </div>
-
-            <div class="layui-form-item">
-                <div class="layui-input-block no-drag">
-                    <div class="layui-btn-group">
-                        <button id="pasteBtn" class="layui-btn"><i class="layui-icon layui-icon-read"></i>
-                            从剪贴板读取</button>
-                        <button id="formatBtn" class="layui-btn"><i class="layui-icon layui-icon-release"></i>
-                            格式化JSON</button>
-                        <button id="clearBtn" class="layui-btn layui-btn-primary"><i
-                                class="layui-icon layui-icon-delete"></i> 清空</button>
-                    </div>
-
-                    <div class="layui-btn-group">
-
-                        <input id="explain" type="checkbox" title="ON|OFF" lay-skin="switch">保留转义
-                        <button id="close" class="layui-btn layui-bg-red"><i
-                                class="layui-icon  layui-icon-close"></i>关闭</button>
-                        <button id="close" class="layui-btn layui-bg-red"><i
-                                class="layui-icon  layui-icon-close"></i>关闭</button>
-
-                    </div>
-                </div>
-            </div>
+    <div class="container drag-region">
+        <div class="drag-region">
+            <fieldset class="layui-elem-field layui-field-title">
+                <legend>JSON格式化工具</legend>
+            </fieldset>
         </div>
 
-        <div id="valid-result"></div>
-        <div id="json-display"></div>
-    </div>
+        <div>
+            <!-- 添加自定义窗口控制按钮 -->
 
-    <!-- 引入Layui的JavaScript文件 -->
-    <script src="./lib/layui/layui.js"></script>
+            <div class="layui-form">
+                <div class="layui-form-item layui-form-text">
+                    <label class="layui-form-label">JSON字符串：</label>
+                    <div class="layui-input-block no-drag">
+                        <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block no-drag">
+                        <div class="layui-btn-group">
+                            <button id="pasteBtn" class="layui-btn"><i class="layui-icon layui-icon-read"></i>
+                                从剪贴板读取</button>
+                            <button id="formatBtn" class="layui-btn"><i class="layui-icon layui-icon-release"></i>
+                                格式化JSON</button>
+                            <button id="clearBtn" class="layui-btn layui-btn-primary"><i
+                                    class="layui-icon layui-icon-delete"></i> 清空</button>
+                        </div>
+
+                        <div class="layui-btn-group">
+
+
+                            <button id="minimize" class="layui-btn layui-bg-blue"><i
+                                    class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
+                            <button id="close" class="layui-btn layui-bg-red"><i
+                                    class="layui-icon  layui-icon-close"></i>关闭</button>
+
+                            <button id="checkUpdate" class="layui-btn" ><i
+                                    class="layui-icon layui-icon-radio"></i>检查更新</button>
+
+
+                            <!-- <input id="explain" type="checkbox" title="ON|OFF" lay-skin="switch">保留转义 -->
+
+
+                        </div>
+                        <div>
+                            <!-- <button id="explainBtn" class="layui-btn" value="false"><i
+                                    class="layui-icon layui-icon-radio"></i>转义：开</button> -->
+                            <div class="layui-form">
+                                <input type="checkbox" id="explain" title="转义">
+                                <input type="checkbox" id="topCheck" title="置顶">
+                                <input type="checkbox" id="autoStart" title="开机自启">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="valid-result"></div>
+            </div>
+            <div id="json-display" class="layui-panel"></div>
+        </div>
+
+        <!-- 引入Layui的JavaScript文件 -->
+        <script src="./lib/layui/layui.js"></script>
 
 
 
 
 
-    <script type="module" src="/main.ts"></script>
+        <script type="module" src="/main.ts"></script>
 </body>
 
 </html>
