@@ -68,8 +68,8 @@ export const jsonTool: JsonTool = {
     },
     renderJson(obj: any, path: string = ''): JQuery {
         const type = typeof obj;
-        const isExplain = $('#explainBtn').val() === 'false';
-        console.log($('#explainBtn').val());
+        const isExplain = $('#explain')?.prop('checked') || false;;
+        console.log($('#explain'));
         console.log(isExplain);
         if (obj === null) {
             return $('<span>')
@@ -174,3 +174,4 @@ export const jsonTool: JsonTool = {
 };
 
 export default jsonTool;
+

@@ -1,4 +1,6 @@
 // Entry for Tauri v2 frontend
+// 关键修复：从 @tauri-apps/api/core 导入 invoke（Tauri v2 最新路径）
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
 import { saveWindowState, restoreStateCurrent, StateFlags } from '@tauri-apps/plugin-window-state';
@@ -13,14 +15,27 @@ import { readText as readClipboardText, writeText as writeClipboardText } from '
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
 
-interface JsonTool {
-  jsonFormat: (escape?: boolean) => void;
-}
-declare const jsonTool: JsonTool | undefined;
-
 // 工具函数
 const byId = (id: string) => $(`#${id}`);
 const byClass = (cls: string) => $(`.${cls}`);
+
+// 补全 layui 类型定义
+declare const layui: {
+  use: (modules: string[], callback: () => void) => void;
+  form: {
+    on: (event: string, handler: (data: any) => void) => void;
+  };
+  layer: typeof layer;
+};
+
+// 补全 layer 类型定义
+declare const layer: {
+  msg: (text: string, options?: { time?: number }) => void;
+  confirm: (text: string, options: { btn: string[] }, yes: () => void, no: () => void) => void;
+  use: (modules: string[], callback: () => void) => void;
+  form: any;
+  layer: any;
+};
 
 // 应用窗口对象
 const appWindow = getCurrentWebviewWindow();
@@ -29,7 +44,7 @@ const appWindow = getCurrentWebviewWindow();
 let isExplainEnabled = false;
 const unlistenFns: Array<() => void> = [];
 
-// 1) 尽快恢复窗口状态以避免闪烁
+// 尽快恢复窗口状态以避免闪烁
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await restoreStateCurrent(StateFlags.ALL);
@@ -85,36 +100,25 @@ function bindButtonEvents() {
 
 // 绑定复选框事件
 function bindCheckboxEvents() {
-  // 转义复选框
-  // byId('explain')?.on('change', function() {
-  //   isExplainEnabled = $(this).prop('checked');
-  //   formatJson();
-  // });
-
-  // // 置顶复选框
-  // byId('topCheck')?.on('change', toggleTop);
-
-  // // 自启动复选框
-  // byId('autoStart')?.on('change', toggleAutostart);
   layui.use(['form'], function () {
-    var form = layui.form;
-    var layer = layui.layer;
-    // checkbox 事件
-    form.on('checkbox(explain)', function (data) {
-      var elem = data.elem; // 获得 checkbox 原始 DOM 对象
-            isExplainEnabled = $(this).prop('checked');
+    const form = layui.form;
+    const layer = layui.layer;
+    
+    // 转义复选框事件
+    form.on('checkbox(explain)', function () {
+      isExplainEnabled = $(this).prop('checked');
       formatJson();
-      layer.msg('explain checked 状态: ' + elem.checked);
+      layer.msg(`转义状态已${isExplainEnabled ? '启用' : '禁用'}`);
     });
-    form.on('checkbox(topCheck)', function (data) {
-      var elem = data.elem; // 获得 checkbox 原始 DOM 对象      
+    
+    // 置顶复选框事件
+    form.on('checkbox(topCheck)', function () {
       toggleTop();
-      layer.msg('topCheck checked 状态: ' + elem.checked);
     });
-    form.on('checkbox(autoStart)', function (data) {
-      var elem = data.elem; // 获得 checkbox 原始 DOM 对象
+    
+    // 自启动复选框事件
+    form.on('checkbox(autoStart)', function () {
       toggleAutostart();
-      layer.msg('autoStart checked 状态: ' + elem.checked);
     });
   });
 }
@@ -123,62 +127,87 @@ function bindCheckboxEvents() {
 window.addEventListener('beforeunload', () => {
   try {
     saveWindowState(StateFlags.ALL);
-  } catch { /* ignore */ }
+  } catch { /* 忽略保存失败的情况 */ }
 });
 
-// 切换置顶状态
+// 验证并更新置顶状态显示
+export async function toggleTopInfo() {
+  try {
+  const finalStatus = await appWindow.isAlwaysOnTop();
+  console.log('最终置顶状态:', finalStatus);
+
+    // 显示结果并修正UI
+  layer.msg(`窗口${finalStatus ? '已' : '未'}置顶`);
+  byId('topCheck')?.prop('checked', finalStatus);
+  } catch (error) {
+    console.error('获取置顶状态失败:', error);
+    layer.msg('获取状态失败');
+  }
+}
+
+// 切换置顶状态并通知后端同步
 export async function toggleTop() {
   try {
     console.log('开始切换置顶状态...');
-    // 获取当前状态
+    // 获取当前状态并计算新状态
     const current = await appWindow.isAlwaysOnTop();
     const newStatus = !current;
 
     // 更新UI
     byId('topCheck')?.prop('checked', newStatus);
 
-    // 设置新状态
+    // 执行状态修改
     await appWindow.setAlwaysOnTop(newStatus);
-
-    // 验证状态
-    const finalStatus = await appWindow.isAlwaysOnTop();
-    console.log('最终置顶状态:', finalStatus);
-
-    // 显示结果
-    layer.msg(`窗口${finalStatus ? '已' : '未'}置顶`);
-
-    // 状态不一致时修正UI
-    if (finalStatus !== newStatus) {
-      byId('topCheck')?.prop('checked', finalStatus);
-    }
+    
+    // 通知后端更新状态（关键修改）
+    await invoke('set_always_on_top');
+    
+    // 验证并刷新状态显示
+    toggleTopInfo();
   } catch (error) {
     console.error('切换置顶状态失败:', error);
     layer.msg('操作失败，请检查控制台');
   }
 }
 
-// 切换自启动状态
+// 验证并更新自启动状态显示
+export async function toggleAutostartInfo() {
+  try {
+  const finalStatus = await isAutostartEnabled();
+  console.log('最终自启动状态:', finalStatus);
+
+    // 更新UI并显示结果
+  byId('autoStart')?.prop('checked', finalStatus);
+  layer.msg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
+  } catch (error) {
+    console.error('获取自启动状态失败:', error);
+    layer.msg('获取状态失败');
+  }
+}
+
+// 切换自启动状态并通知后端同步
 export async function toggleAutostart() {
   try {
     // 获取当前状态
     const enabled = await isAutostartEnabled();
+    console.log('当前自启动状态:', enabled);
     const newStatus = !enabled;
 
-    // 执行切换操作
+    // 执行状态修改
     if (newStatus) {
-      await enableAutostart();
-    } else {
       await disableAutostart();
+    } else {
+      await enableAutostart();
     }
+    
+    const enabled2 = await isAutostartEnabled();
+    console.log('当前自启动状态:', enabled2);
 
-    // 验证状态
-    const finalStatus = await isAutostartEnabled();
-
-    // 更新UI
-    byId('autoStart')?.prop('checked', finalStatus);
-
-    // 显示结果
-    layer.msg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
+    // 通知后端更新状态（关键修改）
+    await invoke('set_autostart');
+    
+    // 验证并刷新状态显示
+    toggleAutostartInfo();
   } catch (error) {
     console.error('切换自启动失败:', error);
     layer.msg('操作失败，请检查控制台');
@@ -188,15 +217,18 @@ export async function toggleAutostart() {
 // 监听后端事件
 (async () => {
   try {
-
     // 监听显示/隐藏事件
     unlistenFns.push(await listen('tray://show', () => appWindow.show()));
     unlistenFns.push(await listen('tray://hide', () => appWindow.hide()));
 
     // 监听置顶切换事件
-    unlistenFns.push(await listen('tray://toggle-always-on-top', toggleTop));
+    unlistenFns.push(await listen('tray://toggle-always-on-top', toggleTopInfo));
+    
     // 监听自启动切换事件
-    unlistenFns.push(await listen('tray://toggle-autostart', toggleAutostart));
+    unlistenFns.push(await listen('tray://toggle-autostart', toggleAutostartInfo));
+    
+    // 监听托盘检查更新事件
+    unlistenFns.push(await listen('tray://check-updates', checkUpdate));
   } catch (e) {
     console.warn('注册事件失败：', e);
     layer.msg('注册事件失败：' + e);
@@ -249,7 +281,7 @@ export function clearInputContent() {
 export function formatJson() {
   console.log('格式化JSON，转义状态:', isExplainEnabled);
   if (jsonTool && typeof jsonTool.jsonFormat === 'function') {
-    jsonTool.jsonFormat(isExplainEnabled);
+    jsonTool.jsonFormat();
   }
 }
 
@@ -271,7 +303,7 @@ export async function tryPasteFromClipboard() {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const unlisten of unlistenFns) {
-      try { unlisten(); } catch { /* ignore */ }
+      try { unlisten(); } catch { /* 忽略清理失败 */ }
     }
   });
 }
