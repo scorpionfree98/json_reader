@@ -1,0 +1,36 @@
+{
+  "test_cases": {
+    "1. 简单JSON对象": {
+      "input": "{\"name\": \"张三\", \"age\": 30, \"email\": \"zhangsan@example.com\"}",
+      "description": "测试基本JSON对象的格式化"
+    },
+    "2. 嵌套JSON结构": {
+      "input": "{\"user\": {\"name\": \"李四\", \"profile\": {\"age\": 25, \"city\": \"北京\", \"skills\": [\"JavaScript\", \"Python\", \"Java\"]}}}",
+      "description": "测试嵌套JSON结构的格式化和折叠功能"
+    },
+    "3. 包含数组的JSON": {
+      "input": "{\"students\": [{\"name\": \"王五\", \"score\": 95}, {\"name\": \"赵六\", \"score\": 88}, {\"name\": \"孙七\", \"score\": 92}]}",
+      "description": "测试包含数组的JSON格式化"
+    },
+    "4. 包含不同数据类型": {
+      "input": "{\"string\": \"hello world\", \"number\": 123.45, \"boolean\": true, \"null\": null, \"array\": [1, 2, 3], \"object\": {\"key\": \"value\"}}",
+      "description": "测试包含各种数据类型的JSON格式化"
+    },
+    "5. 包含特殊字符": {
+      "input": "{\"message\": \"Hello\\nWorld!\\tThis is a test with special characters: \\"quotes\\", \\u00A9 copyright symbol}",
+      "description": "测试包含转义字符和特殊字符的JSON处理"
+    },
+    "6. 压缩的JSON": {
+      "input": "{\"status\":\"success\",\"code\":200,\"data\":{\"items\":[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]},\"timestamp\":1640995200000}",
+      "description": "测试从压缩JSON到格式化JSON的转换"
+    },
+    "7. 超大JSON对象": {
+      "input": "{\"large_object\": {\"field_1\": \"value_1\", \"field_2\": \"value_2\", \"field_3\": \"value_3\", \"field_4\": \"value_4\", \"field_5\": \"value_5\", \"field_6\": \"value_6\", \"field_7\": \"value_7\", \"field_8\": \"value_8\", \"field_9\": \"value_9\", \"field_10\": \"value_10\"}}",
+      "description": "测试处理较大JSON对象的性能"
+    },
+    "8. 空JSON结构": {
+      "input": "{\"empty_object\": {}, \"empty_array\": []}",
+      "description": "测试空JSON对象和数组的格式化"
+    }
+  }
+}

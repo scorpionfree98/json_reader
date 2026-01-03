@@ -100,9 +100,36 @@ function bindButtonEvents() {
 
 // 绑定复选框事件
 function bindCheckboxEvents() {
+  // 确保DOM加载完成
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      // 确保layui对象可用
+      if (typeof layui !== 'undefined') {
+        initLayuiForm();
+      } else {
+        // 如果layui还未加载，延迟执行
+        setTimeout(initLayuiForm, 100);
+      }
+    });
+  } else {
+    // 确保layui对象可用
+    if (typeof layui !== 'undefined') {
+      initLayuiForm();
+    } else {
+      // 如果layui还未加载，延迟执行
+      setTimeout(initLayuiForm, 100);
+    }
+  }
+}
+
+// 初始化Layui表单
+function initLayuiForm() {
   layui.use(['form'], function () {
     const form = layui.form;
     const layer = layui.layer;
+    
+    // 渲染表单元素，生成Layui动态元素
+    form.render();
     
     // 转义复选框事件
     form.on('checkbox(explain)', function () {
@@ -137,11 +164,11 @@ export async function toggleTopInfo() {
   console.log('最终置顶状态:', finalStatus);
 
     // 显示结果并修正UI
-  layer.msg(`窗口${finalStatus ? '已' : '未'}置顶`);
+  showLayuiMsg(`窗口${finalStatus ? '已' : '未'}置顶`);
   byId('topCheck')?.prop('checked', finalStatus);
   } catch (error) {
     console.error('获取置顶状态失败:', error);
-    layer.msg('获取状态失败');
+    showLayuiMsg('获取状态失败');
   }
 }
 
@@ -166,7 +193,7 @@ export async function toggleTop() {
     toggleTopInfo();
   } catch (error) {
     console.error('切换置顶状态失败:', error);
-    layer.msg('操作失败，请检查控制台');
+    showLayuiMsg('操作失败，请检查控制台');
   }
 }
 
@@ -178,10 +205,10 @@ export async function toggleAutostartInfo() {
 
     // 更新UI并显示结果
   byId('autoStart')?.prop('checked', finalStatus);
-  layer.msg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
+  showLayuiMsg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
   } catch (error) {
     console.error('获取自启动状态失败:', error);
-    layer.msg('获取状态失败');
+    showLayuiMsg('获取状态失败');
   }
 }
 
@@ -193,11 +220,11 @@ export async function toggleAutostart() {
     console.log('当前自启动状态:', enabled);
     const newStatus = !enabled;
 
-    // 执行状态修改
+    // 执行状态修改（修复逻辑错误）
     if (newStatus) {
-      await disableAutostart();
-    } else {
       await enableAutostart();
+    } else {
+      await disableAutostart();
     }
     
     const enabled2 = await isAutostartEnabled();
@@ -210,7 +237,7 @@ export async function toggleAutostart() {
     toggleAutostartInfo();
   } catch (error) {
     console.error('切换自启动失败:', error);
-    layer.msg('操作失败，请检查控制台');
+    showLayuiMsg('操作失败，请检查控制台');
   }
 }
 
@@ -231,7 +258,7 @@ export async function toggleAutostart() {
     unlistenFns.push(await listen('tray://check-updates', checkUpdate));
   } catch (e) {
     console.warn('注册事件失败：', e);
-    layer.msg('注册事件失败：' + e);
+    showLayuiMsg('注册事件失败：' + e);
   }
 })();
 
@@ -249,13 +276,13 @@ export async function checkUpdate() {
           await relaunch();
         } catch (error) {
           console.error('更新失败:', error);
-          layer.msg('更新失败，请稍后再试');
+          showLayuiMsg('更新失败，请稍后再试');
         }
       }, function () {
-        layer.msg('已取消更新');
+        showLayuiMsg('已取消更新');
       });
     } else {
-      layer.msg('已是最新版本');
+      showLayuiMsg('已是最新版本');
     }
   } catch (e) {
     console.warn('自动更新检查失败：', e);
@@ -296,6 +323,15 @@ export async function tryPasteFromClipboard() {
     }
   } catch {
     console.log("从剪贴板读取失败");
+  }
+}
+
+// 显示Layui消息（安全封装）
+function showLayuiMsg(text: string) {
+  if (typeof layui !== 'undefined' && layui.layer) {
+    layui.layer.msg(text);
+  } else {
+    console.log(text);
   }
 }
 
