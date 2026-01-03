@@ -25,7 +25,10 @@
         "visible": true,
         "decorations": false,
         "resizable": true,
-        "acceptFirstMouse": true
+        "acceptFirstMouse": true,
+        "center": true,
+        "minWidth": 600,
+        "minHeight": 600
       }
     ]
   },
@@ -35,17 +38,19 @@
     "createUpdaterArtifacts": true,
     "icon": [
       "icons/*"
-    ]
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "JSON格式化工具",
+    "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。"
   },
   
   "plugins": {
     "updater": {
-      "active": true,
+      "active": false,
       "pubkey": "<YOUR_UPDATER_PUBLIC_KEY>",
       "endpoints": [
         "https://example.com/updates/{{target}}-{{arch}}/{{current_version}}"
       ]
     }
-    
   }
 }

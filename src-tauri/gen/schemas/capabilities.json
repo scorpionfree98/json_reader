@@ -1,1 +1,36 @@
-{"default":{"identifier":"default","description":"default capabilities for the app","local":true,"windows":["*"],"webviews":["*"],"permissions":["clipboard-manager:allow-read-text","clipboard-manager:allow-write-text","window-state:default","autostart:allow-enable","autostart:allow-disable","autostart:allow-is-enabled","updater:default","core:window:default","core:window:allow-close","core:window:allow-minimize","core:window:allow-hide","core:window:allow-is-closable","core:window:allow-start-dragging","core:event:allow-listen","core:event:default","core:window:allow-set-always-on-top"]}}
+{
+    "default": {
+        "identifier": "default",
+        "description": "default capabilities for the app",
+        "local": true,
+        "windows": [
+            "*"
+        ],
+        "webviews": [
+            "*"
+        ],
+        "permissions": [
+            "clipboard-manager:allow-read-text",
+            "clipboard-manager:allow-write-text",
+            "window-state:default",
+            "autostart:allow-enable",
+            "autostart:allow-disable",
+            "autostart:allow-is-enabled",
+            "updater:default",
+            "core:window:default",
+            "core:window:allow-close",
+            "core:window:allow-minimize",
+            "core:window:allow-hide",
+            "core:window:allow-is-closable",
+            "core:window:allow-start-dragging",
+            "core:event:allow-listen",
+            "core:event:default",
+            "core:window:allow-set-always-on-top",
+            "core:window:allow-is-always-on-top",
+            "core:window:allow-show",
+            "core:window:allow-set-focus",
+            "process:allow-exit",
+            "core:tray:default"
+        ]
+    }
+}
