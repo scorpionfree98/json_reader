@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Entry for Tauri v2 frontend
 // 关键修复：从 @tauri-apps/api/core 导入 invoke（Tauri v2 最新路径）
 import { invoke } from '@tauri-apps/api/core';
@@ -100,25 +101,18 @@ function bindButtonEvents() {
 
 // 绑定复选框事件
 function bindCheckboxEvents() {
-  // 确保DOM加载完成
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      // 确保layui对象可用
-      if (typeof layui !== 'undefined') {
-        initLayuiForm();
-      } else {
-        // 如果layui还未加载，延迟执行
-        setTimeout(initLayuiForm, 100);
-      }
-    });
-  } else {
-    // 确保layui对象可用
+  const tryInitLayuiForm = () => {
     if (typeof layui !== 'undefined') {
       initLayuiForm();
     } else {
-      // 如果layui还未加载，延迟执行
       setTimeout(initLayuiForm, 100);
     }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryInitLayuiForm);
+  } else {
+    tryInitLayuiForm();
   }
 }
 
@@ -160,12 +154,12 @@ window.addEventListener('beforeunload', () => {
 // 验证并更新置顶状态显示
 export async function toggleTopInfo() {
   try {
-  const finalStatus = await appWindow.isAlwaysOnTop();
-  console.log('最终置顶状态:', finalStatus);
+    const finalStatus = await appWindow.isAlwaysOnTop();
+    console.log('最终置顶状态:', finalStatus);
 
     // 显示结果并修正UI
-  showLayuiMsg(`窗口${finalStatus ? '已' : '未'}置顶`);
-  byId('topCheck')?.prop('checked', finalStatus);
+    showLayuiMsg(`窗口${finalStatus ? '已' : '未'}置顶`);
+    byId('topCheck')?.prop('checked', finalStatus);
   } catch (error) {
     console.error('获取置顶状态失败:', error);
     showLayuiMsg('获取状态失败');
@@ -200,12 +194,12 @@ export async function toggleTop() {
 // 验证并更新自启动状态显示
 export async function toggleAutostartInfo() {
   try {
-  const finalStatus = await isAutostartEnabled();
-  console.log('最终自启动状态:', finalStatus);
+    const finalStatus = await isAutostartEnabled();
+    console.log('最终自启动状态:', finalStatus);
 
     // 更新UI并显示结果
-  byId('autoStart')?.prop('checked', finalStatus);
-  showLayuiMsg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
+    byId('autoStart')?.prop('checked', finalStatus);
+    showLayuiMsg(`开机自启已${finalStatus ? '启用' : '禁用'}`);
   } catch (error) {
     console.error('获取自启动状态失败:', error);
     showLayuiMsg('获取状态失败');
@@ -226,9 +220,9 @@ export async function toggleAutostart() {
     } else {
       await disableAutostart();
     }
-    
-    const enabled2 = await isAutostartEnabled();
-    console.log('当前自启动状态:', enabled2);
+
+    const actualStatus = await isAutostartEnabled();
+    console.log('当前自启动状态:', actualStatus);
 
     // 通知后端更新状态（关键修改）
     await invoke('set_autostart');
@@ -258,7 +252,7 @@ export async function toggleAutostart() {
     unlistenFns.push(await listen('tray://check-updates', checkUpdate));
   } catch (e) {
     console.warn('注册事件失败：', e);
-    showLayuiMsg('注册事件失败：' + e);
+    showLayuiMsg('注册事件失败：' + (e instanceof Error ? e.message : String(e)));
   }
 })();
 
@@ -286,11 +280,18 @@ export async function checkUpdate() {
     }
   } catch (e) {
     console.warn('自动更新检查失败：', e);
+    showLayuiMsg('检查更新失败');
   }
 }
 
 // 初始检查更新
-checkUpdate();
+(async () => {
+  try {
+    await checkUpdate();
+  } catch (error) {
+    console.error('初始检查更新失败:', error);
+  }
+})();
 
 // 清空输入内容
 export function clearInputContent() {
@@ -316,13 +317,18 @@ export function formatJson() {
 export async function tryPasteFromClipboard() {
   try {
     const text = await readClipboardText();
+    if (!text) {
+      showLayuiMsg('剪贴板为空');
+      return;
+    }
     const textarea = document.getElementById('sourceText') as HTMLTextAreaElement | null;
     if (textarea && text && textarea.value !== text) {
       textarea.value = text;
       formatJson();
     }
-  } catch {
-    console.log("从剪贴板读取失败");
+  } catch (error) {
+    console.error('从剪贴板读取失败:', error);
+    showLayuiMsg('读取剪贴板失败');
   }
 }
 
@@ -331,7 +337,7 @@ function showLayuiMsg(text: string) {
   if (typeof layui !== 'undefined' && layui.layer) {
     layui.layer.msg(text);
   } else {
-    console.log(text);
+    console.log('[Layui未加载]', text);
   }
 }
 
@@ -339,7 +345,7 @@ function showLayuiMsg(text: string) {
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const unlisten of unlistenFns) {
-      try { unlisten(); } catch { /* 忽略清理失败 */ }
+      try { unlisten(); } catch (error) { console.warn('清理事件监听器失败:', error); }
     }
   });
 }
