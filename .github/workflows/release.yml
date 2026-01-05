@@ -31,24 +31,19 @@ jobs:
           - platform: macos-latest
             target: universal-apple-darwin
             arch: universal
-            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
-            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
-            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
-            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'true') }}
 
-    # 作业级别的条件
-    if: matrix.should_run
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
+    continue-on-error: true
     
     steps:
       - name: Checkout repository
@@ -62,6 +57,28 @@ jobs:
           echo "Platform: ${{ matrix.platform }}"
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
+
+      - name: Check if should build
+        id: check_build
+        run: |
+          SHOULD_BUILD=false
+          if [ "${{ github.event_name }}" == "push" ]; then
+            SHOULD_BUILD=true
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ matrix.platform }}" == "macos-latest" ] && [ "${{ github.event.inputs.build_macos }}" == "true" ]; then
+              SHOULD_BUILD=true
+            elif [ "${{ matrix.platform }}" == "windows-latest" ] && [ "${{ github.event.inputs.build_windows }}" == "true" ]; then
+              SHOULD_BUILD=true
+            fi
+          fi
+          echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
+          echo "Should build: $SHOULD_BUILD"
+
+      - name: Skip build
+        if: steps.check_build.outputs.should_build != 'true'
+        run: |
+          echo "Skipping build for ${{ matrix.platform }}"
+          exit 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
