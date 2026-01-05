@@ -73,7 +73,9 @@ jobs:
           echo "Skip Build 2: ${{ matrix.platform == 'macos-latest'  }}"
           echo "Skip Build 2: ${{  !github.event.inputs.build_macos }}"
           echo "Skip Build 3: ${{ matrix.platform == 'windows-latest'}}"
-          echo "Skip Build 3: ${{  !github.event.inputs.build_windows}}"
+          echo "Skip Build 3: ${{  !github.event.inputs.build_windows }}"
+          echo "Skip Build 3: ${{  github.event.inputs.build_windows=='false' }}"
+          echo "Skip Build 3: ${{ not(github.event.inputs.build_windows)  }}"
 
       - name: Skip build
         if: |
