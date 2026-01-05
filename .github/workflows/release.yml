@@ -61,7 +61,7 @@ jobs:
         run: |
           echo "Skipping this matrix (condition=false)"
           # 只是正常退出，不失败
-          exit 0
+          exit 1
         shell: bash
 
       - name: Checkout repository
