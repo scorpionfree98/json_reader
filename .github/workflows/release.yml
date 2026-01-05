@@ -36,29 +36,39 @@ jobs:
           - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
+            build_input: ${{ github.event.inputs.build_macos }}
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
+            build_input: ${{ github.event.inputs.build_macos }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "with"
+            build_input: ${{ github.event.inputs.build_windows }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "without"
+            build_input: ${{ github.event.inputs.build_windows }}
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
     continue-on-error: true
     
     steps:
+      - name: Skip build
+        if: github.event_name == 'workflow_dispatch' && matrix.build_input == false
+        run: |
+          echo "Skipping build for ${{ matrix.platform }}"
+          echo "Build input was: ${{ matrix.build_input }}"
+          exit 0
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Print environment info
         run: |
-        
           echo "Build macOS versions: ${{ github.event.inputs.build_macos }}"
           echo "Build Windows version: ${{ github.event.inputs.build_windows }}"
           echo "Event: ${{ github.event_name }}"
@@ -68,6 +78,7 @@ jobs:
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
+          echo "Build Input: ${{ matrix.build_input }}"
           echo "Skip Release: ${{ github.event.inputs.skip_release }}"
           echo "Skip Build 1: ${{ github.event_name == 'workflow_dispatch'  }}"
           echo "Skip Build 2: ${{ matrix.platform == 'macos-latest'  }}"
@@ -76,15 +87,6 @@ jobs:
           echo "Skip Build 3: ${{  !github.event.inputs.build_windows }}"
           echo "Skip Build 3: ${{  github.event.inputs.build_windows=='false' }}"
 
-      - name: Skip build
-        if: |
-          github.event_name == 'workflow_dispatch' && (
-            (matrix.platform == 'macos-latest' && !github.event.inputs.build_macos) ||
-            (matrix.platform == 'windows-latest' && !github.event.inputs.build_windows)
-          )
-        run: |
-          echo "Skipping build for ${{ matrix.platform }}"
-          exit 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
