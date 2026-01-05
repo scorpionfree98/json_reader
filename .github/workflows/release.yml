@@ -69,10 +69,11 @@ jobs:
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
           echo "Skip Release: ${{ github.event.inputs.skip_release }}"
-          echo "Skip Build: ${{ github.event_name == 'workflow_dispatch' && (
-            (matrix.platform == 'macos-latest' && !github.event.inputs.build_macos) ||
-            (matrix.platform == 'windows-latest' && !github.event.inputs.build_windows)
-          ) }}"
+          echo "Skip Build 1: ${{ github.event_name == 'workflow_dispatch'  }}"
+          echo "Skip Build 2: ${{ matrix.platform == 'macos-latest'  }}"
+          echo "Skip Build 2: ${{  !github.event.inputs.build_macos }}"
+          echo "Skip Build 3: ${{ matrix.platform == 'windows-latest'}}"
+          echo "Skip Build 3: ${{  !github.event.inputs.build_windows}}"
 
       - name: Skip build
         if: |
