@@ -127,7 +127,7 @@ jobs:
       - name: Compress .app files (macOS only)
         if: runner.os == 'macOS'
         run: |
-          cd src-tauri/target/release/bundle/macos
+          cd src-tauri/target/${{ matrix.target }}/release/bundle/macos
           for app in *.app; do
             if [ -d "$app" ]; then
               ditto -c -k --sequesterRsrc --keepParent "$app" "${app}.zip"
@@ -138,7 +138,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-release
-          path: src-tauri/target/release/bundle/
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/
           if-no-files-found: error
           retention-days: 1
 
