@@ -5,6 +5,22 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      build_macos:
+        description: 'Build macOS versions'
+        required: true
+        default: true
+        type: boolean
+      build_windows:
+        description: 'Build Windows version'
+        required: true
+        default: true
+        type: boolean
+      skip_release:
+        description: 'Skip creating GitHub release (for testing)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -29,43 +45,118 @@ jobs:
     
     steps:
       - name: Checkout repository
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: actions/checkout@v4
 
+      - name: Print environment info
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
+        run: |
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Ref Type: ${{ github.ref_type }}"
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Target: ${{ matrix.target }}"
+          echo "Arch: ${{ matrix.arch }}"
+
       - name: Setup Rust
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - name: Rust cache
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
       - name: Install Node.js
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install pnpm
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: pnpm/action-setup@v2
         with:
           version: 8
 
+      - name: Print pnpm version
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
+        run: pnpm --version
+
       - name: Install frontend dependencies
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         run: pnpm install
 
       - name: Build frontend
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         run: pnpm build
 
+      - name: Print build output
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
+        run: |
+          echo "Frontend build output:"
+          ls -la dist/
+
       - name: Build Tauri app
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: tauri-apps/tauri-action@v0.6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tauriScript: pnpm tauri:build
+          args: --target ${{ matrix.target }}
+
+      - name: Print Tauri build output
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
+        run: |
+          echo "Tauri build output:"
+          ls -la src-tauri/target/release/bundle/
 
       - name: Compress .app files (macOS)
-        if: runner.os == 'macOS'
+        if: >
+          (runner.os == 'macOS') && (
+            (github.event_name == 'push') ||
+            (github.event_name == 'workflow_dispatch' && inputs.build_macos == 'true')
+          )
         run: |
           cd src-tauri/target/release/bundle/macos
           for app in *.app; do
@@ -75,6 +166,10 @@ jobs:
           done
 
       - name: Upload artifacts
+        if: >
+          (github.event_name == 'push') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'macos-latest' && inputs.build_macos == 'true') ||
+          (github.event_name == 'workflow_dispatch' && matrix.platform == 'windows-latest' && inputs.build_windows == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-release
@@ -87,8 +182,11 @@ jobs:
 
   release:
     needs: build
+    if: >
+      (github.event_name == 'push' && github.ref_type == 'tag') ||
+      (github.event_name == 'workflow_dispatch' && inputs.skip_release == false)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -99,6 +197,7 @@ jobs:
         run: ls -R artifacts
 
       - name: Create Release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
           files: |
@@ -113,5 +212,26 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Manual Release (Testing)
+        if: github.event_name == 'workflow_dispatch' && inputs.skip_release == false
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: test-${{ github.run_number }}
+          name: Test Release ${{ github.run_number }}
+          files: |
+            artifacts/macos-latest-universal-release/*.dmg
+            artifacts/macos-latest-universal-release/*.app.zip
+            artifacts/macos-latest-x64-release/*.dmg
+            artifacts/macos-latest-x64-release/*.app.zip
+            artifacts/macos-latest-arm64-release/*.dmg
+            artifacts/macos-latest-arm64-release/*.app.zip
+            artifacts/windows-latest-x64-release/*.exe
+            artifacts/windows-latest-x64-release/*.msi
+          generate_release_notes: false
+          draft: true
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
