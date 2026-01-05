@@ -69,6 +69,10 @@ jobs:
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
           echo "Skip Release: ${{ github.event.inputs.skip_release }}"
+          echo "Skip Build: ${{ github.event_name == 'workflow_dispatch' && (
+            (matrix.platform == 'macos-latest' && !github.event.inputs.build_macos) ||
+            (matrix.platform == 'windows-latest' && !github.event.inputs.build_windows)
+          ) }}"
 
       - name: Skip build
         if: |
@@ -95,12 +99,6 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
-
-      - name: 安装 WiX 工具集
-        if: matrix.platform == 'windows-latest'
-        run: |
-          choco install wixtoolset -y
-          echo "WIX=C:\Program Files (x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
 
       - name: Install Node.js
         uses: actions/setup-node@v4
