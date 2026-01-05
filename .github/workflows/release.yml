@@ -58,12 +58,17 @@ jobs:
 
       - name: Print environment info
         run: |
+        
+          echo "Build macOS versions: ${{ github.event.inputs.build_macos }}"
+          echo "Build Windows version: ${{ github.event.inputs.build_windows }}"
           echo "Event: ${{ github.event_name }}"
           echo "Ref: ${{ github.ref }}"
           echo "Ref Type: ${{ github.ref_type }}"
           echo "Platform: ${{ matrix.platform }}"
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
+          echo "WebView2: ${{ matrix.webview2 || 'none' }}"
+          echo "Skip Release: ${{ github.event.inputs.skip_release }}"
 
       - name: Skip build
         if: |
@@ -127,7 +132,7 @@ jobs:
       - name: Configure WebView2 bundling (Windows only)
         if: matrix.platform == 'windows-latest'
         run: |
-          $webviewMode = if ('${{ matrix.webview2 }}' -eq 'with') { 'embedInstaller' } else { 'downloadBootstrapper' }
+          $webviewMode = if ('${{ matrix.webview2 }}' -eq 'with') { 'embedBootstrapper' } else { 'downloadBootstrapper' }
           $configPath = 'src-tauri/tauri.conf.json'
           $config = Get-Content $configPath -Raw | ConvertFrom-Json
           $config.bundle.windows.webviewInstallMode.type = $webviewMode
