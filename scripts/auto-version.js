@@ -223,7 +223,7 @@ function main() {
     const version = generateVersion();
     updateAllConfigs(version);
     console.log(`\n🏗️  已更新为构建版本: ${version}`);
-  } else if (/^v?\d+\.\d+\.\d+$/.test(args[0])) {
+  } else if (/^v?\d+\.\d+\.\d+(-\d+)?$/.test(args[0])) {
     // 手动设置版本
     const version = args[0].replace(/^v/, '');
     console.log(`🔖 手动设置版本: ${version}`);
