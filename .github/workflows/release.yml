@@ -56,6 +56,14 @@ jobs:
     continue-on-error: true
 
     steps:
+      - name: Guard - skip if not needed
+        if: ${{ !matrix.condition }}
+        run: |
+          echo "Skipping this matrix (condition=false)"
+          # 只是正常退出，不失败
+          exit 1
+        shell: bash
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
