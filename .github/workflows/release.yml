@@ -16,6 +16,11 @@ on:
         required: true
         default: true
         type: boolean
+      version:
+        description: 'Manual version number (optional, overrides tag version). Supports SemVer format like X.Y.Z, vX.Y.Z, or X.Y.Z-ABCD'
+        required: false
+        type: string
+        pattern: '^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9]+))?'
       skip_release:
         description: 'Skip creating GitHub release (for testing)'
         required: false
@@ -58,8 +63,8 @@ jobs:
       - name: Skip build
         if: |
           github.event_name == 'workflow_dispatch' && (
-            (matrix.platform == 'macos-latest' && github.event.inputs.build_macos != 'true') ||
-            (matrix.platform == 'windows-latest' && github.event.inputs.build_windows != 'true')
+            (matrix.platform == 'macos-latest' && github.event.inputs.build_macos == false) ||
+            (matrix.platform == 'windows-latest' && github.event.inputs.build_windows == false)
           )
         run: |
           echo "Skipping build for ${{ matrix.platform }}"
@@ -108,8 +113,13 @@ jobs:
       - name: Check Tauri version
         run: pnpm tauri --version
 
-      - name: Sync Program version
+      - name: Sync Program version (auto)
+        if: github.event.inputs.version == ''
         run: pnpm version:sync
+
+      - name: Sync Program version (manual)
+        if: github.event.inputs.version != ''
+        run: pnpm version:set ${{ github.event.inputs.version }}
 
       - name: Build frontend
         run: pnpm build
@@ -186,12 +196,25 @@ jobs:
       - name: Generate update manifest
         id: generate_manifest
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          if [ "$VERSION" = "$GITHUB_REF" ]; then
-            VERSION="0.0.0-test-${{ github.run_number }}"
+          # 优先使用手动输入的版本号
+          MANUAL_VERSION=${{ github.event.inputs.version }}
+          if [ -n "$MANUAL_VERSION" ]; then
+            # 移除可能存在的 v 前缀
+            VERSION=${MANUAL_VERSION#v}
+          else
+            # 从 tag 中获取版本号
+            VERSION=${GITHUB_REF#refs/tags/}
+            if [ "$VERSION" = "$GITHUB_REF" ]; then
+              VERSION="0.0.0-test-${{ github.run_number }}"
+            else
+              # 移除可能存在的 v 前缀
+              VERSION=${VERSION#v}
+            fi
           fi
           
           echo "Version: $VERSION"
+          # 设置为输出参数，供后续步骤使用
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           
           cat > latest-update.json << EOF
           {
@@ -267,8 +290,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == false
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: test-${{ github.run_number }}
-          name: Test Release ${{ github.run_number }}
+          tag_name: ${{ steps.generate_manifest.outputs.version }}
+          name: Release ${{ steps.generate_manifest.outputs.version }}
           files: |
             artifacts/**/*
             latest-update.json
