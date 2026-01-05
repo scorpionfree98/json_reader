@@ -58,7 +58,7 @@ jobs:
     
     steps:
       - name: Skip build
-        if: github.event_name == 'workflow_dispatch' && matrix.build_input == false
+        if: github.event_name == 'workflow_dispatch' && matrix.build_input == 'false'
         run: |
           echo "Skipping build for ${{ matrix.platform }}"
           echo "Build input was: ${{ matrix.build_input }}"
@@ -78,14 +78,6 @@ jobs:
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
-          echo "Build Input: ${{ matrix.build_input }}"
-          echo "Skip Release: ${{ github.event.inputs.skip_release }}"
-          echo "Skip Build 1: ${{ github.event_name == 'workflow_dispatch'  }}"
-          echo "Skip Build 2: ${{ matrix.platform == 'macos-latest'  }}"
-          echo "Skip Build 2: ${{  !github.event.inputs.build_macos }}"
-          echo "Skip Build 3: ${{ matrix.platform == 'windows-latest'}}"
-          echo "Skip Build 3: ${{  !github.event.inputs.build_windows }}"
-          echo "Skip Build 3: ${{  github.event.inputs.build_windows=='false' }}"
 
 
       - name: Setup Rust
@@ -195,7 +187,7 @@ jobs:
     needs: build
     if: |
       (github.event_name == 'push' && github.ref_type == 'tag') ||
-      (github.event_name == 'workflow_dispatch' && !github.event.inputs.skip_release)
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release=='false')
     runs-on: ubuntu-latest
 
     steps:
