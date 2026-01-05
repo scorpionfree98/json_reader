@@ -1,7 +1,7 @@
 {
   "name": "json-formatter-tauri",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0-dev.28+b1d0e52",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,10 +10,9 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "version:sync": "node scripts/auto-version.js",
+    "version:sync": "node scripts/auto-version.js  --build",
     "version:set": "node scripts/auto-version.js",
     "version:show": "node scripts/auto-version.js",
-    "version:build": "node scripts/auto-version.js --build",
     "release:patch": "node scripts/auto-version.js $(node -e \"const pkg=require('./package.json'); const [major,minor,patch]=pkg.version.split('.'); console.log(major+'.'+minor+'.'+(parseInt(patch)+1))\")",
     "release:minor": "node scripts/auto-version.js $(node -e \"const pkg=require('./package.json'); const [major,minor]=pkg.version.split('.'); console.log(major+'.'+(parseInt(minor)+1)+'.0')\")",
     "release:major": "node scripts/auto-version.js $(node -e \"const pkg=require('./package.json'); const [major]=pkg.version.split('.'); console.log((parseInt(major)+1)+'.0.0')\")"

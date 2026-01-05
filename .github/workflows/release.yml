@@ -108,6 +108,9 @@ jobs:
       - name: Check Tauri version
         run: pnpm tauri --version
 
+      - name: Sync Program version
+        run: pnpm version:sync
+
       - name: Build frontend
         run: pnpm build
 
@@ -116,7 +119,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: pnpm tauri
           args: --target ${{ matrix.target }}
