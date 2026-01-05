@@ -17,10 +17,10 @@ on:
         default: true
         type: boolean
       version:
-        description: 'Manual version number (optional, overrides tag version). Supports SemVer format like X.Y.Z, vX.Y.Z, or X.Y.Z-ABCD'
+        description: 'Manual version number (optional, overrides tag version). Supports SemVer format like X.Y.Z, vX.Y.Z'
         required: false
         type: string
-        pattern: '^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9]+))?'
+        pattern: '^v?([0-9]+)\.([0-9]+)\.([0-9]+)'
       skip_release:
         description: 'Skip creating GitHub release (for testing)'
         required: false
@@ -42,6 +42,11 @@ jobs:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
+            webview2: "with"
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            webview2: "without"
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
@@ -119,6 +124,18 @@ jobs:
       - name: Check Tauri version
         run: pnpm tauri --version
 
+      - name: Configure WebView2 bundling (Windows only)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          $webviewMode = if ('${{ matrix.webview2 }}' -eq 'with') { 'embedInstaller' } else { 'downloadBootstrapper' }
+          $configPath = 'src-tauri/tauri.conf.json'
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+          $config.bundle.windows.webviewInstallMode.type = $webviewMode
+          $config | ConvertTo-Json -Depth 10 | Set-Content $configPath
+          Write-Host "Set WebView2 install mode to: $webviewMode"
+          Get-Content $configPath | Select-String -Pattern "webviewInstallMode"
+        shell: pwsh
+
       - name: Sync Program version (auto)
         if: github.event.inputs.version == ''
         run: pnpm version:sync
@@ -153,7 +170,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-release
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
           path: src-tauri/target/${{ matrix.target }}/release/bundle/
           if-no-files-found: error
           retention-days: 1
@@ -162,7 +179,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: hashFiles('src-tauri/target/*/release/bundle/update/**/*') != ''
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-signature
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-signature
           path: src-tauri/target/${{ matrix.target }}/release/bundle/update/
           if-no-files-found: ignore
           retention-days: 1
@@ -260,7 +277,15 @@ jobs:
           EOF
           fi
           
-          if [ -f "signatures/windows-latest-x64-signature/signature.sig" ]; then
+          # Check for Windows signature with WebView2 first, then without
+          WINDOWS_SIGNATURE_PATH=""
+          if [ -f "signatures/windows-latest-x64-withwebview2-signature/signature.sig" ]; then
+            WINDOWS_SIGNATURE_PATH="signatures/windows-latest-x64-withwebview2-signature/signature.sig"
+          elif [ -f "signatures/windows-latest-x64-withoutwebview2-signature/signature.sig" ]; then
+            WINDOWS_SIGNATURE_PATH="signatures/windows-latest-x64-withoutwebview2-signature/signature.sig"
+          fi
+          
+          if [ -n "$WINDOWS_SIGNATURE_PATH" ]; then
             if [ "$FIRST" = true ]; then
               FIRST=false
             else
@@ -268,7 +293,7 @@ jobs:
             fi
             cat >> latest-update.json << EOF
               "windows-x86_64": {
-                "signature": "$(cat signatures/windows-latest-x64-signature/signature.sig)",
+                "signature": "$(cat $WINDOWS_SIGNATURE_PATH)",
                 "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_x64-setup.exe"
               }
           EOF

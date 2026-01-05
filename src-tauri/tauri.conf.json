@@ -44,6 +44,9 @@
     "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。",
     "windows": {
       "allowDowngrades": true,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
       "wix": {
         "language": "zh-CN"
       }
