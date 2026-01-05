@@ -76,7 +76,7 @@ function getCommitCount() {
 // 获取短提交哈希
 function getShortCommitHash() {
   try {
-    const hash = execSync('git rev-parse --short HEAD 2>/dev/null || echo "unknown"', { 
+    const hash = execSync('git rev-parse --short HEAD 2>/dev/null || echo ""', { 
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore']
     });
@@ -96,7 +96,7 @@ function generateVersion() {
   
   // 开发版本
   if (tag === 'v0.0.0' || process.argv.includes('--dev')) {
-    const devVersion = `0.0.0-dev-${commitHash}${commitCount}`;
+    const devVersion = `0.0.0-dev${commitHash}${commitCount}`;
     console.log(`🚀 生成开发版本: ${devVersion}`);
     return devVersion;
   }
@@ -107,7 +107,7 @@ function generateVersion() {
   // 验证版本号格式
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     console.warn(`⚠️ 标签格式错误: ${tag}，使用开发版本`);
-    const devVersion = `0.0.0-dev.${commitCount}+${commitHash}`;
+    const devVersion = `0.0.0-dev.${commitHash}${commitCount}`;
     console.log(`🔄 回退到开发版本: ${devVersion}`);
     return devVersion;
   }
