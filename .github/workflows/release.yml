@@ -70,13 +70,7 @@ jobs:
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
-          echo "If condition: ${{ matrix.if }}"
-          echo "Condition result: ${{ github.event_name == 'workflow_dispatch' }}"
-          echo "Condition result: ${{  github.event.inputs.build_windows == 'false' }}"
-          echo "Condition result: ${{  github.event.inputs.build_macos == 'false' }}"
-          echo "Condition result:${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false' }}"
-          echo "Condition result:${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false')  }}"
-          echo "Condition result:${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') == 'false' }}"
+          echo "Condition: ${{ matrix.condition }}"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -124,7 +118,7 @@ jobs:
       - name: Configure WebView2 bundling (Windows only)
         if: matrix.platform == 'windows-latest'
         run: |
-          $webviewMode = if ('${{ matrix.webview2 }}' -eq 'with') { 'embedBootstrapper' } else { 'downloadBootstrapper' }
+          $webviewMode = if ('${{ matrix.webview2 }}' -eq 'with') { 'offlineInstaller' } else { 'downloadBootstrapper' }
           $configPath = 'src-tauri/tauri.conf.json'
           $config = Get-Content $configPath -Raw | ConvertFrom-Json
           $config.bundle.windows.webviewInstallMode.type = $webviewMode
@@ -185,7 +179,7 @@ jobs:
     needs: build
     if: |
       (github.event_name == 'push' && github.ref_type == 'tag') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release=='false')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == 'false')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -212,93 +206,6 @@ jobs:
           echo "=== Signatures ==="
           find signatures -type f || echo "No signatures found"
 
-      # - name: Generate update manifest
-      #   id: generate_manifest
-      #   run: |
-      #     # 优先使用手动输入的版本号
-      #     MANUAL_VERSION=${{ github.event.inputs.version }}
-      #     if [ -n "$MANUAL_VERSION" ]; then
-      #       # 移除可能存在的 v 前缀
-      #       VERSION=${MANUAL_VERSION#v}
-      #     else
-      #       # 从 tag 中获取版本号
-      #       VERSION=${GITHUB_REF#refs/tags/}
-      #       if [ "$VERSION" = "$GITHUB_REF" ]; then
-      #         VERSION="0.0.0-test-${{ github.run_number }}"
-      #       else
-      #         # 移除可能存在的 v 前缀
-      #         VERSION=${VERSION#v}
-      #       fi
-      #     fi
-
-      #     echo "Version: $VERSION"
-      #     # 设置为输出参数，供后续步骤使用
-      #     echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      #     cat > latest-update.json << EOF
-      #     {
-      #       "version": "$VERSION",
-      #       "notes": "Release notes for version $VERSION",
-      #       "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-      #       "platforms": {
-      #     EOF
-
-      #     FIRST=true
-
-      #     if [ -f "signatures/macos-latest-x64-signature/signature.sig" ]; then
-      #       if [ "$FIRST" = true ]; then
-      #         FIRST=false
-      #       else
-      #         echo "," >> latest-update.json
-      #       fi
-      #       cat >> latest-update.json << EOF
-      #         "darwin-x86_64": {
-      #           "signature": "$(cat signatures/macos-latest-x64-signature/signature.sig)",
-      #           "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_x64.dmg"
-      #         }
-      #     EOF
-      #     fi
-
-      #     if [ -f "signatures/macos-latest-arm64-signature/signature.sig" ]; then
-      #       if [ "$FIRST" = true ]; then
-      #         FIRST=false
-      #       else
-      #         echo "," >> latest-update.json
-      #       fi
-      #       cat >> latest-update.json << EOF
-      #         "darwin-aarch64": {
-      #           "signature": "$(cat signatures/macos-latest-arm64-signature/signature.sig)",
-      #           "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_aarch64.dmg"
-      #         }
-      #     EOF
-      #     fi
-
-      #     # Check for Windows signature with WebView2 first, then without
-      #     WINDOWS_SIGNATURE_PATH=""
-      #     if [ -f "signatures/windows-latest-x64-withwebview2-signature/signature.sig" ]; then
-      #       WINDOWS_SIGNATURE_PATH="signatures/windows-latest-x64-withwebview2-signature/signature.sig"
-      #     elif [ -f "signatures/windows-latest-x64-withoutwebview2-signature/signature.sig" ]; then
-      #       WINDOWS_SIGNATURE_PATH="signatures/windows-latest-x64-withoutwebview2-signature/signature.sig"
-      #     fi
-
-      #     if [ -n "$WINDOWS_SIGNATURE_PATH" ]; then
-      #       if [ "$FIRST" = true ]; then
-      #         FIRST=false
-      #       else
-      #         echo "," >> latest-update.json
-      #       fi
-      #       cat >> latest-update.json << EOF
-      #         "windows-x86_64": {
-      #           "signature": "$(cat $WINDOWS_SIGNATURE_PATH)",
-      #           "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_x64-setup.exe"
-      #         }
-      #     EOF
-      #     fi
-
-      #     echo '}' >> latest-update.json
-      #     echo '}' >> latest-update.json
-
-      #     cat latest-update.json
       - name: Generate update manifest
         id: generate_manifest
         env:
