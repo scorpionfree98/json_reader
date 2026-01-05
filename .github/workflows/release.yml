@@ -3,26 +3,25 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       build_macos:
-        description: 'Build macOS versions'
+        description: "Build macOS versions"
         required: true
         default: true
         type: boolean
       build_windows:
-        description: 'Build Windows version'
+        description: "Build Windows version"
         required: true
         default: true
         type: boolean
       version:
-        description: 'Manual version number (optional, overrides tag version). Supports SemVer format like X.Y.Z, vX.Y.Z'
+        description: "Manual version number (optional, overrides tag version). Supports SemVer format like X.Y.Z, vX.Y.Z"
         required: false
         type: string
-        pattern: '^v?([0-9]+)\.([0-9]+)\.([0-9]+)'
       skip_release:
-        description: 'Skip creating GitHub release (for testing)'
+        description: "Skip creating GitHub release (for testing)"
         required: false
         default: false
         type: boolean
@@ -36,34 +35,27 @@ jobs:
           - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
-            build_input: ${{ github.event.inputs.build_macos }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
-            build_input: ${{ github.event.inputs.build_macos }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "with"
-            build_input: ${{ github.event.inputs.build_windows }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "without"
-            build_input: ${{ github.event.inputs.build_windows }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
     continue-on-error: true
-    
-    steps:
-      - name: Skip build
-        if: github.event_name == 'workflow_dispatch' && matrix.build_input == 'false'
-        run: |
-          echo "Skipping build for ${{ matrix.platform }}"
-          echo "Build input was: ${{ matrix.build_input }}"
-          exit 0
 
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -79,7 +71,6 @@ jobs:
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
 
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -94,12 +85,12 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
@@ -189,7 +180,6 @@ jobs:
       (github.event_name == 'push' && github.ref_type == 'tag') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release=='false')
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -198,14 +188,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: '*release'
+          pattern: "*release"
           merge-multiple: true
 
       - name: Download update signatures
         uses: actions/download-artifact@v4
         with:
           path: signatures
-          pattern: '*signature'
+          pattern: "*signature"
           merge-multiple: true
 
       - name: Display structure of downloaded files
@@ -233,11 +223,11 @@ jobs:
       #         VERSION=${VERSION#v}
       #       fi
       #     fi
-          
+
       #     echo "Version: $VERSION"
       #     # 设置为输出参数，供后续步骤使用
       #     echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+
       #     cat > latest-update.json << EOF
       #     {
       #       "version": "$VERSION",
@@ -245,9 +235,9 @@ jobs:
       #       "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
       #       "platforms": {
       #     EOF
-          
+
       #     FIRST=true
-          
+
       #     if [ -f "signatures/macos-latest-x64-signature/signature.sig" ]; then
       #       if [ "$FIRST" = true ]; then
       #         FIRST=false
@@ -261,7 +251,7 @@ jobs:
       #         }
       #     EOF
       #     fi
-          
+
       #     if [ -f "signatures/macos-latest-arm64-signature/signature.sig" ]; then
       #       if [ "$FIRST" = true ]; then
       #         FIRST=false
@@ -275,7 +265,7 @@ jobs:
       #         }
       #     EOF
       #     fi
-          
+
       #     # Check for Windows signature with WebView2 first, then without
       #     WINDOWS_SIGNATURE_PATH=""
       #     if [ -f "signatures/windows-latest-x64-withwebview2-signature/signature.sig" ]; then
@@ -283,7 +273,7 @@ jobs:
       #     elif [ -f "signatures/windows-latest-x64-withoutwebview2-signature/signature.sig" ]; then
       #       WINDOWS_SIGNATURE_PATH="signatures/windows-latest-x64-withoutwebview2-signature/signature.sig"
       #     fi
-          
+
       #     if [ -n "$WINDOWS_SIGNATURE_PATH" ]; then
       #       if [ "$FIRST" = true ]; then
       #         FIRST=false
@@ -297,10 +287,10 @@ jobs:
       #         }
       #     EOF
       #     fi
-          
+
       #     echo '}' >> latest-update.json
       #     echo '}' >> latest-update.json
-          
+
       #     cat latest-update.json
       - name: Generate update manifest
         id: generate_manifest
@@ -308,7 +298,7 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
           node .github/scripts/generate-manifest.js
-          
+
       - name: Create Release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
