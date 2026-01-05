@@ -91,10 +91,10 @@ jobs:
       - name: Check Cargo version
         run: cargo --version
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
+      # - name: Rust cache
+      #   uses: swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: './src-tauri -> target'
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -131,7 +131,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tauriScript: pnpm tauri:build
+          tauriScript: pnpm tauri
           args: --target ${{ matrix.target }}
 
       - name: Compress .app files (macOS only)
