@@ -82,7 +82,7 @@ function getShortCommitHash() {
     });
     return cleanString(hash);
   } catch (error) {
-    return 'unknown';
+    return '';
   }
 }
 
@@ -96,7 +96,7 @@ function generateVersion() {
   
   // 开发版本
   if (tag === 'v0.0.0' || process.argv.includes('--dev')) {
-    const devVersion = `0.0.0-dev.${commitCount}+${commitHash}`;
+    const devVersion = `0.0.0-dev-${commitHash}${commitCount}`;
     console.log(`🚀 生成开发版本: ${devVersion}`);
     return devVersion;
   }
