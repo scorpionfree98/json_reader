@@ -29,9 +29,6 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            target: universal-apple-darwin
-            arch: universal
-          - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
           - platform: macos-latest
@@ -58,24 +55,12 @@ jobs:
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
 
-      - name: Check if should build
-        id: check_build
-        run: |
-          SHOULD_BUILD=false
-          if [ "${{ github.event_name }}" == "push" ]; then
-            SHOULD_BUILD=true
-          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            if [ "${{ matrix.platform }}" == "macos-latest" ] && [ "${{ github.event.inputs.build_macos }}" == "true" ]; then
-              SHOULD_BUILD=true
-            elif [ "${{ matrix.platform }}" == "windows-latest" ] && [ "${{ github.event.inputs.build_windows }}" == "true" ]; then
-              SHOULD_BUILD=true
-            fi
-          fi
-          echo "should_build=$SHOULD_BUILD" >> $GITHUB_OUTPUT
-          echo "Should build: $SHOULD_BUILD"
-
       - name: Skip build
-        if: steps.check_build.outputs.should_build != 'true'
+        if: |
+          github.event_name == 'workflow_dispatch' && (
+            (matrix.platform == 'macos-latest' && github.event.inputs.build_macos != 'true') ||
+            (matrix.platform == 'windows-latest' && github.event.inputs.build_windows != 'true')
+          )
         run: |
           echo "Skipping build for ${{ matrix.platform }}"
           exit 0
@@ -91,10 +76,10 @@ jobs:
       - name: Check Cargo version
         run: cargo --version
 
-      # - name: Rust cache
-      #   uses: swatinem/rust-cache@v2
-      #   with:
-      #     workspaces: './src-tauri -> target'
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
 
       - name: Install Node.js
         uses: actions/setup-node@v4
