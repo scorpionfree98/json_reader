@@ -142,6 +142,15 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload update signature
+        uses: actions/upload-artifact@v4
+        if: hashFiles('src-tauri/target/*/release/bundle/update/**/*') != ''
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-signature
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/update/
+          if-no-files-found: ignore
+          retention-days: 1
+
   release:
     needs: build
     if: |
@@ -150,6 +159,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -157,14 +169,94 @@ jobs:
           pattern: '*release'
           merge-multiple: true
 
+      - name: Download update signatures
+        uses: actions/download-artifact@v4
+        with:
+          path: signatures
+          pattern: '*signature'
+          merge-multiple: true
+
       - name: Display structure of downloaded files
-        run: find artifacts -type f
+        run: |
+          echo "=== Release Artifacts ==="
+          find artifacts -type f
+          echo "=== Signatures ==="
+          find signatures -type f || echo "No signatures found"
+
+      - name: Generate update manifest
+        id: generate_manifest
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          if [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION="0.0.0-test-${{ github.run_number }}"
+          fi
+          
+          echo "Version: $VERSION"
+          
+          cat > latest-update.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "Release notes for version $VERSION",
+            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "platforms": {
+          EOF
+          
+          FIRST=true
+          
+          if [ -f "signatures/macos-latest-x64-signature/signature.sig" ]; then
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo "," >> latest-update.json
+            fi
+            cat >> latest-update.json << EOF
+              "darwin-x86_64": {
+                "signature": "$(cat signatures/macos-latest-x64-signature/signature.sig)",
+                "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_x64.dmg"
+              }
+          EOF
+          fi
+          
+          if [ -f "signatures/macos-latest-arm64-signature/signature.sig" ]; then
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo "," >> latest-update.json
+            fi
+            cat >> latest-update.json << EOF
+              "darwin-aarch64": {
+                "signature": "$(cat signatures/macos-latest-arm64-signature/signature.sig)",
+                "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_aarch64.dmg"
+              }
+          EOF
+          fi
+          
+          if [ -f "signatures/windows-latest-x64-signature/signature.sig" ]; then
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo "," >> latest-update.json
+            fi
+            cat >> latest-update.json << EOF
+              "windows-x86_64": {
+                "signature": "$(cat signatures/windows-latest-x64-signature/signature.sig)",
+                "url": "https://github.com/scorpionfree98/json_reader/releases/download/$VERSION/JSON 格式化工具_${VERSION}_x64-setup.exe"
+              }
+          EOF
+          fi
+          
+          echo '}' >> latest-update.json
+          echo '}' >> latest-update.json
+          
+          cat latest-update.json
 
       - name: Create Release
         if: github.event_name == 'push' && github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/**/*
+          files: |
+            artifacts/**/*
+            latest-update.json
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -177,7 +269,9 @@ jobs:
         with:
           tag_name: test-${{ github.run_number }}
           name: Test Release ${{ github.run_number }}
-          files: artifacts/**/*
+          files: |
+            artifacts/**/*
+            latest-update.json
           generate_release_notes: false
           draft: true
           prerelease: true

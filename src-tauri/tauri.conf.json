@@ -1,7 +1,7 @@
 {
   "identifier": "com.example.jsonformatter",
   "productName": "JSON 格式化工具",
-  "version": "0.0.0-dev.31+8880279",
+  "version": "0.0.0-dev-67d590032",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
@@ -45,10 +45,11 @@
   },
   "plugins": {
     "updater": {
-      "active": false,
+      "active": true,
+      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1QjA2Q0E0NUFCOUI3QzcKUldUSHQ3bGFwR3l3RlkwSnBMdk1kN2tlek5SOWhCOU90bHFSVEdEK2Y0T1BXL08xSHhleEtKckEK",
       "endpoints": [
-        "https://example.com/updates/{{target}}-{{arch}}/{{current_version}}"
+        "https://github.com/scorpionfree98/json_reader/releases/latest/download/latest-update.json"
       ]
     }
   }
