@@ -22,11 +22,6 @@ on:
         default: false
         type: boolean
 
-# 可重用条件
-env:
-  SHOULD_BUILD_MACOS: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
-  SHOULD_BUILD_WINDOWS: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'true') }}
-
 jobs:
   build:
     strategy:
@@ -36,23 +31,24 @@ jobs:
           - platform: macos-latest
             target: universal-apple-darwin
             arch: universal
-            should_run: ${{ env.SHOULD_BUILD_MACOS }}
+            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
-            should_run: ${{ env.SHOULD_BUILD_MACOS }}
+            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
-            should_run: ${{ env.SHOULD_BUILD_MACOS }}
+            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'true') }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
-            should_run: ${{ env.SHOULD_BUILD_WINDOWS }}
+            should_run: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'true') }}
 
     # 作业级别的条件
     if: matrix.should_run
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
     
     steps:
       - name: Checkout repository
@@ -72,6 +68,12 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Check Rust version
+        run: rustc --version
+
+      - name: Check Cargo version
+        run: cargo --version
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
@@ -87,11 +89,22 @@ jobs:
         with:
           version: 8
 
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
       - name: Print pnpm version
         run: pnpm --version
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Check Tauri version
+        run: pnpm tauri --version
 
       - name: Build frontend
         run: pnpm build
@@ -110,7 +123,7 @@ jobs:
           cd src-tauri/target/release/bundle/macos
           for app in *.app; do
             if [ -d "$app" ]; then
-              zip -r "${app}.zip" "$app"
+              ditto -c -k --sequesterRsrc --keepParent "$app" "${app}.zip"
             fi
           done
 
