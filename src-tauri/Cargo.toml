@@ -1,7 +1,7 @@
 [package]
 name = "json_formatter_tauri"
-version = "0.0.0-dev.30+2f7204e"
-edition = "2"
+version = "0.0.0-dev.31+8880279"
+edition = "2021"
 
 [dependencies]
 tauri = { version = "2.9", features = ["tray-icon"] }

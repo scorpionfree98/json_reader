@@ -1,7 +1,7 @@
 {
   "name": "json-formatter-tauri",
   "private": true,
-  "version": "0.0.0-dev.30+2f7204e",
+  "version": "0.0.0-dev.31+8880279",
   "type": "module",
   "scripts": {
     "dev": "vite",
