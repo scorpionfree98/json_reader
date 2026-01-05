@@ -70,6 +70,13 @@ jobs:
           echo "Target: ${{ matrix.target }}"
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
+          echo "If condition: ${{ matrix.if }}"
+          echo "Condition result: ${{ github.event_name == 'workflow_dispatch' }}"
+          echo "Condition result: ${{  github.event.inputs.build_windows == 'false' }}"
+          echo "Condition result: ${{  github.event.inputs.build_macos == 'false' }}"
+          echo "Condition result:${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false' }}"
+          echo "Condition result:${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false')  }}"
+          echo "Condition result:${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') == 'false' }}"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
