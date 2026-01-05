@@ -1,6 +1,6 @@
 [package]
 name = "json_formatter_tauri"
-version = "0.0.0-dev.31+8880279"
+version = "0.0.0-1234"
 edition = "2021"
 
 [dependencies]

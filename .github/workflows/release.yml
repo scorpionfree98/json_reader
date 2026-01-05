@@ -63,8 +63,8 @@ jobs:
       - name: Skip build
         if: |
           github.event_name == 'workflow_dispatch' && (
-            (matrix.platform == 'macos-latest' && github.event.inputs.build_macos == false) ||
-            (matrix.platform == 'windows-latest' && github.event.inputs.build_windows == false)
+            (matrix.platform == 'macos-latest' && !github.event.inputs.build_macos) ||
+            (matrix.platform == 'windows-latest' && !github.event.inputs.build_windows)
           )
         run: |
           echo "Skipping build for ${{ matrix.platform }}"
@@ -171,7 +171,7 @@ jobs:
     needs: build
     if: |
       (github.event_name == 'push' && github.ref_type == 'tag') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == false)
+      (github.event_name == 'workflow_dispatch' && !github.event.inputs.skip_release)
     runs-on: ubuntu-latest
 
     steps:
@@ -293,7 +293,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Manual Release (Testing)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == false
+        if: github.event_name == 'workflow_dispatch' && !github.event.inputs.skip_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.generate_manifest.outputs.version }}

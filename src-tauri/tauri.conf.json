@@ -1,7 +1,7 @@
 {
   "identifier": "com.example.jsonformatter",
   "productName": "JSON 格式化工具",
-  "version": "0.0.0-dev-67d590032",
+  "version": "0.0.0-1234",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
@@ -41,7 +41,23 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "JSON格式化工具",
-    "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。"
+    "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。",
+    "windows": {
+      "allowDowngrades": true,
+      "certificateThumbprint": null,
+      "digestAlgorithm": null,
+      "nsis": null,
+      "signCommand": null,
+      "timestampUrl": null,
+      "tsp": false,
+      "webviewInstallMode": {
+        "silent": true,
+        "type": "downloadBootstrapper"
+      },
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   },
   "plugins": {
     "updater": {
