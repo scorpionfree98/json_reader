@@ -219,7 +219,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          node .github/scripts/generate-manifest.js
+          node .github/workflows/scripts/generate-manifest.js
 
       - name: Create Release
         if: github.event_name == 'push' && github.ref_type == 'tag'
