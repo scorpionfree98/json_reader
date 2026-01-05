@@ -1,7 +1,7 @@
 {
   "identifier": "com.example.jsonformatter",
   "productName": "JSON 格式化工具",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
@@ -43,11 +43,10 @@
     "shortDescription": "JSON格式化工具",
     "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。"
   },
-  
   "plugins": {
     "updater": {
       "active": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVGNEVGOUM5Q0FGODMwNkEKUldScU1Qakt5ZmxPWC9hb1lRc1pEZGNySkFSQktZV0F1MEF6M3VsbWFYWW4wVllQRkR2WVZXYjMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1QjA2Q0E0NUFCOUI3QzcKUldUSHQ3bGFwR3l3RlkwSnBMdk1kN2tlek5SOWhCOU90bHFSVEdEK2Y0T1BXL08xSHhleEtKckEK",
       "endpoints": [
         "https://example.com/updates/{{target}}-{{arch}}/{{current_version}}"
       ]
