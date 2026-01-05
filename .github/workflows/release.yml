@@ -35,21 +35,21 @@ jobs:
           - platform: macos-latest
             target: x86_64-apple-darwin
             arch: x64
-            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}== 'true'
           - platform: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
-            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}== 'true'
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "with"
-            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}== 'true'
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             arch: x64
             webview2: "without"
-            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}
+            if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_windows == 'false') }}== 'true'
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
@@ -320,7 +320,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Manual Release (Testing)
-        if: github.event_name == 'workflow_dispatch' && !github.event.inputs.skip_release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == 'true'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.generate_manifest.outputs.version }}
