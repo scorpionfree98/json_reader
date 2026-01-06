@@ -8,6 +8,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function generateManifest() {
+  const tauriConfigPath = path.join(__dirname, '..', '..', '..', 'src-tauri', 'tauri.conf.json');
+  const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
+  const productName = tauriConfig.productName || 'JSON格式化工具';
+
   // 从环境变量获取版本号
   const manualVersion = process.env.INPUT_VERSION || '';
   const githubRef = process.env.GITHUB_REF || '';
@@ -42,27 +46,33 @@ async function generateManifest() {
     {
       key: 'darwin-x86_64',
       sigPath: 'signatures/macos-latest-x64-signature/signature.sig',
-      fileName: `JSON 格式化工具_${version}_x64.dmg`
+      fileName: `${productName}_${version}-macos-x64.dmg`
     },
     {
       key: 'darwin-aarch64',
       sigPath: 'signatures/macos-latest-arm64-signature/signature.sig',
-      fileName: `JSON 格式化工具_${version}_aarch64.dmg`
+      fileName: `${productName}_${version}-macos-arm64.dmg`
     }
   ];
 
   // Windows 平台（检查不同签名文件）
   const windowsSigFiles = [
-    'signatures/windows-latest-x64-withwebview2-signature/signature.sig',
-    'signatures/windows-latest-x64-withoutwebview2-signature/signature.sig'
+    {
+      sigPath: 'signatures/windows-latest-x64-withwebview2-signature/signature.sig',
+      fileName: `${productName}_${version}-windows-x64-withwebview2.exe`
+    },
+    {
+      sigPath: 'signatures/windows-latest-x64-withoutwebview2-signature/signature.sig',
+      fileName: `${productName}_${version}-windows-x64-withoutwebview2.exe`
+    }
   ];
 
-  for (const sigFile of windowsSigFiles) {
-    if (fs.existsSync(sigFile)) {
+  for (const { sigPath, fileName } of windowsSigFiles) {
+    if (fs.existsSync(sigPath)) {
       platforms.push({
         key: 'windows-x86_64',
-        sigPath: sigFile,
-        fileName: `JSON 格式化工具_${version}_x64-setup.exe`
+        sigPath,
+        fileName
       });
       break;
     }

@@ -166,6 +166,48 @@ jobs:
             fi
           done
 
+      - name: Rename build artifacts
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ github.ref_name }}"
+          fi
+          VERSION=$(echo "$VERSION" | sed 's/^v//')
+          
+          PRODUCT_NAME=$(cat src-tauri/tauri.conf.json | grep -o '"productName"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
+          if [ -z "$PRODUCT_NAME" ]; then
+            PRODUCT_NAME="JSON格式化工具"
+          fi
+          
+          cd src-tauri/target/${{ matrix.target }}/release/bundle
+          
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            ARCH="${{ matrix.arch }}"
+            if [ "$ARCH" = "x64" ]; then
+              ARCH="x64"
+            elif [ "$ARCH" = "arm64" ]; then
+              ARCH="arm64"
+            fi
+            NEW_NAME="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.dmg"
+            if [ -f "dmg/*.dmg" ]; then
+              mv dmg/*.dmg "$NEW_NAME" 2>/dev/null || true
+            fi
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            WEBVIEW="${{ matrix.webview2 }}"
+            if [ "$WEBVIEW2" = "with" ]; then
+              WEBVIEW="withwebview2"
+            else
+              WEBVIEW="withoutwebview2"
+            fi
+            NEW_NAME="${PRODUCT_NAME}_${VERSION}-windows-x64-${WEBVIEW}.exe"
+            if [ -f "msi/*.msi" ]; then
+              mv msi/*.msi "$NEW_NAME" 2>/dev/null || true
+            elif [ -f "nsis/*.exe" ]; then
+              mv nsis/*.exe "$NEW_NAME" 2>/dev/null || true
+            fi
+          fi
+        shell: bash
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
