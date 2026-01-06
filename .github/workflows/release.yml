@@ -168,6 +168,11 @@ jobs:
 
       - name: Rename build artifacts
         run: |
+          PRODUCT_NAME=$(node -p "require('./src-tauri/tauri.conf.json').productName")
+          if [ -z "$PRODUCT_NAME" ]; then
+            PRODUCT_NAME="JSON格式化工具"
+          fi
+          
           VERSION="${{ github.event.inputs.version }}"
           if [ -z "$VERSION" ]; then
             VERSION="${{ github.ref_name }}"
@@ -183,12 +188,12 @@ jobs:
             elif [ "$ARCH" = "arm64" ]; then
               ARCH="arm64"
             fi
-            NEW_NAME="JSON 格式化工具_${VERSION}-macos-${ARCH}.dmg"
-            if [ -f "dmg/*.dmg" ]; then
+            NEW_NAME="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.dmg"
+            if ls dmg/*.dmg 1> /dev/null 2>&1; then
               mv dmg/*.dmg "$NEW_NAME" 2>/dev/null || true
             fi
-            NEW_NAME_ZIP="JSON 格式化工具_${VERSION}-macos-${ARCH}.app.zip"
-            if [ -f "macos/*.zip" ]; then
+            NEW_NAME_ZIP="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.app.zip"
+            if ls macos/*.zip 1> /dev/null 2>&1; then
               mv macos/*.zip "$NEW_NAME_ZIP" 2>/dev/null || true
             fi
           elif [ "${{ runner.os }}" = "Windows" ]; then
@@ -198,10 +203,10 @@ jobs:
             else
               WEBVIEW="withoutwebview2"
             fi
-            NEW_NAME="JSON 格式化工具_${VERSION}-windows-x64-${WEBVIEW}.exe"
-            if [ -f "msi/*.msi" ]; then
+            NEW_NAME="${PRODUCT_NAME}_${VERSION}-windows-x64-${WEBVIEW}.exe"
+            if ls msi/*.msi 1> /dev/null 2>&1; then
               mv msi/*.msi "$NEW_NAME" 2>/dev/null || true
-            elif [ -f "nsis/*.exe" ]; then
+            elif ls nsis/*.exe 1> /dev/null 2>&1; then
               mv nsis/*.exe "$NEW_NAME" 2>/dev/null || true
             fi
           fi
