@@ -216,7 +216,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-release
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/*.zip
