@@ -236,9 +236,8 @@ jobs:
 
       - name: Upload update signature
         uses: actions/upload-artifact@v4
-        if: hashFiles('src-tauri/target/*/release/bundle/update/**/*') != ''
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-signature
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 == 'with' && '-webview2' || '' }}-signature
           path: src-tauri/target/${{ matrix.target }}/release/bundle/update/
           if-no-files-found: ignore
           retention-days: 1
