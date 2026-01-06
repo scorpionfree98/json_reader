@@ -1,5 +1,9 @@
 #![cfg_attr(
-    any(target_os = "ios", target_os = "android"),
+    any(
+        target_os = "ios",
+        target_os = "android",
+        all(not(debug_assertions), target_os = "windows")
+    ),
     windows_subsystem = "windows"
 )]
 

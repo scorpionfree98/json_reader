@@ -47,7 +47,6 @@
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       },
-      "subsystem": "windows",
       "wix": {
         "language": "zh-CN"
       }
