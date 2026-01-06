@@ -174,11 +174,6 @@ jobs:
           fi
           VERSION=$(echo "$VERSION" | sed 's/^v//')
           
-          PRODUCT_NAME=$(cat src-tauri/tauri.conf.json | grep -o '"productName"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4)
-          if [ -z "$PRODUCT_NAME" ]; then
-            PRODUCT_NAME="JSON格式化工具"
-          fi
-          
           cd src-tauri/target/${{ matrix.target }}/release/bundle
           
           if [ "${{ runner.os }}" = "macOS" ]; then
@@ -188,9 +183,13 @@ jobs:
             elif [ "$ARCH" = "arm64" ]; then
               ARCH="arm64"
             fi
-            NEW_NAME="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.dmg"
+            NEW_NAME="JSON 格式化工具_${VERSION}-macos-${ARCH}.dmg"
             if [ -f "dmg/*.dmg" ]; then
               mv dmg/*.dmg "$NEW_NAME" 2>/dev/null || true
+            fi
+            NEW_NAME_ZIP="JSON 格式化工具_${VERSION}-macos-${ARCH}.app.zip"
+            if [ -f "macos/*.zip" ]; then
+              mv macos/*.zip "$NEW_NAME_ZIP" 2>/dev/null || true
             fi
           elif [ "${{ runner.os }}" = "Windows" ]; then
             WEBVIEW="${{ matrix.webview2 }}"
@@ -199,7 +198,7 @@ jobs:
             else
               WEBVIEW="withoutwebview2"
             fi
-            NEW_NAME="${PRODUCT_NAME}_${VERSION}-windows-x64-${WEBVIEW}.exe"
+            NEW_NAME="JSON 格式化工具_${VERSION}-windows-x64-${WEBVIEW}.exe"
             if [ -f "msi/*.msi" ]; then
               mv msi/*.msi "$NEW_NAME" 2>/dev/null || true
             elif [ -f "nsis/*.exe" ]; then
@@ -212,7 +211,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/*.zip
+            src-tauri/target/${{ matrix.target }}/release/bundle/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/*.exe
           if-no-files-found: error
           retention-days: 1
 
@@ -268,7 +271,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/**/*
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.msi
+            artifacts/**/*.exe
             latest-update.json
           generate_release_notes: true
           draft: false
@@ -283,7 +289,10 @@ jobs:
           tag_name: ${{ steps.generate_manifest.outputs.version }}
           name: Release ${{ steps.generate_manifest.outputs.version }}
           files: |
-            artifacts/**/*
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.msi
+            artifacts/**/*.exe
             latest-update.json
           generate_release_notes: false
           draft: true

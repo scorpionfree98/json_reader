@@ -8,10 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function generateManifest() {
-  const tauriConfigPath = path.join(__dirname, '..', '..', '..', 'src-tauri', 'tauri.conf.json');
-  const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
-  const productName = tauriConfig.productName || 'JSON格式化工具';
-
   // 从环境变量获取版本号
   const manualVersion = process.env.INPUT_VERSION || '';
   const githubRef = process.env.GITHUB_REF || '';
@@ -46,12 +42,12 @@ async function generateManifest() {
     {
       key: 'darwin-x86_64',
       sigPath: 'signatures/macos-latest-x64-signature/signature.sig',
-      fileName: `${productName}_${version}-macos-x64.dmg`
+      fileName: `JSON 格式化工具_${version}-macos-x64.dmg`
     },
     {
       key: 'darwin-aarch64',
       sigPath: 'signatures/macos-latest-arm64-signature/signature.sig',
-      fileName: `${productName}_${version}-macos-arm64.dmg`
+      fileName: `JSON 格式化工具_${version}-macos-arm64.dmg`
     }
   ];
 
@@ -59,11 +55,11 @@ async function generateManifest() {
   const windowsSigFiles = [
     {
       sigPath: 'signatures/windows-latest-x64-withwebview2-signature/signature.sig',
-      fileName: `${productName}_${version}-windows-x64-withwebview2.exe`
+      fileName: `JSON 格式化工具_${version}-windows-x64-withwebview2.exe`
     },
     {
       sigPath: 'signatures/windows-latest-x64-withoutwebview2-signature/signature.sig',
-      fileName: `${productName}_${version}-windows-x64-withoutwebview2.exe`
+      fileName: `JSON 格式化工具_${version}-windows-x64-withoutwebview2.exe`
     }
   ];
 
