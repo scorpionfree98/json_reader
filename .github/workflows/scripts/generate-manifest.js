@@ -33,10 +33,12 @@ async function generateManifest() {
   let productName = 'JSON格式化工具';
   try {
     const tauriConfigPath = path.join(__dirname, '../../../src-tauri/tauri.conf.json');
+    console.log('尝试读取 tauri.conf.json:', tauriConfigPath);
     const tauriConfig = JSON.parse(fs.readFileSync(tauriConfigPath, 'utf8'));
     productName = tauriConfig.productName || productName;
+    console.log('读取到的产品名称:', productName);
   } catch (error) {
-    console.warn('无法读取 tauri.conf.json，使用默认产品名称');
+    console.warn('无法读取 tauri.conf.json，使用默认产品名称:', error.message);
   }
 
   // 创建基础 manifest
@@ -73,19 +75,31 @@ async function generateManifest() {
     }
   ];
 
+  console.log('\n=== 检查签名文件 ===');
   for (const { sigPath, fileName } of windowsSigFiles) {
-    if (fs.existsSync(sigPath)) {
+    const exists = fs.existsSync(sigPath);
+    console.log(`检查签名文件: ${sigPath}`);
+    console.log(`  文件名: ${fileName}`);
+    console.log(`  存在: ${exists}`);
+    if (exists) {
       platforms.push({
         key: 'windows-x86_64',
         sigPath,
         fileName
       });
+      console.log(`  -> 已添加到平台列表`);
       break;
     }
   }
 
   // 为每个存在的平台文件添加信息
+  console.log('\n=== 处理平台文件 ===');
   for (const platform of platforms) {
+    console.log(`处理平台: ${platform.key}`);
+    console.log(`  签名路径: ${platform.sigPath}`);
+    console.log(`  文件名: ${platform.fileName}`);
+    console.log(`  文件名编码测试: ${encodeURIComponent(platform.fileName)}`);
+    
     if (fs.existsSync(platform.sigPath)) {
       try {
         const signature = fs.readFileSync(platform.sigPath, 'utf8').trim();
@@ -97,10 +111,14 @@ async function generateManifest() {
           url
         };
         
-        console.log(`已添加平台: ${platform.key}`);
+        console.log(`  -> 成功添加到 manifest`);
+        console.log(`     签名长度: ${signature.length}`);
+        console.log(`     URL: ${url}`);
       } catch (error) {
-        console.warn(`读取 ${platform.key} 签名失败:`, error.message);
+        console.warn(`  -> 读取签名失败:`, error.message);
       }
+    } else {
+      console.log(`  -> 签名文件不存在，跳过`);
     }
   }
 

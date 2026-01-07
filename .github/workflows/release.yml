@@ -166,50 +166,126 @@ jobs:
             fi
           done
 
+      - name: Check for update signature files
+        run: |
+          echo "=== 检查更新签名文件 ==="
+          echo "当前目录: $(pwd)"
+          echo "Bundle 目录: src-tauri/target/${{ matrix.target }}/release/bundle"
+          echo ""
+          echo "Bundle 目录内容:"
+          ls -la src-tauri/target/${{ matrix.target }}/release/bundle/
+          echo ""
+          echo "Update 目录:"
+          if [ -d "src-tauri/target/${{ matrix.target }}/release/bundle/update" ]; then
+            ls -la src-tauri/target/${{ matrix.target }}/release/bundle/update/
+            echo ""
+            echo "签名文件内容:"
+            find src-tauri/target/${{ matrix.target }}/release/bundle/update/ -type f -exec echo "文件: {}" \; -exec cat {} \; -exec echo ""
+          else
+            echo "Update 目录不存在"
+          fi
+          echo ""
+          echo "查找所有 .sig 文件:"
+          find src-tauri/target/${{ matrix.target }}/release/ -name "*.sig" -exec echo "找到: {}" \; || echo "没有找到 .sig 文件"
+        shell: bash
+
       - name: Rename build artifacts
         run: |
+          # 读取产品名称
           PRODUCT_NAME=$(node -p "require('./src-tauri/tauri.conf.json').productName")
-          if [ -z "$PRODUCT_NAME" ]; then
+          if [ -z "$PRODUCT_NAME" ] || [ "$PRODUCT_NAME" = "undefined" ]; then
             PRODUCT_NAME="JSON格式化工具"
           fi
+          # 转义产品名称中的特殊字符
+          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/[^a-zA-Z0-9_.-]/_/g')
           
+          # 确定版本号
           VERSION="${{ github.event.inputs.version }}"
           if [ -z "$VERSION" ]; then
             VERSION="${{ github.ref_name }}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="0.0.0"
           fi
           VERSION=$(echo "$VERSION" | sed 's/^v//')
           
           cd src-tauri/target/${{ matrix.target }}/release/bundle
           
+          echo "=== 重命名构建产物 ==="
+          echo "产品名称: $PRODUCT_NAME"
+          echo "版本号: $VERSION"
+          echo "平台: ${{ runner.os }}"
+          echo "架构: ${{ matrix.arch }}"
+          echo "WebView2: ${{ matrix.webview2 }}"
+          
           if [ "${{ runner.os }}" = "macOS" ]; then
             ARCH="${{ matrix.arch }}"
-            if [ "$ARCH" = "x64" ]; then
-              ARCH="x64"
-            elif [ "$ARCH" = "arm64" ]; then
-              ARCH="arm64"
-            fi
             NEW_NAME="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.dmg"
+            echo "DMG 新名称: $NEW_NAME"
             if ls dmg/*.dmg 1> /dev/null 2>&1; then
-              mv dmg/*.dmg "$NEW_NAME" 2>/dev/null || true
+              mv dmg/*.dmg "$NEW_NAME"
+              echo "DMG 重命名成功"
+            else
+              echo "警告: 未找到 DMG 文件"
             fi
             NEW_NAME_ZIP="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.app.zip"
+            echo "ZIP 新名称: $NEW_NAME_ZIP"
             if ls macos/*.zip 1> /dev/null 2>&1; then
-              mv macos/*.zip "$NEW_NAME_ZIP" 2>/dev/null || true
+              mv macos/*.zip "$NEW_NAME_ZIP"
+              echo "ZIP 重命名成功"
+            else
+              echo "警告: 未找到 ZIP 文件"
             fi
           elif [ "${{ runner.os }}" = "Windows" ]; then
             WEBVIEW="${{ matrix.webview2 }}"
-            if [ "$WEBVIEW2" = "with" ]; then
-              WEBVIEW="withwebview2"
+            if [ "$WEBVIEW" = "with" ]; then
+              WEBVIEW="webview2"
             else
-              WEBVIEW="withoutwebview2"
+              WEBVIEW=""
             fi
-            NEW_NAME="${PRODUCT_NAME}_${VERSION}-windows-x64-${WEBVIEW}.exe"
+            if [ -n "$WEBVIEW" ]; then
+              NEW_NAME_BASE="${PRODUCT_NAME}_${VERSION}-windows-x64-${WEBVIEW}"
+            else
+              NEW_NAME_BASE="${PRODUCT_NAME}_${VERSION}-windows-x64"
+            fi
+            echo "MSI 新名称: ${NEW_NAME_BASE}.msi"
+            echo "NSIS 新名称: ${NEW_NAME_BASE}.exe"
+            # 移动 MSI 文件
             if ls msi/*.msi 1> /dev/null 2>&1; then
-              mv msi/*.msi "$NEW_NAME" 2>/dev/null || true
-            elif ls nsis/*.exe 1> /dev/null 2>&1; then
-              mv nsis/*.exe "$NEW_NAME" 2>/dev/null || true
+              mv msi/*.msi "${NEW_NAME_BASE}.msi"
+              echo "MSI 重命名成功"
+            else
+              echo "警告: 未找到 MSI 文件"
+            fi
+            # 移动 NSIS 文件
+            if ls nsis/*.exe 1> /dev/null 2>&1; then
+              mv nsis/*.exe "${NEW_NAME_BASE}.exe"
+              echo "NSIS 重命名成功"
+            else
+              echo "警告: 未找到 NSIS 文件"
             fi
           fi
+          
+          echo "=== 重命名后的文件 ==="
+          ls -la *.dmg *.zip *.msi *.exe 2>/dev/null || echo "没有找到重命名后的文件"
+        shell: bash
+
+      - name: Show build artifacts tree
+        run: |
+          echo "=== 编译后产物目录结构 ==="
+          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
+          
+          # 检查 tree 命令是否存在
+          if command -v tree &> /dev/null; then
+            tree -L 3 "$BUNDLE_DIR"
+          else
+            # 如果没有 tree 命令，使用 find 命令模拟
+            echo "tree 命令未找到，使用 find 命令显示目录结构:"
+            find "$BUNDLE_DIR" -maxdepth 3 -print | sed -e 's/[^\/]*\//|  /g' -e 's/|  \([^|]\)/|-- \1/'
+          fi
+          
+          echo "=== 产物文件大小 ==="
+          find "$BUNDLE_DIR" -type f -name "*.dmg" -o -name "*.zip" -o -name "*.msi" -o -name "*.exe" | xargs ls -lh 2>/dev/null || echo "未找到产物文件"
         shell: bash
 
       - name: Upload artifacts (macOS)
@@ -282,7 +358,7 @@ jobs:
 
       - name: Create Release
         if: github.event_name == 'push' && github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/**/*.dmg
@@ -298,7 +374,7 @@ jobs:
 
       - name: Manual Release (Testing)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.skip_release == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.generate_manifest.outputs.version }}
           name: Release ${{ steps.generate_manifest.outputs.version }}
