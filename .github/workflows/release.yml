@@ -79,6 +79,7 @@ jobs:
           echo "Arch: ${{ matrix.arch }}"
           echo "WebView2: ${{ matrix.webview2 || 'none' }}"
           echo "Condition: ${{ matrix.condition }}"
+          
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -303,7 +304,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 == 'with' && '-webview2' || '' }}-release
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/*.exe
@@ -313,8 +314,10 @@ jobs:
       - name: Upload update signature
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 == 'with' && '-webview2' || '' }}-signature
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/update/
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-signature
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/update/
+            src-tauri/target/${{ matrix.target }}/release/**/*.sig
           if-no-files-found: ignore
           retention-days: 1
 
