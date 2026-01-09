@@ -156,16 +156,10 @@ jobs:
         with:
           tauriScript: pnpm tauri
           args: --target ${{ matrix.target }}
+          distPath: ../dist
+          projectPath: ./src-tauri
 
-      - name: Compress .app files (macOS only)
-        if: runner.os == 'macOS'
-        run: |
-          cd src-tauri/target/${{ matrix.target }}/release/bundle/macos
-          for app in *.app; do
-            if [ -d "$app" ]; then
-              ditto -c -k --sequesterRsrc --keepParent "$app" "${app}.zip"
-            fi
-          done
+
 
       - name: Check for update signature files
         run: |
@@ -229,13 +223,13 @@ jobs:
             else
               echo "警告: 未找到 DMG 文件"
             fi
-            NEW_NAME_ZIP="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.app.zip"
-            echo "ZIP 新名称: $NEW_NAME_ZIP"
-            if ls macos/*.zip 1> /dev/null 2>&1; then
-              mv macos/*.zip "$NEW_NAME_ZIP"
-              echo "ZIP 重命名成功"
+            NEW_NAME_TARGZ="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.app.tar.gz"
+            echo "TAR.GZ 新名称: $NEW_NAME_TARGZ"
+            if ls macos/*.tar.gz 1> /dev/null 2>&1; then
+              mv macos/*.tar.gz "$NEW_NAME_TARGZ"
+              echo "TAR.GZ 重命名成功"
             else
-              echo "警告: 未找到 ZIP 文件"
+              echo "警告: 未找到 TAR.GZ 文件"
             fi
           elif [ "${{ runner.os }}" = "Windows" ]; then
             WEBVIEW="${{ matrix.webview2 }}"
@@ -268,7 +262,7 @@ jobs:
           fi
           
           echo "=== 重命名后的文件 ==="
-          ls -la *.dmg *.zip *.msi *.exe 2>/dev/null || echo "没有找到重命名后的文件"
+          ls -la *.dmg *.tar.gz *.msi *.exe 2>/dev/null || echo "没有找到重命名后的文件"
         shell: bash
 
       - name: Show build artifacts tree
@@ -286,7 +280,7 @@ jobs:
           fi
           
           echo "=== 产物文件大小 ==="
-          find "$BUNDLE_DIR" -type f -name "*.dmg" -o -name "*.zip" -o -name "*.msi" -o -name "*.exe" | xargs ls -lh 2>/dev/null || echo "未找到产物文件"
+          find "$BUNDLE_DIR" -type f -name "*.dmg" -o -name "*.tar.gz" -o -name "*.msi" -o -name "*.exe" | xargs ls -lh 2>/dev/null || echo "未找到产物文件"
         shell: bash
 
       - name: Upload artifacts (macOS)
@@ -296,7 +290,7 @@ jobs:
           name: ${{ matrix.platform }}-${{ matrix.arch }}-release
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*.dmg
-            src-tauri/target/${{ matrix.target }}/release/bundle/*.zip
+            src-tauri/target/${{ matrix.target }}/release/bundle/*.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -311,13 +305,29 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Ensure signatures directory exists
+        run: mkdir -p src-tauri/target/${{ matrix.target }}/release/signatures
+        shell: bash
+
+      - name: Copy signature files to specified location
+        run: |
+          # 查找所有签名文件
+          SIG_FILES=$(find src-tauri/target/${{ matrix.target }}/release -name "*.sig")
+          for sig_file in $SIG_FILES; do
+            echo "Found signature: $sig_file"
+            # 复制到指定目录
+            cp "$sig_file" src-tauri/target/${{ matrix.target }}/release/signatures/
+          done
+          echo "All signatures copied to signatures directory"
+        shell: bash
+
       - name: Upload update signature
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-signature
           path: |
+            src-tauri/target/${{ matrix.target }}/release/signatures/
             src-tauri/target/${{ matrix.target }}/release/bundle/update/
-            src-tauri/target/${{ matrix.target }}/release/**/*.sig
           if-no-files-found: ignore
           retention-days: 1
 
@@ -365,7 +375,7 @@ jobs:
         with:
           files: |
             artifacts/**/*.dmg
-            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
             artifacts/**/*.msi
             artifacts/**/*.exe
             latest-update.json
@@ -383,7 +393,7 @@ jobs:
           name: Release ${{ steps.generate_manifest.outputs.version }}
           files: |
             artifacts/**/*.dmg
-            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
             artifacts/**/*.msi
             artifacts/**/*.exe
             latest-update.json
