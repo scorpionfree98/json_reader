@@ -53,42 +53,88 @@ async function generateManifest() {
   const platforms = [
     {
       key: 'darwin-x86_64',
-      sigPath: 'signatures/macos-latest-x64-signature/signature.sig',
+      basePath: 'signatures/macos-latest-x64-signature',
       fileName: `${productName}_${version}-macos-x64.dmg`
     },
     {
       key: 'darwin-aarch64',
-      sigPath: 'signatures/macos-latest-arm64-signature/signature.sig',
+      basePath: 'signatures/macos-latest-arm64-signature',
       fileName: `${productName}_${version}-macos-arm64.dmg`
     }
   ];
 
+  // 处理 macOS 签名文件，使用递归查找
+  for (let i = 0; i < platforms.length; i++) {
+    const platform = platforms[i];
+    if (platform.basePath) {
+      console.log(`检查 macOS 签名目录: ${platform.basePath}`);
+      const foundSigPath = findSignatureFile(platform.basePath);
+      if (foundSigPath) {
+        console.log(`  -> 找到签名文件: ${foundSigPath}`);
+        platforms[i].sigPath = foundSigPath;
+      } else {
+        console.log(`  -> 未找到签名文件，将移除该平台`);
+        platforms.splice(i, 1);
+        i--; // 调整索引，因为我们删除了一个元素
+      }
+    }
+  }
+
+  // 递归查找签名文件的函数
+  function findSignatureFile(basePath) {
+    const queue = [basePath];
+    
+    while (queue.length > 0) {
+      const currentPath = queue.shift();
+      
+      try {
+        const stats = fs.statSync(currentPath);
+        if (stats.isFile() && currentPath.endsWith('.sig')) {
+          return currentPath;
+        } else if (stats.isDirectory()) {
+          const files = fs.readdirSync(currentPath);
+          for (const file of files) {
+            queue.push(path.join(currentPath, file));
+          }
+        }
+      } catch (error) {
+        console.log(`  -> 无法访问 ${currentPath}: ${error.message}`);
+      }
+    }
+    
+    return null;
+  }
+
   // Windows 平台（检查不同签名文件）
   const windowsSigFiles = [
     {
-      sigPath: 'signatures/windows-latest-x64-webview2-signature/signature.sig',
-      fileName: `${productName}_${version}-windows-x64-webview2.exe`
+      basePath: 'signatures/windows-latest-x64-withwebview2-signature',
+      fileName: `${productName}_${version}-windows-x64-withwebview2.exe`
     },
     {
-      sigPath: 'signatures/windows-latest-x64-signature/signature.sig',
-      fileName: `${productName}_${version}-windows-x64.exe`
+      basePath: 'signatures/windows-latest-x64-withoutwebview2-signature',
+      fileName: `${productName}_${version}-windows-x64-withoutwebview2.exe`
     }
   ];
 
   console.log('\n=== 检查签名文件 ===');
-  for (const { sigPath, fileName } of windowsSigFiles) {
-    const exists = fs.existsSync(sigPath);
-    console.log(`检查签名文件: ${sigPath}`);
-    console.log(`  文件名: ${fileName}`);
-    console.log(`  存在: ${exists}`);
-    if (exists) {
+  for (const { basePath, fileName } of windowsSigFiles) {
+    console.log(`检查签名目录: ${basePath}`);
+    
+    // 递归查找签名文件
+    const foundSigPath = findSignatureFile(basePath);
+    
+    if (foundSigPath) {
+      console.log(`  -> 找到签名文件: ${foundSigPath}`);
       platforms.push({
         key: 'windows-x86_64',
-        sigPath,
+        sigPath: foundSigPath,
         fileName
       });
       console.log(`  -> 已添加到平台列表`);
       break;
+    } else {
+      console.log(`  -> 未找到签名文件`);
     }
   }
 

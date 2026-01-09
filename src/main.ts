@@ -12,7 +12,7 @@ import {
   disable as disableAutostart,
   isEnabled as isAutostartEnabled
 } from '@tauri-apps/plugin-autostart';
-import { readText as readClipboardText, writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
+import { readText as readClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
 
@@ -25,6 +25,7 @@ declare const layui: {
   use: (modules: string[], callback: () => void) => void;
   form: {
     on: (event: string, handler: (data: any) => void) => void;
+    render: () => void;
   };
   layer: typeof layer;
 };
@@ -258,35 +259,64 @@ export async function toggleAutostart() {
 
 // 检查更新
 export async function checkUpdate() {
+  console.log('=== 开始检查更新 ===');
   try {
+    console.log('调用 check() 函数...');
     const res = await check();
-    if (res?.available) {
+    console.log('check() 函数返回结果：', res);
+    
+    if (res) {
       console.log('发现新版本:', res.version, '当前:', res.currentVersion);
+      console.log('准备显示更新确认对话框...');
+      
       layer.confirm(`发现新版本: ${res.version}，是否现在更新？`, {
         btn: ['确定', '关闭']
       }, async function () {
+        console.log('用户点击了确定，开始下载更新...');
         try {
-          await res.downloadAndInstall();
+          await res.downloadAndInstall(
+            (event) => {
+              // 下载进度回调
+              switch (event.event) {
+                case 'Started':
+                  console.log('下载开始，总大小:', event.data.contentLength || '未知');
+                  break;
+                case 'Progress':
+                  console.log('下载进度:', event.data.chunkLength, '字节');
+                  break;
+                case 'Finished':
+                  console.log('下载完成');
+                  break;
+              }
+            },
+            { timeout: 30000 } // 30秒超时
+          );
+          console.log('更新下载安装完成，准备重启应用...');
           await relaunch();
         } catch (error) {
           console.error('更新失败:', error);
           showLayuiMsg('更新失败，请稍后再试');
         }
       }, function () {
+        console.log('用户点击了关闭，取消更新');
         showLayuiMsg('已取消更新');
       });
     } else {
+      console.log('已是最新版本，准备显示提示...');
       showLayuiMsg('已是最新版本');
     }
   } catch (e) {
-    console.warn('自动更新检查失败：', e);
-    showLayuiMsg('检查更新失败');
+    console.error('自动更新检查失败：', e);
+    showLayuiMsg('检查更新失败：' + (e instanceof Error ? e.message : String(e)));
   }
+  console.log('=== 检查更新结束 ===');
 }
 
-// 初始检查更新
+// 初始检查更新（添加延迟，避免应用启动时过于频繁的网络请求）
 (async () => {
   try {
+    // 延迟 3 秒后检查更新，给应用一些启动时间
+    await new Promise(resolve => setTimeout(resolve, 3000));
     await checkUpdate();
   } catch (error) {
     console.error('初始检查更新失败:', error);
