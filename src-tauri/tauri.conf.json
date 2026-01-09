@@ -1,6 +1,6 @@
 {
   "identifier": "com.example.jsonformatter",
-  "productName": "JSON格式化工具",
+  "productName": "JSONFormatter",
   "version": "0.0.0-1234",
   "build": {
     "beforeDevCommand": "vite",
