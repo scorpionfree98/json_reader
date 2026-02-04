@@ -107,9 +107,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                     if let Ok(current_status) = win.is_always_on_top() {
                         let new_status = !current_status;
                         let _ = win.set_always_on_top(new_status);
-                        if let Ok(top_status) = win.is_always_on_top() {
-                            let _ = toggle_top_i_clone.set_checked(top_status);
-                        }
+                        let _ = toggle_top_i_clone.set_checked(new_status);
                         let _ = app.emit("tray://toggle-always-on-top", ());
                     }
                 }
@@ -121,6 +119,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                     let autolaunch = app.autolaunch();
                     if let Ok(current_status) = autolaunch.is_enabled() {
                         // Toggle autostart status
+                        let new_status = !current_status;
                         if current_status {
                             let _ = autolaunch.disable();
                         } else {
@@ -128,9 +127,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                         }
 
                         // Update check state using Arc'd app handle
-                        if let Ok(autostart_status) = autolaunch.is_enabled() {
-                            let _ = autostart_i_clone.set_checked(autostart_status);
-                        }
+                        let _ = autostart_i_clone.set_checked(new_status);
                     }
                 }
                 let _ = app.emit("tray://toggle-autostart", ());
@@ -168,14 +165,8 @@ fn set_always_on_top(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
         }
     };
 
-    let new_status = !current_top_status;
-    if let Err(e) = main_window.set_always_on_top(new_status) {
-        eprintln!("设置置顶状态失败：{:?}", e);
-        return;
-    }
-
     if let Some(toggle_top_btn) = &state.toggle_top_item {
-        let _ = toggle_top_btn.set_checked(new_status);
+        let _ = toggle_top_btn.set_checked(current_top_status);
     }
 }
 
@@ -194,20 +185,8 @@ fn set_autostart(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
         }
     };
 
-    let new_status = !current_autostart_status;
-    let result = if new_status {
-        autolaunch_manager.enable()
-    } else {
-        autolaunch_manager.disable()
-    };
-
-    if let Err(e) = result {
-        eprintln!("设置自启状态失败：{:?}", e);
-        return;
-    }
-
     if let Some(autostart_btn) = &state.autostart_item {
-        let _ = autostart_btn.set_checked(new_status);
+        let _ = autostart_btn.set_checked(current_autostart_status);
     }
 }
 
