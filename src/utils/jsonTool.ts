@@ -9,7 +9,9 @@ interface JsonTool {
     jsonFormat(): void;
     renderJson(obj: any, path: string): JQuery;
     addEventListeners(): void;
-    copyToClipboard(value: any): void;
+    copyToClipboard(value: any, path?: string): void;
+    formatKeyPath(path: string, format: string): string;
+    parsePathTokens(path: string): Array<{type: 'object' | 'array', value: string}>;
 }
 
 declare const layer: {
@@ -88,7 +90,7 @@ export const jsonTool: JsonTool = {
         }
     },
 
-    copyToClipboard: async (value: any) => {
+    copyToClipboard: async (value: any, path?: string) => {
         const valueText = String(value ?? '');
         try {
             await writeClipboardText(valueText);
@@ -98,6 +100,70 @@ export const jsonTool: JsonTool = {
             console.error('复制失败:', e);
             layer.msg(`复制失败: ${(e as Error).message}`, { time: 1000 });
         }
+    },
+
+    formatKeyPath(path: string, format: string): string {
+        if (!path) return '';
+
+        const customFormat = $('#customFormat').val() as string || '{key}';
+
+        switch (format) {
+            case 'default':
+                return path;
+            case 'dot':
+                return path.replace(/\["([^"]+)"\]/g, '.$1').replace(/^\./, '');
+            case 'jsonpath':
+                return '$' + path.replace(/\["([^"]+)"\]/g, '.$1').replace(/^\./, '');
+            case 'bracket':
+                return path.replace(/\["([^"]+)"\]/g, "['$1']");
+            case 'python':
+                const pythonKeys = path.match(/\["([^"]+)"\]/g)?.map(k => k.slice(2, -2)) || [];
+                return pythonKeys.length > 0 ? pythonKeys.map(k => `.get('${k}')`).join('') : '';
+            case 'custom':
+                const tokens = this.parsePathTokens(path);
+                const customKeyFormat = $('#customKeyFormat').val() as string || '{key}';
+                const customIndexFormat = $('#customIndexFormat').val() as string || '[{index}]';
+                return tokens.map(token => {
+                    if (token.type === 'array') {
+                        return customIndexFormat.replace('{index}', token.value);
+                    } else {
+                        return customKeyFormat.replace('{key}', token.value);
+                    }
+                }).join('');
+            default:
+                return path;
+        }
+    },
+
+    parsePathTokens(path: string): Array<{type: 'object' | 'array', value: string}> {
+        const tokens: Array<{type: 'object' | 'array', value: string}> = [];
+        
+        const objectKeyRegex = /\["([^"]+)"\]/g;
+        const arrayIndexRegex = /\[(\d+)\]/g;
+        
+        let match;
+        let lastIndex = 0;
+        
+        while (lastIndex < path.length) {
+            const nextObjectMatch = objectKeyRegex.exec(path);
+            const nextArrayMatch = arrayIndexRegex.exec(path);
+            
+            if (!nextObjectMatch && !nextArrayMatch) break;
+            
+            if (nextObjectMatch && (!nextArrayMatch || nextObjectMatch.index < nextArrayMatch.index)) {
+                tokens.push({ type: 'object', value: nextObjectMatch[1] });
+                lastIndex = nextObjectMatch.index + nextObjectMatch[0].length;
+                objectKeyRegex.lastIndex = lastIndex;
+                arrayIndexRegex.lastIndex = lastIndex;
+            } else if (nextArrayMatch) {
+                tokens.push({ type: 'array', value: nextArrayMatch[1] });
+                lastIndex = nextArrayMatch.index + nextArrayMatch[0].length;
+                objectKeyRegex.lastIndex = lastIndex;
+                arrayIndexRegex.lastIndex = lastIndex;
+            }
+        }
+        
+        return tokens;
     },
 
     renderJson(obj: any, path: string = ''): JQuery {
@@ -142,7 +208,7 @@ export const jsonTool: JsonTool = {
                     $info.html(`<span class="latex-container">${renderedHtml}</span>`);
                 } else {
                     // 没有 LaTeX，直接显示格式化后的字符串
-                    $info.html(`<span>${JSON.stringify(obj)}</span>`);
+                    // $info.html(`<span>${JSON.stringify(obj)}</span>`);
                 }
             }
 
@@ -171,17 +237,20 @@ export const jsonTool: JsonTool = {
 
             keys.forEach((key, index) => {
                 const $li = $('<li>');
-                // 处理 key 中包含引号的情况
                 const escapedKey = key.replace(/"/g, '\\"');
                 const newPath = path ? `${path}["${escapedKey}"]` : `["${escapedKey}"]`;
 
                 $('<span>')
                     .addClass('json-key')
                     .text(`"${key}"`)
-                    .on('dblclick', () => this.copyToClipboard(newPath))
+                    .on('dblclick', () => {
+                        const format = $('#copyFormat').val() as string || 'default';
+                        const formattedPath = this.formatKeyPath(newPath, format);
+                        this.copyToClipboard(formattedPath, newPath);
+                    })
                     .appendTo($li);
 
-                $li.append(': ', this.renderJson(obj[key], newPath)); // 增加冒号空格美化
+                $li.append(': ', this.renderJson(obj[key], newPath));
                 if (index < keys.length - 1) $li.append(',');
                 $ul.append($li);
             });
@@ -204,10 +273,7 @@ export const jsonTool: JsonTool = {
             if ($children.is(':visible')) {
                 $children.hide();
                 $toggle.text('▶');
-                // 可选：添加省略号提示
-                if ($parent.find('.collapsed-ellipsis').length === 0) {
-                     $toggle.after('<span class="collapsed-ellipsis">...</span>');
-                }
+                
             } else {
                 $children.show();
                 $toggle.text('▼');
@@ -218,7 +284,7 @@ export const jsonTool: JsonTool = {
         $('#json-display').off('click', '.json-toggle-string').on('click', '.json-toggle-string', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            const $toggle = $(this);
+            // const $toggle = $(this);
             // 这里逻辑微调：toggle-string 内部包含了 info，点击其实是切换自身状态
             // 根据你原来的 DOM 结构调整：
             // 原结构：toggle 包含了 text("-") 和 append($info)。
@@ -226,13 +292,22 @@ export const jsonTool: JsonTool = {
             // 建议：点击前面的 [-] 符号折叠
             
             // 简单实现：点击前面的符号只是视觉效果，或者你可以实现字符串太长时的折叠
-             if ($toggle.text().includes('-')) {
-                 $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('+');
-                 $toggle.find('.json-string').hide();
-             } else {
-                 $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('-');
-                 $toggle.find('.json-string').show();
-             }
+            //  if ($toggle.text().includes('-')) {
+            //      $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('+');
+            //      $toggle.find('.json-string').hide();
+            //  } else {
+            //      $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('-');
+            //      $toggle.find('.json-string').show();
+            //  }
+            const $parent = $(this).parent();
+            const $children = $parent.find('.json-string').first();
+            if ($children.is(':visible')) {
+                $children.hide(); // 相当于 display: none
+                $(this).text('+');
+            } else {
+                $children.show(); // 恢复显示
+                $(this).text('-');
+            }
         });
     }
 };

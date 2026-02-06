@@ -142,6 +142,16 @@ function initLayuiForm() {
     form.on('checkbox(autoStart)', function () {
       toggleAutostart();
     });
+    
+    // 复制格式选择事件
+    form.on('select(copyFormat)', function (data) {
+      const customContainer = $('#customFormatContainer');
+      if (data.value === 'custom') {
+        customContainer.show();
+      } else {
+        customContainer.hide();
+      }
+    });
   });
 }
 
