@@ -6,7 +6,22 @@
     <title>JSON格式化工具</title>
     <!-- 引入Layui的CSS样式 -->
     <link rel="stylesheet" href="lib/layui/css/layui.css">
+    
     <style>
+        /* 你的 styles.css 或 main.css */
+
+
+
+        /* 修复 KaTeX 在某些 flex/grid 布局下的溢出问题 */
+        .katex-display {
+            margin: 0.5em 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        /* 你的 JSON 高亮样式 (假设) */
+        
+        /* ... */
         /* 自定义CSS样式 */
         #json-display {
             margin-top: 20px;
@@ -34,6 +49,31 @@
             line-height: 1.5em;
             /* 调整行高 */
         }
+        /* LaTeX 样式 */
+        .latex-inline {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-size: 16px;
+            padding: 0 5px;
+        }
+        .latex-inline .katex {
+            color: #FFD700;
+        }
+        .latex-block {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-size: 18px;
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .latex-block .katex {
+            color: #FFD700;
+        }
 
         .json-object,
         .json-array {
@@ -42,7 +82,7 @@
         }
 
         .json-key::after {
-            content: ': ';
+            /* content: ': '; */
             margin-right: 0.5em;
         }
 

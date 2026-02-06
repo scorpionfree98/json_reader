@@ -85,9 +85,10 @@ async function generateManifest() {
       signatureDir: 'signatures/macos-latest-x64-signature',
       fileName: `${productName}_${version}-macos-x64.dmg`
     },
-    {      key: 'darwin-aarch64',
-      signatureDir: 'signatures/macos-latest-aarch64-signature',
-      fileName: `${productName}_${version}-macos-aarch64.dmg`
+    {
+      key: 'darwin-aarch64',
+      signatureDir: 'signatures/macos-latest-arm64-signature',
+      fileName: `${productName}_${version}-macos-arm64.dmg`
     },
     {
       key: 'windows-x86_64',
