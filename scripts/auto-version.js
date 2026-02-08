@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from 'fs';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -13,15 +13,34 @@ function cleanString(str) {
   return (str || '').toString().replace(/^["'\s]+|["'\s]+$/g, '').trim();
 }
 
-// 获取Git最新标签（纯Node.js实现，避免平台差异）
+// 执行Git命令（跨平台兼容）
+function execGitCommand(args) {
+  try {
+    const result = spawnSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
+    
+    if (result.error || result.status !== 0) {
+      return '';
+    }
+    
+    return cleanString(result.stdout);
+  } catch (error) {
+    return '';
+  }
+}
+
+// 获取Git最新标签（跨平台实现）
 function getLatestTag() {
   try {
-    // 获取所有标签（使用数组参数避免 shell 差异）
-    const tagsOutput = execSync('git tag', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      shell: true
-    });
+    // 获取所有标签
+    const tagsOutput = execGitCommand(['tag']);
+    
+    if (!tagsOutput) {
+      console.log('📌 未找到版本标签，使用默认 v0.0.0');
+      return 'v0.0.0';
+    }
     
     // 过滤出格式为vX.Y.Z的标签
     const tags = tagsOutput
@@ -63,30 +82,13 @@ function getLatestTag() {
 
 // 获取Git提交次数
 function getCommitCount() {
-  try {
-    const count = execSync('git rev-list --count HEAD', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      shell: true
-    });
-    return parseInt(cleanString(count)) || 0;
-  } catch (error) {
-    return 0;
-  }
+  const count = execGitCommand(['rev-list', '--count', 'HEAD']);
+  return parseInt(count) || 0;
 }
 
 // 获取短提交哈希
 function getShortCommitHash() {
-  try {
-    const hash = execSync('git rev-parse --short HEAD', {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-      shell: true
-    });
-    return cleanString(hash);
-  } catch (error) {
-    return '';
-  }
+  return execGitCommand(['rev-parse', '--short', 'HEAD']);
 }
 
 // 生成版本号
