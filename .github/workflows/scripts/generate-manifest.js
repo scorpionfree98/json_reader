@@ -199,19 +199,55 @@ async function generateManifest() {
   allSignatureFiles.forEach(sig => console.log(`  - ${sig.relativePath}`));
   console.log('');
   
+  // 自动发现 signatures 目录下的所有子目录
+  console.log('自动发现 signatures 子目录...');
+  const discoveredDirs = [];
+  if (fs.existsSync('signatures')) {
+    const entries = fs.readdirSync('signatures', { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        discoveredDirs.push(`signatures/${entry.name}`);
+      }
+    }
+  }
+  console.log(`发现的子目录: ${discoveredDirs.join(', ') || '无'}`);
+  console.log('');
+  
   const platforms = [];
 
   for (const config of platformConfigs) {
     console.log(`处理平台配置: ${config.key}`);
     console.log(`  文件名: ${config.fileName}`);
-    console.log(`  尝试的签名目录: ${config.signatureDirs.join(', ')}`);
+    
+    // 合并预定义目录和自动发现的目录
+    const allDirs = [...config.signatureDirs];
+    // 根据平台关键词从发现的目录中筛选
+    const platformKeywords = {
+      'darwin-x86_64': ['macos', 'x64', 'x86_64'],
+      'darwin-aarch64': ['macos', 'aarch64', 'arm64'],
+      'windows-x86_64-webview2': ['windows', 'webview2'],
+      'windows-x86_64': ['windows', 'x64']
+    };
+    const keywords = platformKeywords[config.key] || [];
+    for (const dir of discoveredDirs) {
+      const dirLower = dir.toLowerCase();
+      // 检查目录名是否包含平台关键词
+      if (keywords.some(kw => dirLower.includes(kw.toLowerCase()))) {
+        // 避免重复添加
+        if (!allDirs.includes(dir)) {
+          allDirs.push(dir);
+        }
+      }
+    }
+    
+    console.log(`  尝试的签名目录: ${allDirs.join(', ')}`);
     
     // 查找签名文件（支持直接文件路径或目录搜索）
     let foundSigPath = null;
     let foundSigDir = null;
     
     // 遍历所有可能的签名目录
-    for (const sigDir of config.signatureDirs) {
+    for (const sigDir of allDirs) {
       console.log(`  检查目录: ${sigDir}`);
       
       // 首先尝试直接查找签名文件
