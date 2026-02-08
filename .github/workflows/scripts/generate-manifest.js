@@ -194,19 +194,37 @@ async function generateManifest() {
     return allSigs;
   }
   
-  const allSignatureFiles = scanSignaturesDir();
+  let allSignatureFiles = scanSignaturesDir();
   console.log(`找到 ${allSignatureFiles.length} 个签名文件:`);
   allSignatureFiles.forEach(sig => console.log(`  - ${sig.relativePath}`));
   console.log('');
   
+  // 处理双层 signatures 目录情况 (signatures/signatures/)
+  if (allSignatureFiles.length === 0 && fs.existsSync('signatures/signatures')) {
+    console.log('检测到双层 signatures 目录结构，重新扫描...');
+    allSignatureFiles = scanSignaturesDir('signatures/signatures');
+    console.log(`在 signatures/signatures/ 中找到 ${allSignatureFiles.length} 个签名文件:`);
+    allSignatureFiles.forEach(sig => console.log(`  - ${sig.relativePath}`));
+    console.log('');
+  }
+  
   // 自动发现 signatures 目录下的所有子目录
   console.log('自动发现 signatures 子目录...');
   const discoveredDirs = [];
-  if (fs.existsSync('signatures')) {
-    const entries = fs.readdirSync('signatures', { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        discoveredDirs.push(`signatures/${entry.name}`);
+  const baseDirs = ['signatures'];
+  
+  // 也检查双层结构
+  if (fs.existsSync('signatures/signatures')) {
+    baseDirs.push('signatures/signatures');
+  }
+  
+  for (const baseDir of baseDirs) {
+    if (fs.existsSync(baseDir)) {
+      const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          discoveredDirs.push(`${baseDir}/${entry.name}`);
+        }
       }
     }
   }
@@ -288,29 +306,83 @@ async function generateManifest() {
     // 兜底：如果标准路径找不到，尝试从所有签名文件中匹配
     if (!foundSigPath && allSignatureFiles.length > 0) {
       console.log(`  -> 尝试从所有签名文件中匹配...`);
-      const targetBaseName = config.fileName.replace(/\.[^.]+$/, '');
+      const targetExt = path.extname(config.fileName).toLowerCase(); // .dmg, .exe, .msi
       const platformKeywords = {
-        'darwin-x86_64': ['macos', 'x64', 'x86_64', 'darwin'],
-        'darwin-aarch64': ['macos', 'aarch64', 'arm64', 'darwin'],
-        'windows-x86_64-webview2': ['windows', 'x64', 'webview2'],
-        'windows-x86_64': ['windows', 'x64']
+        'darwin-x86_64': ['macos', 'x64', 'x86_64', 'darwin', 'app.tar.gz'],
+        'darwin-aarch64': ['macos', 'aarch64', 'arm64', 'darwin', 'app.tar.gz'],
+        'windows-x86_64-webview2': ['windows', 'x64', 'webview2', 'setup.exe', '.msi'],
+        'windows-x86_64': ['windows', 'x64', 'setup.exe', '.msi']
       };
       const keywords = platformKeywords[config.key] || [];
       
       for (const sig of allSignatureFiles) {
         const sigName = sig.name.toLowerCase();
+        const sigExt = path.extname(sigName).toLowerCase(); // .sig
+        
         // 检查签名文件名是否包含平台关键词
         const matchesPlatform = keywords.some(kw => sigName.includes(kw.toLowerCase()));
         // 避免将 webview2 版本匹配到非 webview2 版本
         const isWebview2 = sigName.includes('webview2');
         const shouldBeWebview2 = config.key.includes('webview2');
         
+        // macOS 平台匹配逻辑
+        const isMacPlatform = config.key.startsWith('darwin');
+        const isMacSig = sigName.includes('.app.tar.gz') || sigName.includes('.dmg');
+        
+        // Windows 平台匹配逻辑
+        const isWinPlatform = config.key.startsWith('windows');
+        const isWinSig = sigName.includes('.exe') || sigName.includes('.msi');
+        
+        let isMatch = false;
+        
         if (matchesPlatform && isWebview2 === shouldBeWebview2) {
-          // 进一步检查是否匹配版本号
-          if (sigName.includes(version) || sigName.includes(productName.toLowerCase())) {
+          // 对于 macOS，优先匹配 .app.tar.gz.sig
+          if (isMacPlatform && isMacSig) {
+            isMatch = true;
+          }
+          // 对于 Windows，优先匹配 .exe.sig 或 .msi.sig
+          else if (isWinPlatform && isWinSig) {
+            isMatch = true;
+          }
+          // 通用匹配：检查产品名
+          else if (sigName.includes(productName.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
+            isMatch = true;
+          }
+        }
+        
+        if (isMatch) {
+          foundSigPath = sig.path;
+          foundSigDir = path.dirname(sig.path);
+          console.log(`  -> 从全局扫描找到匹配签名: ${sig.relativePath}`);
+          break;
+        }
+      }
+      
+      // 如果还是没找到，使用第一个可用的签名文件（最后手段）
+      if (!foundSigPath && allSignatureFiles.length > 0) {
+        // 根据平台类型选择最合适的签名文件
+        const platformType = config.key.split('-')[0]; // darwin, windows
+        const arch = config.key.includes('aarch64') || config.key.includes('arm64') ? 'aarch64' : 'x64';
+        
+        for (const sig of allSignatureFiles) {
+          const sigName = sig.name.toLowerCase();
+          
+          // macOS 平台选择 .app.tar.gz.sig
+          if (platformType === 'darwin' && sigName.includes('.app.tar.gz')) {
+            // 检查架构
+            if ((arch === 'aarch64' && (sigName.includes('aarch64') || sigName.includes('arm64'))) ||
+                (arch === 'x64' && (sigName.includes('x64') || sigName.includes('x86_64')))) {
+              foundSigPath = sig.path;
+              foundSigDir = path.dirname(sig.path);
+              console.log(`  -> 使用备选签名文件 (按平台类型匹配): ${sig.relativePath}`);
+              break;
+            }
+          }
+          // Windows 平台选择 .exe.sig
+          else if (platformType === 'windows' && sigName.includes('.exe')) {
             foundSigPath = sig.path;
             foundSigDir = path.dirname(sig.path);
-            console.log(`  -> 从全局扫描找到匹配签名: ${sig.relativePath}`);
+            console.log(`  -> 使用备选签名文件 (按平台类型匹配): ${sig.relativePath}`);
             break;
           }
         }

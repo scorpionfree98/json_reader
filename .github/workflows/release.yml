@@ -363,8 +363,8 @@ jobs:
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-signature
           path: |
-            src-tauri/target/${{ matrix.target }}/release/signatures/
-            src-tauri/target/${{ matrix.target }}/release/bundle/update/
+            src-tauri/target/${{ matrix.target }}/release/signatures/*
+            src-tauri/target/${{ matrix.target }}/release/bundle/update/*
           if-no-files-found: warn
           retention-days: 1
 
