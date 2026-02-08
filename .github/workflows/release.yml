@@ -390,7 +390,8 @@ jobs:
         with:
           path: signatures
           pattern: "*signature"
-          merge-multiple: true
+          # 注意：不要设置 merge-multiple: true，让每个 artifact 下载到独立的子目录
+          # 这样可以保留平台信息，避免签名文件混淆
 
       - name: Display structure of downloaded files
         run: |
