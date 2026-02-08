@@ -92,7 +92,7 @@ function bindButtonEvents() {
   byId('pasteBtn')?.on('click', tryPasteFromClipboard);
   byId('clearBtn')?.on('click', clearInputContent);
   byId('formatBtn')?.on('click', () => formatJson());
-  byId('checkUpdate')?.on('click', checkUpdate);
+  byId('checkUpdate')?.on('click', () => checkUpdate(true));
 
   // 拖拽区域
   byClass('drag-region').on('mousedown', () => {
@@ -259,8 +259,8 @@ export async function toggleAutostart() {
     // 监听自启动切换事件
     unlistenFns.push(await listen('tray://toggle-autostart', toggleAutostartInfo));
     
-    // 监听托盘检查更新事件
-    unlistenFns.push(await listen('tray://check-updates', checkUpdate));
+    // 监听托盘检查更新事件（托盘菜单触发，视为手动检查）
+    unlistenFns.push(await listen('tray://check-updates', () => checkUpdate(true)));
   } catch (e) {
     console.warn('注册事件失败：', e);
     showLayuiMsg('注册事件失败：' + (e instanceof Error ? e.message : String(e)));
@@ -268,17 +268,18 @@ export async function toggleAutostart() {
 })();
 
 // 检查更新
-export async function checkUpdate() {
-  console.log('=== 开始检查更新 ===');
+// isManual: 是否为手动检查（true=手动点击检查，false=自动检查）
+export async function checkUpdate(isManual = false) {
+  console.log(`=== 开始检查更新 (${isManual ? '手动' : '自动'}) ===`);
   try {
     console.log('调用 check() 函数...');
     const res = await check();
     console.log('check() 函数返回结果：', res);
-    
+
     if (res) {
       console.log('发现新版本:', res.version, '当前:', res.currentVersion);
       console.log('准备显示更新确认对话框...');
-      
+
       layer.confirm(`发现新版本: ${res.version}，是否现在更新？`, {
         btn: ['确定', '关闭']
       }, async function () {
@@ -299,7 +300,7 @@ export async function checkUpdate() {
                   break;
               }
             },
-            { timeout: 30000 } // 30秒超时
+            { timeout: 300000 } // 5分钟超时（对于较大的安装包如 WebView2 版本约 753MB）
           );
           console.log('更新下载安装完成，准备重启应用...');
           await relaunch();
@@ -313,11 +314,17 @@ export async function checkUpdate() {
       });
     } else {
       console.log('已是最新版本，准备显示提示...');
-      showLayuiMsg('已是最新版本');
+      // 只有手动检查时才显示"已是最新版本"提示
+      if (isManual) {
+        showLayuiMsg('已是最新版本');
+      }
     }
   } catch (e) {
-    console.error('自动更新检查失败：', e);
-    showLayuiMsg('检查更新失败：' + (e instanceof Error ? e.message : String(e)));
+    console.error('更新检查失败：', e);
+    // 只有手动检查时才显示错误弹窗
+    if (isManual) {
+      showLayuiMsg('检查更新失败：' + (e instanceof Error ? e.message : String(e)));
+    }
   }
   console.log('=== 检查更新结束 ===');
 }

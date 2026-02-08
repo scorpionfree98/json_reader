@@ -322,7 +322,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-release
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/*.exe
@@ -348,7 +348,7 @@ jobs:
       - name: Upload update signature
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-with-{0}', matrix.webview2) || '' }}-signature
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-signature
           path: |
             src-tauri/target/${{ matrix.target }}/release/signatures/
             src-tauri/target/${{ matrix.target }}/release/bundle/update/

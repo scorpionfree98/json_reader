@@ -54,8 +54,10 @@ async function generateManifest() {
   console.log('发布日期:', manifest.pub_date);
 
   // 递归查找签名文件的函数
-  function findSignatureFile(basePath) {
+  // targetFileName: 目标文件名，用于匹配正确的签名文件（如 .dmg.sig 而不是 .tar.gz.sig）
+  function findSignatureFile(basePath, targetFileName = null) {
     const queue = [basePath];
+    let foundSig = null;
     
     while (queue.length > 0) {
       const currentPath = queue.shift();
@@ -63,7 +65,20 @@ async function generateManifest() {
       try {
         const stats = fs.statSync(currentPath);
         if (stats.isFile() && currentPath.endsWith('.sig')) {
-          return currentPath;
+          // 如果有目标文件名，优先匹配包含目标文件名的签名文件
+          if (targetFileName) {
+            const sigFileName = path.basename(currentPath);
+            // 检查签名文件名是否包含目标文件扩展名（如 .dmg.sig）
+            if (sigFileName.includes(targetFileName.replace(/\.[^.]+$/, ''))) {
+              return currentPath; // 立即返回匹配的签名文件
+            }
+            // 如果没有找到匹配的，记录第一个找到的作为备选
+            if (!foundSig) {
+              foundSig = currentPath;
+            }
+          } else {
+            return currentPath;
+          }
         } else if (stats.isDirectory()) {
           const files = fs.readdirSync(currentPath);
           for (const file of files) {
@@ -75,7 +90,8 @@ async function generateManifest() {
       }
     }
     
-    return null;
+    // 如果没有找到精确匹配的，返回第一个找到的签名文件
+    return foundSig;
   }
 
   // 定义平台配置
@@ -97,7 +113,7 @@ async function generateManifest() {
     },
     {
       key: 'windows-x86_64',
-      signatureDir: 'signatures/windows-latest-x64-signature',
+      signatureDir: 'signatures/windows-latest-x64-without-webview2-signature',
       fileName: `${productName}_${version}-windows-x64.exe`
     }
   ];
@@ -119,11 +135,19 @@ async function generateManifest() {
       foundSigPath = directSigPath;
       console.log(`  -> 找到直接签名文件: ${foundSigPath}`);
     } 
-    // 如果没有直接找到，尝试递归查找
+    // 如果没有直接找到，尝试递归查找（传入目标文件名以匹配正确的签名文件）
     else {
-      foundSigPath = findSignatureFile(config.signatureDir);
+      foundSigPath = findSignatureFile(config.signatureDir, config.fileName);
       if (foundSigPath) {
         console.log(`  -> 递归找到签名文件: ${foundSigPath}`);
+        // 验证签名文件是否匹配目标文件
+        const sigFileName = path.basename(foundSigPath);
+        const targetBaseName = config.fileName.replace(/\.[^.]+$/, '');
+        if (sigFileName.includes(targetBaseName)) {
+          console.log(`  -> 签名文件与目标文件匹配: ${sigFileName} ≈ ${config.fileName}`);
+        } else {
+          console.warn(`  -> 警告: 签名文件可能与目标文件不匹配: ${sigFileName} vs ${config.fileName}`);
+        }
       } else {
         // 尝试在签名目录的 update 子目录中查找
         const updateSigPath = `${config.signatureDir}/update/signature.sig`;
