@@ -467,3 +467,131 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync Release to Gitee
+        if: github.event.inputs.skip_release == 'false' || github.event_name == 'push'
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          GITEE_OWNER: scorpionfree98
+          GITEE_REPO: json_reader
+          TAG_NAME: ${{ github.ref_name || steps.generate_manifest.outputs.version }}
+        run: |
+          echo "=== 同步 Release 到 Gitee ==="
+          echo "Tag: $TAG_NAME"
+
+          # 删除所有旧的 Gitee Release
+          echo ""
+          echo "=== 删除所有旧的 Gitee Release ==="
+          RELEASES_LIST=$(curl -s "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases?access_token=${GITEE_TOKEN}&per_page=100")
+          RELEASE_IDS=$(echo "$RELEASES_LIST" | jq -r '.[].id')
+
+          if [ -n "$RELEASE_IDS" ]; then
+            for OLD_RELEASE_ID in $RELEASE_IDS; do
+              echo "删除旧 Release ID: $OLD_RELEASE_ID"
+              DELETE_RESPONSE=$(curl -s -X DELETE "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${OLD_RELEASE_ID}?access_token=${GITEE_TOKEN}")
+              if [ -z "$DELETE_RESPONSE" ]; then
+                echo "✅ 已删除 Release ID: $OLD_RELEASE_ID"
+              else
+                echo "⚠️  删除 Release ID: $OLD_RELEASE_ID 时返回: $DELETE_RESPONSE"
+              fi
+            done
+          else
+            echo "没有找到旧的 Release"
+          fi
+
+          # 获取 Release 信息
+          RELEASE_NAME="Release $TAG_NAME"
+          RELEASE_BODY="🚀 JSON格式化工具 $TAG_NAME 版本发布
+
+          ## 安装包下载
+
+          以下安装包已同步上传至 Gitee：
+
+          ### macOS
+          - Intel 芯片版 (.dmg)
+          - Apple Silicon 芯片版 (.dmg)
+
+          ### Windows
+          - 64位 安装版 含 WebView2 (.exe)
+          - 64位 安装版 不含 WebView2 (.exe)
+
+          ### 更新日志
+          详见 [GitHub Release](https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG_NAME)"
+
+          # 创建新的 Gitee Release
+          echo ""
+          echo "=== 创建新的 Gitee Release ==="
+          RESPONSE=$(curl -s -X POST "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"access_token\": \"${GITEE_TOKEN}\",
+              \"tag_name\": \"${TAG_NAME}\",
+              \"name\": \"${RELEASE_NAME}\",
+              \"body\": $(echo "$RELEASE_BODY" | jq -Rs .),
+              \"prerelease\": false,
+              \"target_commitish\": \"main\"
+            }")
+
+          echo "Gitee API 响应:"
+          echo "$RESPONSE" | jq . || echo "$RESPONSE"
+
+          # 检查是否创建成功
+          RELEASE_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "❌ Gitee Release 创建失败"
+            exit 1
+          fi
+
+          echo "✅ Gitee Release 创建成功！ID: $RELEASE_ID"
+          echo "链接: https://gitee.com/${GITEE_OWNER}/${GITEE_REPO}/releases/tag/${TAG_NAME}"
+
+          # 上传附件到 Gitee Release
+          echo ""
+          echo "=== 上传附件到 Gitee Release ==="
+
+          # 定义上传函数
+          upload_file() {
+            local file_path="$1"
+            local file_name=$(basename "$file_path")
+            local file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null)
+
+            echo ""
+            echo "上传文件: $file_name (大小: $file_size bytes)"
+
+            # 检查文件大小 (100MB = 104857600 bytes)
+            if [ "$file_size" -gt 104857600 ]; then
+              echo "⚠️  文件超过 100MB，跳过上传（Gitee 免费版限制）"
+              echo "   用户可从 GitHub Release 下载: https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG_NAME/$file_name"
+              return 0
+            fi
+
+            # 上传文件
+            UPLOAD_RESPONSE=$(curl -s -X POST "https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}/releases/${RELEASE_ID}/attach_files" \
+              -H "Content-Type: multipart/form-data" \
+              -F "access_token=${GITEE_TOKEN}" \
+              -F "file=@${file_path}")
+
+            if echo "$UPLOAD_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+              echo "✅ 上传成功: $file_name"
+            else
+              echo "❌ 上传失败: $file_name"
+              echo "响应: $UPLOAD_RESPONSE"
+            fi
+          }
+
+          # 查找并上传所有构建产物
+          echo "查找构建产物..."
+          find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.msi" -o -name "*.exe" \) 2>/dev/null | while read file; do
+            upload_file "$file"
+          done
+
+          # 上传 Gitee 版本的 update manifest (使用 Gitee 地址)
+          if [ -f "latest-update-gitee.json" ]; then
+            echo ""
+            echo "上传 Gitee 版本的 update manifest..."
+            upload_file "latest-update-gitee.json"
+          fi
+
+          echo ""
+          echo "=== Gitee Release 同步完成 ==="
+          echo "链接: https://gitee.com/${GITEE_OWNER}/${GITEE_REPO}/releases/tag/${TAG_NAME}"
