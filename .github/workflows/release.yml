@@ -623,9 +623,15 @@ jobs:
             fi
           }
 
-          # 查找并上传所有构建产物
+          # 查找并上传所有构建产物（只上传包含版本号的文件，排除 latest 文件）
           echo "查找构建产物..."
           find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.msi" -o -name "*.exe" \) 2>/dev/null | while read file; do
+            file_name=$(basename "$file")
+            # 跳过包含 latest 的文件
+            if echo "$file_name" | grep -q "latest"; then
+              echo "跳过 latest 文件: $file_name"
+              continue
+            fi
             upload_file "$file"
           done
 
