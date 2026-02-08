@@ -85,12 +85,12 @@ async function generateManifest() {
     },
     {
       key: 'windows-x86_64-webview2',
-      signatureDir: 'signatures/windows-latest-x64-with-webview2-signature',
+      signatureDir: 'signatures/windows-latest-x64-withwebview2-signature',
       fileName: `${productName}_${version}-windows-x64-webview2.exe`
     },
     {
       key: 'windows-x86_64',
-      signatureDir: 'signatures/windows-latest-x64-without-webview2-signature',
+      signatureDir: 'signatures/windows-latest-x64-withoutwebview2-signature',
       fileName: `${productName}_${version}-windows-x64.exe`
     }
   ];
