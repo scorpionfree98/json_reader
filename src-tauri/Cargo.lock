@@ -1741,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "json_formatter_tauri"
-version = "0.1.14"
+version = "0.1.18"
 dependencies = [
  "anyhow",
  "serde",

@@ -181,6 +181,20 @@
         .no-drag * {
             -webkit-app-region: no-drag;
         }
+
+        /* 版本号显示样式 */
+        .version-display {
+            position: fixed;
+            bottom: 5px;
+            right: 10px;
+            font-size: 12px;
+            color: #666;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 8px;
+            border-radius: 3px;
+            z-index: 1000;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -256,6 +270,9 @@
             <div id="json-display" class="layui-panel no-drag"></div>
         </div>
     </div>
+
+    <!-- 版本号显示 -->
+    <div id="version-display" class="version-display no-drag"></div>
 
     <!-- 引入外部资源 -->
     <script src="./lib/layui/layui.js"></script>
