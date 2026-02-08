@@ -6,12 +6,29 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 文件大小限制：100MB
+const GITEE_SIZE_LIMIT = 104857600;
+
 async function generateManifest() {
   const manualVersion = process.env.INPUT_VERSION || '';
   const githubRef = process.env.GITHUB_REF || '';
   const runNumber = process.env.GITHUB_RUN_NUMBER || '';
   const repoOwner = process.env.GITHUB_REPOSITORY_OWNER || 'scorpionfree98';
   const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'json_reader';
+  const giteeOwner = process.env.GITEE_OWNER || 'scorpionfree98';
+  const giteeRepo = process.env.GITEE_REPO || 'json_reader';
+  
+  // 从环境变量获取文件大小信息（格式："filename:size,filename:size"）
+  const fileSizesEnv = process.env.FILE_SIZES || '';
+  const fileSizes = {};
+  if (fileSizesEnv) {
+    fileSizesEnv.split(',').forEach(item => {
+      const [name, size] = item.split(':');
+      if (name && size) {
+        fileSizes[name] = parseInt(size, 10);
+      }
+    });
+  }
 
   let version;
   if (manualVersion) {
@@ -35,15 +52,8 @@ async function generateManifest() {
     console.warn('无法读取 tauri.conf.json，使用默认产品名称');
   }
 
-  const manifest = {
-    version,
-    notes: `版本 ${version} 的发布说明`,
-    pub_date: new Date().toISOString(),
-    platforms: {}
-  };
-
-  console.log('\n=== 创建 Tauri 更新清单 ===');
-  console.log('版本:', version);
+  // GitHub Release 标签通常带 v 前缀
+  const tagName = version.startsWith('v') ? version : `v${version}`;
 
   // 递归查找签名文件
   function findSignatureFile(basePath) {
@@ -71,7 +81,7 @@ async function generateManifest() {
     return null;
   }
 
-  // 平台配置 - artifact 下载后会创建对应的子目录
+  // 平台配置
   const platformConfigs = [
     {
       key: 'darwin-x86_64',
@@ -95,11 +105,32 @@ async function generateManifest() {
     }
   ];
 
+  // 生成 GitHub 版本的 manifest（所有文件都用 GitHub 链接）
+  console.log('\n=== 创建 GitHub 版本更新清单 ===');
+  const githubManifest = {
+    version,
+    notes: `版本 ${version} 的发布说明`,
+    pub_date: new Date().toISOString(),
+    platforms: {}
+  };
+
+  // 生成 Gitee 版本的 manifest（小文件用 Gitee 链接，大文件用 GitHub 链接）
+  console.log('\n=== 创建 Gitee 版本更新清单 ===');
+  const giteeManifest = {
+    version,
+    notes: `版本 ${version} 的发布说明`,
+    pub_date: new Date().toISOString(),
+    platforms: {}
+  };
+
+  // 处理每个平台
   console.log('\n=== 处理平台配置 ===');
+  console.log('文件大小信息:', fileSizes);
 
   for (const config of platformConfigs) {
     console.log(`\n处理平台: ${config.key}`);
     console.log(`  签名目录: ${config.signatureDir}`);
+    console.log(`  文件名: ${config.fileName}`);
 
     const sigPath = findSignatureFile(config.signatureDir);
 
@@ -119,15 +150,33 @@ async function generateManifest() {
       }
 
       const fileNameEncoded = encodeURIComponent(config.fileName);
-      // GitHub Release 标签通常带 v 前缀（如 v0.1.14）
-      const tagName = version.startsWith('v') ? version : `v${version}`;
-      const url = `https://github.com/${repoOwner}/${repoName}/releases/download/${tagName}/${fileNameEncoded}`;
+      
+      // 获取文件大小
+      const fileSize = fileSizes[config.fileName] || 0;
+      const willUploadToGitee = fileSize > 0 && fileSize <= GITEE_SIZE_LIMIT;
+      
+      console.log(`  -> 文件大小: ${fileSize} bytes`);
+      console.log(`  -> 是否上传到 Gitee: ${willUploadToGitee ? '是' : '否'}`);
 
-      manifest.platforms[config.key] = {
+      // GitHub URL（所有文件都用 GitHub）
+      const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases/download/${tagName}/${fileNameEncoded}`;
+      githubManifest.platforms[config.key] = {
         signature,
-        url
+        url: githubUrl
       };
 
+      // Gitee URL（小文件用 Gitee，大文件用 GitHub）
+      const giteeUrl = willUploadToGitee 
+        ? `https://gitee.com/${giteeOwner}/${giteeRepo}/releases/download/${tagName}/${fileNameEncoded}`
+        : githubUrl; // 大文件回退到 GitHub 链接
+        
+      giteeManifest.platforms[config.key] = {
+        signature,
+        url: giteeUrl
+      };
+
+      console.log(`  -> GitHub URL: ${githubUrl}`);
+      console.log(`  -> Gitee URL: ${giteeUrl} ${willUploadToGitee ? '' : '(回退到 GitHub)'}`);
       console.log(`  -> 成功添加到 manifest`);
 
     } catch (error) {
@@ -137,7 +186,7 @@ async function generateManifest() {
 
   // 验证 manifest
   console.log('\n=== 验证 Manifest ===');
-  const platformCount = Object.keys(manifest.platforms).length;
+  const platformCount = Object.keys(githubManifest.platforms).length;
 
   if (platformCount === 0) {
     console.error('❌ 错误: 没有找到任何平台！');
@@ -149,20 +198,35 @@ async function generateManifest() {
   }
 
   console.log(`✅ 成功: 找到 ${platformCount} 个平台`);
-  console.log('平台列表:', Object.keys(manifest.platforms).join(', '));
+  console.log('平台列表:', Object.keys(githubManifest.platforms).join(', '));
 
-  // 写入文件
-  const outputPath = 'latest-update.json';
-  fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2), 'utf8');
-  console.log(`\n✅ Manifest 已写入: ${outputPath}`);
+  // 写入 GitHub 版本
+  const githubOutputPath = 'latest-update.json';
+  fs.writeFileSync(githubOutputPath, JSON.stringify(githubManifest, null, 2), 'utf8');
+  console.log(`\n✅ GitHub Manifest 已写入: ${githubOutputPath}`);
+
+  // 写入 Gitee 版本
+  const giteeOutputPath = 'latest-update-gitee.json';
+  fs.writeFileSync(giteeOutputPath, JSON.stringify(giteeManifest, null, 2), 'utf8');
+  console.log(`✅ Gitee Manifest 已写入: ${giteeOutputPath}`);
 
   // 输出到 GitHub Actions
   if (process.env.GITHUB_OUTPUT) {
     fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
   }
 
-  console.log('\n生成的 Manifest:');
-  console.log(JSON.stringify(manifest, null, 2));
+  console.log('\n=== GitHub 版本 Manifest ===');
+  console.log(JSON.stringify(githubManifest, null, 2));
+
+  console.log('\n=== Gitee 版本 Manifest ===');
+  console.log(JSON.stringify(giteeManifest, null, 2));
+  
+  // 输出混合链接统计
+  console.log('\n=== Gitee 版本链接分布 ===');
+  for (const [key, value] of Object.entries(giteeManifest.platforms)) {
+    const isGitee = value.url.includes('gitee.com');
+    console.log(`  ${key}: ${isGitee ? 'Gitee' : 'GitHub (回退)'} - ${value.url}`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
