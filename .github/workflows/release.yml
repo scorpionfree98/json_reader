@@ -337,12 +337,25 @@ jobs:
         run: |
           # 查找所有签名文件
           SIG_FILES=$(find src-tauri/target/${{ matrix.target }}/release -name "*.sig")
+          SIG_COUNT=0
           for sig_file in $SIG_FILES; do
             echo "Found signature: $sig_file"
             # 复制到指定目录
             cp "$sig_file" src-tauri/target/${{ matrix.target }}/release/signatures/
+            SIG_COUNT=$((SIG_COUNT + 1))
           done
+          echo "Total signatures found: $SIG_COUNT"
           echo "All signatures copied to signatures directory"
+          
+          # 检查签名目录内容
+          echo "=== Signatures directory contents ==="
+          ls -la src-tauri/target/${{ matrix.target }}/release/signatures/
+          
+          # 如果找不到签名文件，发出警告（但不失败，因为可能用户不想启用自动更新）
+          if [ $SIG_COUNT -eq 0 ]; then
+            echo "⚠️  WARNING: No signature files found! Auto-updater will not work."
+            echo "Make sure TAURI_SIGNING_PRIVATE_KEY secret is set."
+          fi
         shell: bash
 
       - name: Upload update signature
@@ -352,7 +365,7 @@ jobs:
           path: |
             src-tauri/target/${{ matrix.target }}/release/signatures/
             src-tauri/target/${{ matrix.target }}/release/bundle/update/
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 1
 
   release:
@@ -381,10 +394,37 @@ jobs:
 
       - name: Display structure of downloaded files
         run: |
+          echo "=== Current Directory ==="
+          pwd
+          ls -la
+          
+          echo ""
           echo "=== Release Artifacts ==="
-          find artifacts -type f
-          echo "=== Signatures ==="
-          find signatures -type f || echo "No signatures found"
+          if [ -d "artifacts" ]; then
+            find artifacts -type f 2>/dev/null | head -50 || echo "No artifacts found"
+            echo ""
+            echo "Artifacts directory structure:"
+            ls -laR artifacts/ 2>/dev/null | head -100
+          else
+            echo "❌ artifacts directory does not exist!"
+          fi
+          
+          echo ""
+          echo "=== Signatures Directory ==="
+          if [ -d "signatures" ]; then
+            echo "Signatures directory exists"
+            echo ""
+            echo "Directory structure:"
+            find signatures -type d 2>/dev/null | head -30
+            echo ""
+            echo "All files:"
+            find signatures -type f 2>/dev/null | head -50
+            echo ""
+            echo "Detailed listing:"
+            ls -laR signatures/ 2>/dev/null | head -150
+          else
+            echo "❌ signatures directory does not exist!"
+          fi
 
       - name: Generate update manifest
         id: generate_manifest

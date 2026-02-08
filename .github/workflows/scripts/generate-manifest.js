@@ -56,8 +56,15 @@ async function generateManifest() {
   // 递归查找签名文件的函数
   // targetFileName: 目标文件名，用于匹配正确的签名文件（如 .dmg.sig 而不是 .tar.gz.sig）
   function findSignatureFile(basePath, targetFileName = null) {
+    // 首先检查 basePath 是否存在
+    if (!fs.existsSync(basePath)) {
+      console.log(`  -> 路径不存在: ${basePath}`);
+      return null;
+    }
+    
     const queue = [basePath];
     let foundSig = null;
+    let allSigs = [];
     
     while (queue.length > 0) {
       const currentPath = queue.shift();
@@ -65,12 +72,19 @@ async function generateManifest() {
       try {
         const stats = fs.statSync(currentPath);
         if (stats.isFile() && currentPath.endsWith('.sig')) {
+          allSigs.push(currentPath);
+          
           // 如果有目标文件名，优先匹配包含目标文件名的签名文件
           if (targetFileName) {
             const sigFileName = path.basename(currentPath);
-            // 检查签名文件名是否包含目标文件扩展名（如 .dmg.sig）
-            if (sigFileName.includes(targetFileName.replace(/\.[^.]+$/, ''))) {
-              return currentPath; // 立即返回匹配的签名文件
+            const targetExt = path.extname(targetFileName); // 如 .dmg
+            const targetBase = path.basename(targetFileName, targetExt); // 如 JSONFormatter_0.1.14-macos-x64
+            
+            // 检查签名文件名是否匹配目标文件
+            // 签名文件名格式通常是: <targetFile>.sig 或 <targetFile>.<ext>.sig
+            if (sigFileName.includes(targetBase) && sigFileName.includes(targetExt.replace('.', ''))) {
+              console.log(`  -> 精确匹配: ${sigFileName} 匹配 ${targetFileName}`);
+              return currentPath;
             }
             // 如果没有找到匹配的，记录第一个找到的作为备选
             if (!foundSig) {
@@ -90,55 +104,138 @@ async function generateManifest() {
       }
     }
     
-    // 如果没有找到精确匹配的，返回第一个找到的签名文件
+    // 如果没有找到精确匹配的，但有找到签名文件，返回第一个找到的
+    if (foundSig) {
+      console.log(`  -> 使用备选签名文件: ${path.basename(foundSig)}`);
+    } else if (allSigs.length > 0) {
+      // 如果没有任何匹配，返回第一个找到的签名文件
+      console.log(`  -> 未找到精确匹配，使用第一个签名文件: ${path.basename(allSigs[0])}`);
+      return allSigs[0];
+    }
+    
     return foundSig;
   }
 
-  // 定义平台配置
+  // 定义平台配置 - 支持多种可能的artifact命名模式
+  // 注意：GitHub Actions download-artifact 会将 artifact 名称作为子目录
   const platformConfigs = [
     {
       key: 'darwin-x86_64',
-      signatureDir: 'signatures/macos-latest-x64-signature',
+      signatureDirs: [
+        'signatures/macos-latest-x64-signature',
+        'signatures/macos-13-x64-signature',
+        'signatures/macos-latest-x86_64-signature',
+        'signatures/x64-signature',  // 备选：如果artifact名称简化
+        'signatures/darwin-x86_64-signature'
+      ],
       fileName: `${productName}_${version}-macos-x64.dmg`
     },
     {
       key: 'darwin-aarch64',
-      signatureDir: 'signatures/macos-latest-aarch64-signature',
+      signatureDirs: [
+        'signatures/macos-latest-aarch64-signature',
+        'signatures/macos-14-aarch64-signature',
+        'signatures/macos-latest-arm64-signature',
+        'signatures/aarch64-signature',  // 备选：如果artifact名称简化
+        'signatures/arm64-signature',
+        'signatures/darwin-aarch64-signature'
+      ],
       fileName: `${productName}_${version}-macos-aarch64.dmg`
     },
     {
       key: 'windows-x86_64-webview2',
-      signatureDir: 'signatures/windows-latest-x64-with-webview2-signature',
+      signatureDirs: [
+        'signatures/windows-latest-x64-with-webview2-signature',
+        'signatures/windows-2022-x64-with-webview2-signature',
+        'signatures/x64-with-webview2-signature',
+        'signatures/windows-x86_64-webview2-signature'
+      ],
       fileName: `${productName}_${version}-windows-x64-webview2.exe`
     },
     {
       key: 'windows-x86_64',
-      signatureDir: 'signatures/windows-latest-x64-without-webview2-signature',
+      signatureDirs: [
+        'signatures/windows-latest-x64-without-webview2-signature',
+        'signatures/windows-latest-x64-signature',
+        'signatures/windows-2022-x64-signature',
+        'signatures/x64-signature',
+        'signatures/x64-without-webview2-signature',
+        'signatures/windows-x86_64-signature'
+      ],
       fileName: `${productName}_${version}-windows-x64.exe`
     }
   ];
 
   console.log('\n=== 检查签名文件 ===');
+  
+  // 首先扫描整个 signatures 目录，了解实际结构
+  console.log('扫描 signatures 目录结构...');
+  function scanSignaturesDir(baseDir = 'signatures') {
+    const allSigs = [];
+    if (!fs.existsSync(baseDir)) {
+      console.warn(`  -> signatures 目录不存在: ${baseDir}`);
+      return allSigs;
+    }
+    
+    function scanDir(dir, relativePath = '') {
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const fullPath = path.join(dir, item);
+        const relPath = path.join(relativePath, item);
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          scanDir(fullPath, relPath);
+        } else if (item.endsWith('.sig')) {
+          allSigs.push({ path: fullPath, relativePath: relPath, name: item });
+        }
+      }
+    }
+    scanDir(baseDir);
+    return allSigs;
+  }
+  
+  const allSignatureFiles = scanSignaturesDir();
+  console.log(`找到 ${allSignatureFiles.length} 个签名文件:`);
+  allSignatureFiles.forEach(sig => console.log(`  - ${sig.relativePath}`));
+  console.log('');
+  
   const platforms = [];
 
   for (const config of platformConfigs) {
     console.log(`处理平台配置: ${config.key}`);
-    console.log(`  签名目录: ${config.signatureDir}`);
     console.log(`  文件名: ${config.fileName}`);
+    console.log(`  尝试的签名目录: ${config.signatureDirs.join(', ')}`);
     
     // 查找签名文件（支持直接文件路径或目录搜索）
     let foundSigPath = null;
+    let foundSigDir = null;
     
-    // 首先尝试直接查找签名文件
-    const directSigPath = `${config.signatureDir}/signature.sig`;
-    if (fs.existsSync(directSigPath)) {
-      foundSigPath = directSigPath;
-      console.log(`  -> 找到直接签名文件: ${foundSigPath}`);
-    } 
-    // 如果没有直接找到，尝试递归查找（传入目标文件名以匹配正确的签名文件）
-    else {
-      foundSigPath = findSignatureFile(config.signatureDir, config.fileName);
+    // 遍历所有可能的签名目录
+    for (const sigDir of config.signatureDirs) {
+      console.log(`  检查目录: ${sigDir}`);
+      
+      // 首先尝试直接查找签名文件
+      const directSigPath = `${sigDir}/signature.sig`;
+      if (fs.existsSync(directSigPath)) {
+        foundSigPath = directSigPath;
+        foundSigDir = sigDir;
+        console.log(`  -> 找到直接签名文件: ${foundSigPath}`);
+        break;
+      }
+      
+      // 尝试在签名目录的 update 子目录中查找
+      const updateSigPath = `${sigDir}/update/signature.sig`;
+      if (fs.existsSync(updateSigPath)) {
+        foundSigPath = updateSigPath;
+        foundSigDir = sigDir;
+        console.log(`  -> 在 update 目录找到签名文件: ${foundSigPath}`);
+        break;
+      }
+      
+      // 尝试递归查找
+      foundSigPath = findSignatureFile(sigDir, config.fileName);
       if (foundSigPath) {
+        foundSigDir = sigDir;
         console.log(`  -> 递归找到签名文件: ${foundSigPath}`);
         // 验证签名文件是否匹配目标文件
         const sigFileName = path.basename(foundSigPath);
@@ -148,17 +245,45 @@ async function generateManifest() {
         } else {
           console.warn(`  -> 警告: 签名文件可能与目标文件不匹配: ${sigFileName} vs ${config.fileName}`);
         }
-      } else {
-        // 尝试在签名目录的 update 子目录中查找
-        const updateSigPath = `${config.signatureDir}/update/signature.sig`;
-        if (fs.existsSync(updateSigPath)) {
-          foundSigPath = updateSigPath;
-          console.log(`  -> 在 update 目录找到签名文件: ${foundSigPath}`);
-        } else {
-          console.log(`  -> 未找到签名文件，跳过该平台配置`);
-          continue;
+        break;
+      }
+    }
+    
+    // 兜底：如果标准路径找不到，尝试从所有签名文件中匹配
+    if (!foundSigPath && allSignatureFiles.length > 0) {
+      console.log(`  -> 尝试从所有签名文件中匹配...`);
+      const targetBaseName = config.fileName.replace(/\.[^.]+$/, '');
+      const platformKeywords = {
+        'darwin-x86_64': ['macos', 'x64', 'x86_64', 'darwin'],
+        'darwin-aarch64': ['macos', 'aarch64', 'arm64', 'darwin'],
+        'windows-x86_64-webview2': ['windows', 'x64', 'webview2'],
+        'windows-x86_64': ['windows', 'x64']
+      };
+      const keywords = platformKeywords[config.key] || [];
+      
+      for (const sig of allSignatureFiles) {
+        const sigName = sig.name.toLowerCase();
+        // 检查签名文件名是否包含平台关键词
+        const matchesPlatform = keywords.some(kw => sigName.includes(kw.toLowerCase()));
+        // 避免将 webview2 版本匹配到非 webview2 版本
+        const isWebview2 = sigName.includes('webview2');
+        const shouldBeWebview2 = config.key.includes('webview2');
+        
+        if (matchesPlatform && isWebview2 === shouldBeWebview2) {
+          // 进一步检查是否匹配版本号
+          if (sigName.includes(version) || sigName.includes(productName.toLowerCase())) {
+            foundSigPath = sig.path;
+            foundSigDir = path.dirname(sig.path);
+            console.log(`  -> 从全局扫描找到匹配签名: ${sig.relativePath}`);
+            break;
+          }
         }
       }
+    }
+    
+    if (!foundSigPath) {
+      console.log(`  -> 未找到签名文件，跳过该平台配置`);
+      continue;
     }
     
     // 添加到平台列表
@@ -167,7 +292,7 @@ async function generateManifest() {
       sigPath: foundSigPath,
       fileName: config.fileName
     });
-    console.log(`  -> 已添加到平台列表`);
+    console.log(`  -> 已添加到平台列表 (目录: ${foundSigDir})`);
   }
 
   // 为每个平台生成 manifest 条目
@@ -230,11 +355,18 @@ async function generateManifest() {
   // 验证 manifest 完整性
   console.log('\n=== 验证 Manifest 完整性 ===');
   if (Object.keys(manifest.platforms).length === 0) {
-    console.warn('警告: 没有找到任何平台！生成的 manifest 将不包含任何平台信息。');
-    console.warn('这可能会导致 Tauri 应用无法检测到更新。');
-    console.warn('请检查签名文件是否正确生成和上传。');
+    console.error('❌ 错误: 没有找到任何平台！生成的 manifest 将不包含任何平台信息。');
+    console.error('这会导致 Tauri 应用无法检测到更新。');
+    console.error('');
+    console.error('可能的原因:');
+    console.error('1. 签名文件没有正确生成（检查 TAURI_SIGNING_PRIVATE_KEY 是否设置）');
+    console.error('2. Artifact 名称不匹配（检查上传和下载的 artifact 名称）');
+    console.error('3. 签名文件路径不正确（检查 signatures 目录结构）');
+    console.error('');
+    console.error('请检查 GitHub Actions 日志中的 "Display structure of downloaded files" 步骤');
+    process.exit(1);
   } else {
-    console.log(`成功: 找到 ${Object.keys(manifest.platforms).length} 个平台`);
+    console.log(`✅ 成功: 找到 ${Object.keys(manifest.platforms).length} 个平台`);
     console.log('平台列表:', Object.keys(manifest.platforms).join(', '));
   }
 
