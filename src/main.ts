@@ -4,6 +4,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
+import { getVersion } from '@tauri-apps/api/app';
 import { saveWindowState, restoreStateCurrent, StateFlags } from '@tauri-apps/plugin-window-state';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -62,6 +63,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 绑定复选框事件
   bindCheckboxEvents();
+
+  // 显示版本号
+  displayVersion();
 });
 
 // 初始化复选框状态
@@ -280,7 +284,7 @@ export async function checkUpdate(isManual = false) {
       console.log('发现新版本:', res.version, '当前:', res.currentVersion);
       console.log('准备显示更新确认对话框...');
 
-      layer.confirm(`发现新版本: ${res.version}，是否现在更新？`, {
+      layer.confirm(`当前版本: ${res.currentVersion}，发现新版本: ${res.version}，是否现在更新？`, {
         btn: ['确定', '关闭']
       }, async function () {
         console.log('用户点击了确定，开始下载更新...');
@@ -385,6 +389,24 @@ function showLayuiMsg(text: string) {
     layui.layer.msg(text);
   } else {
     console.log('[Layui未加载]', text);
+  }
+}
+
+// 显示版本号
+async function displayVersion() {
+  console.log('=== 开始获取版本号 ===');
+  try {
+    // 从后端获取应用版本号
+    const version = await getVersion();
+    console.log('获取到版本号:', version);
+    const versionEl = byId('version-display');
+    console.log('版本号元素:', versionEl);
+    if (versionEl) {
+      versionEl.text(`v${version}`);
+      console.log('版本号已显示:', `v${version}`);
+    }
+  } catch (e) {
+    console.log('获取版本号失败:', e);
   }
 }
 

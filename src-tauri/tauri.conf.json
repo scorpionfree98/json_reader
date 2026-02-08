@@ -1,7 +1,7 @@
 {
   "identifier": "com.example.jsonformatter",
   "productName": "JSONFormatter",
-  "version": "0.1.14",
+  "version": "0.1.18",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",

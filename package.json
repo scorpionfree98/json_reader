@@ -1,7 +1,7 @@
 {
   "name": "json-formatter-tauri",
   "private": true,
-  "version": "0.1.14",
+  "version": "0.1.18",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -29,7 +29,7 @@
     "katex": "^0.16.28"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.9.0",
+    "@tauri-apps/cli": "~2.9.0",
     "@types/katex": "^0.16.8",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
