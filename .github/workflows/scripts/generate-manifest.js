@@ -119,7 +119,9 @@ async function generateManifest() {
       }
 
       const fileNameEncoded = encodeURIComponent(config.fileName);
-      const url = `https://github.com/${repoOwner}/${repoName}/releases/download/${version}/${fileNameEncoded}`;
+      // GitHub Release 标签通常带 v 前缀（如 v0.1.14）
+      const tagName = version.startsWith('v') ? version : `v${version}`;
+      const url = `https://github.com/${repoOwner}/${repoName}/releases/download/${tagName}/${fileNameEncoded}`;
 
       manifest.platforms[config.key] = {
         signature,
