@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// 文件大小限制：100MB
+const GITEE_SIZE_LIMIT = 104857600;
+
 async function generateManifest() {
   const manualVersion = process.env.INPUT_VERSION || '';
   const githubRef = process.env.GITHUB_REF || '';
@@ -14,6 +17,18 @@ async function generateManifest() {
   const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'json_reader';
   const giteeOwner = process.env.GITEE_OWNER || 'scorpionfree98';
   const giteeRepo = process.env.GITEE_REPO || 'json_reader';
+  
+  // 从环境变量获取文件大小信息（格式："filename:size,filename:size"）
+  const fileSizesEnv = process.env.FILE_SIZES || '';
+  const fileSizes = {};
+  if (fileSizesEnv) {
+    fileSizesEnv.split(',').forEach(item => {
+      const [name, size] = item.split(':');
+      if (name && size) {
+        fileSizes[name] = parseInt(size, 10);
+      }
+    });
+  }
 
   let version;
   if (manualVersion) {
@@ -90,7 +105,7 @@ async function generateManifest() {
     }
   ];
 
-  // 生成 GitHub 版本的 manifest
+  // 生成 GitHub 版本的 manifest（所有文件都用 GitHub 链接）
   console.log('\n=== 创建 GitHub 版本更新清单 ===');
   const githubManifest = {
     version,
@@ -99,7 +114,7 @@ async function generateManifest() {
     platforms: {}
   };
 
-  // 生成 Gitee 版本的 manifest
+  // 生成 Gitee 版本的 manifest（小文件用 Gitee 链接，大文件用 GitHub 链接）
   console.log('\n=== 创建 Gitee 版本更新清单 ===');
   const giteeManifest = {
     version,
@@ -110,10 +125,12 @@ async function generateManifest() {
 
   // 处理每个平台
   console.log('\n=== 处理平台配置 ===');
+  console.log('文件大小信息:', fileSizes);
 
   for (const config of platformConfigs) {
     console.log(`\n处理平台: ${config.key}`);
     console.log(`  签名目录: ${config.signatureDir}`);
+    console.log(`  文件名: ${config.fileName}`);
 
     const sigPath = findSignatureFile(config.signatureDir);
 
@@ -133,23 +150,33 @@ async function generateManifest() {
       }
 
       const fileNameEncoded = encodeURIComponent(config.fileName);
+      
+      // 获取文件大小
+      const fileSize = fileSizes[config.fileName] || 0;
+      const willUploadToGitee = fileSize > 0 && fileSize <= GITEE_SIZE_LIMIT;
+      
+      console.log(`  -> 文件大小: ${fileSize} bytes`);
+      console.log(`  -> 是否上传到 Gitee: ${willUploadToGitee ? '是' : '否'}`);
 
-      // GitHub URL
+      // GitHub URL（所有文件都用 GitHub）
       const githubUrl = `https://github.com/${repoOwner}/${repoName}/releases/download/${tagName}/${fileNameEncoded}`;
       githubManifest.platforms[config.key] = {
         signature,
         url: githubUrl
       };
 
-      // Gitee URL (使用相同的文件名格式)
-      const giteeUrl = `https://gitee.com/${giteeOwner}/${giteeRepo}/releases/download/${tagName}/${fileNameEncoded}`;
+      // Gitee URL（小文件用 Gitee，大文件用 GitHub）
+      const giteeUrl = willUploadToGitee 
+        ? `https://gitee.com/${giteeOwner}/${giteeRepo}/releases/download/${tagName}/${fileNameEncoded}`
+        : githubUrl; // 大文件回退到 GitHub 链接
+        
       giteeManifest.platforms[config.key] = {
         signature,
         url: giteeUrl
       };
 
       console.log(`  -> GitHub URL: ${githubUrl}`);
-      console.log(`  -> Gitee URL: ${giteeUrl}`);
+      console.log(`  -> Gitee URL: ${giteeUrl} ${willUploadToGitee ? '' : '(回退到 GitHub)'}`);
       console.log(`  -> 成功添加到 manifest`);
 
     } catch (error) {
@@ -193,6 +220,13 @@ async function generateManifest() {
 
   console.log('\n=== Gitee 版本 Manifest ===');
   console.log(JSON.stringify(giteeManifest, null, 2));
+  
+  // 输出混合链接统计
+  console.log('\n=== Gitee 版本链接分布 ===');
+  for (const [key, value] of Object.entries(giteeManifest.platforms)) {
+    const isGitee = value.url.includes('gitee.com');
+    console.log(`  ${key}: ${isGitee ? 'Gitee' : 'GitHub (回退)'} - ${value.url}`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -427,10 +427,36 @@ jobs:
             echo "❌ signatures directory does not exist!"
           fi
 
+      - name: Collect file sizes
+        id: collect_sizes
+        run: |
+          echo "=== 收集构建产物文件大小 ==="
+          FILE_SIZES=""
+          
+          # 查找所有构建产物并记录大小
+          for file in $(find artifacts -type f \( -name "*.dmg" -o -name "*.tar.gz" -o -name "*.msi" -o -name "*.exe" \) 2>/dev/null); do
+            filename=$(basename "$file")
+            size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
+            echo "  $filename: $size bytes"
+            
+            if [ -n "$FILE_SIZES" ]; then
+              FILE_SIZES="${FILE_SIZES},"
+            fi
+            FILE_SIZES="${FILE_SIZES}${filename}:${size}"
+          done
+          
+          echo ""
+          echo "文件大小信息: $FILE_SIZES"
+          
+          # 输出到环境变量
+          echo "FILE_SIZES=$FILE_SIZES" >> $GITHUB_ENV
+          echo "file_sizes=$FILE_SIZES" >> $GITHUB_OUTPUT
+
       - name: Generate update manifest
         id: generate_manifest
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
+          FILE_SIZES: ${{ steps.collect_sizes.outputs.file_sizes }}
         run: |
           node .github/workflows/scripts/generate-manifest.js
 
@@ -503,19 +529,37 @@ jobs:
           RELEASE_NAME="Release $TAG_NAME"
           RELEASE_BODY="🚀 JSON格式化工具 $TAG_NAME 版本发布
 
-          ## 安装包下载
+          ## 📦 安装包下载
 
-          以下安装包已同步上传至 Gitee：
+          ### ✅ 已上传至 Gitee（国内下载更快）
 
-          ### macOS
+          以下文件已直接上传至 Gitee，可直接下载：
+
+          #### macOS
           - Intel 芯片版 (.dmg)
           - Apple Silicon 芯片版 (.dmg)
+          - Intel 芯片版 (.tar.gz) 
+          - Apple Silicon 芯片版 (.tar.gz) 
 
-          ### Windows
-          - 64位 安装版 含 WebView2 (.exe)
-          - 64位 安装版 不含 WebView2 (.exe)
+          #### Windows
+          - 64位 安装版 (.msi)
+          - 64位 安装版 不含 WebView2 (.exe) 
 
-          ### 更新日志
+          ### ⚠️ 需要从 GitHub 下载
+
+          以下文件因超过 Gitee 免费版 100MB 限制，请从 GitHub Release 下载：
+
+          #### Windows
+          - 64位 安装版 含 WebView2 (.exe) - 通常 >100MB
+
+          > 💡 **为什么有大小限制？**
+          > Gitee 免费版对单个附件有 100MB 的限制，而 Windows 安装程序(.exe)通常包含 WebView2 运行时，体积较大。macOS 安装包(.dmg/.tar.gz)和 Windows MSI 安装包通常小于 100MB，因此可以直接下载。
+
+          ### 🔗 下载地址
+          - [GitHub Release（完整版）](https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG_NAME)
+          - [Gitee Release（国内加速）](https://gitee.com/${GITEE_OWNER}/${GITEE_REPO}/releases/tag/$TAG_NAME)
+
+          ### 📝 更新日志
           详见 [GitHub Release](https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG_NAME)"
 
           # 创建新的 Gitee Release
