@@ -12,36 +12,38 @@
 
 </div>
 
-## 功能特性
+## ✨ 功能特性
 
-- JSON 格式化和美化显示
-- JSON 语法验证
-- 从剪贴板快速读取 JSON
-- 语法高亮显示
-- 支持折叠/展开 JSON 节点
-- 窗口置顶功能
-- 开机自启动
-- 系统托盘支持
-- 自动更新检测
-- 跨平台支持（macOS、Windows）
+- 📋 **JSON 格式化和美化显示** - 自动格式化 JSON 字符串，使其更易读
+- 🔍 **JSON 语法验证** - 实时检查 JSON 语法错误
+- 📋 **从剪贴板快速读取 JSON** - 一键获取剪贴板中的 JSON 内容
+- 🎨 **语法高亮显示** - 支持 JSON 语法高亮，提高可读性
+- 📁 **支持折叠/展开 JSON 节点** - 方便查看大型 JSON 结构
+- 📋 **双击快速复制** - 双击 key 或 value 快速复制到剪贴板
+- 📐 **LaTeX 公式渲染** - 支持渲染 JSON 字符串中的 LaTeX 数学公式
+- 📌 **窗口置顶功能** - 保持窗口在最前面，方便操作
+- 🚀 **开机自启动** - 实现开机自动启动
+- 📦 **系统托盘支持** - 最小化到托盘，不占用任务栏空间
+- 🔄 **自动更新检测** - 自动检测新版本并提示更新
+- 🌐 **跨平台支持** - 支持 macOS (Intel/Apple Silicon) 和 Windows
 
 ## 截图
 
 ![应用界面](docs/screenshot.png)
 
-## 下载安装
+## 📥 下载安装
 
 ### macOS
 
-- **Intel (x64)**: [下载 DMG](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSON%20格式化工具_latest_x64.dmg)
-- **Apple Silicon (ARM64)**: [下载 DMG](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSON%20格式化工具_latest_aarch64.dmg)
-
+- **Intel (x64)**: [下载 DMG](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-macos-x64.dmg)
+- **Apple Silicon (aarch64)**: [下载 DMG](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-macos-aarch64.dmg)
 
 ### Windows
 
-- [下载安装程序](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSON%20格式化工具_latest_x64-setup.exe)
+- [下载安装程序 包含webview2（较大、兼容性好）](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-windows-x64-webview2.exe)
+- [下载安装程序 较小，安装方便，适合系统自带webview2的情况](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-windows-x64.exe)
 
-## 使用说明
+## 📖 使用说明
 
 ### 基本操作
 
@@ -58,6 +60,26 @@
 
 ### 高级功能
 
+- **双击复制**: 双击 JSON 中的 key 或 value 可以快速复制到剪贴板
+  - 双击 key 复制完整的路径（如 `["user"]["name"]`）
+  - 双击 value 复制值本身
+  - 支持多种复制格式：
+    - **默认格式**: `["user"]["name"]` 或 `["users"][0]["name"]`
+    - **点号格式**: `user.name` 或 `users[0].name`
+    - **JSONPath**: `$.user.name` 或 `$.users[0].name`
+    - **方括号格式**: `['user']['name']` 或 `['users'][0]['name']`
+    - **Python .get**: `.get('user').get('name')` 或 `.get('users')[0].get('name')`
+    - **自定义格式**: 分别定义对象属性和数组索引的格式
+      - 输入框默认显示占位符，可直接修改
+      - 对象属性格式：使用 `key` 占位符（默认 `{key}`）
+      - 数组索引格式：使用 `index` 占位符（默认 `{index}`）
+      - 示例 1：对象属性 `.{key}`，数组索引 `[{index}]` → `.users[0].items[1]`
+      - 示例 2：对象属性 `.get('{key}')`，数组索引 `[{index}]` → `.get('users')[0].get('items')[1]`
+      - 示例 3：对象属性 `['{key}']`，数组索引 `[{index}]` → `['users'][0]['items'][1]`
+- **LaTeX 公式渲染**: 勾选"转义"复选框可以渲染 JSON 字符串中的 LaTeX 数学公式
+  - 支持行内公式 `$...$`
+  - 支持块级公式 `$$...$$`
+  - 例如：`"formula": "$E=mc^2$"` 会显示为数学公式
 - **转义**: 勾选"转义"复选框可以对 JSON 字符串进行转义处理
 - **置顶**: 勾选"置顶"复选框将窗口保持在最前面
 - **开机自启**: 勾选"开机自启"复选框实现开机自动启动
@@ -69,7 +91,7 @@
 - **关闭**: 点击"关闭"按钮退出应用
 - **托盘菜单**: 右键点击系统托盘图标可以访问更多选项
 
-## 开发指南
+## 🛠️ 开发指南
 
 ### 环境要求
 
@@ -125,7 +147,7 @@ git push origin v1.0.0
 
 推送标签后会自动触发 GitHub Actions 构建和发布流程。
 
-## 项目结构
+## 📁 项目结构
 
 ```
 json_reader/
@@ -147,20 +169,20 @@ json_reader/
         └── release.yml      # CI/CD 工作流
 ```
 
-## 技术栈
+## 🛠️ 技术栈
 
 - **前端**: HTML5, TypeScript, jQuery, Layui
 - **后端**: Rust, Tauri v2
 - **构建工具**: Vite, pnpm
 - **CI/CD**: GitHub Actions
 
-## 版本历史
+## 📝 版本历史
 
 ### [最新版本](https://github.com/scorpionfree98/json_reader/releases/latest)
 
 查看 [CHANGELOG.md](CHANGELOG.md) 获取完整的版本历史。
 
-## 贡献指南
+## 🤝 贡献指南
 
 欢迎贡献代码！请遵循以下步骤：
 
@@ -170,7 +192,7 @@ json_reader/
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
-## 常见问题
+## ❓ 常见问题
 
 ### Q: 如何启用自动更新？
 
@@ -180,24 +202,24 @@ A: 自动更新已默认启用。应用启动时会自动检查更新，你也�
 
 A: 在终端中运行以下命令：
 ```bash
-sudo xattr -rd com.apple.quarantine /Applications/JSON\ 格式化工具.app
+sudo xattr -rd com.apple.quarantine /Applications/JSONFormatter.app
 ```
 
 ### Q: 支持哪些平台？
 
 A: 目前支持 macOS (Intel 和 Apple Silicon) 和 Windows (x64)。
 
-## 许可证
+## 📄 许可证
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
-## 致谢
+## 🙏 致谢
 
 - [Tauri](https://tauri.app/) - 跨平台桌面应用框架
 - [Layui](https://www.layui.com/) - 前端 UI 框架
 - [jQuery](https://jquery.com/) - JavaScript 库
 
-## 联系方式
+## 📞 联系方式
 
 - GitHub: [@scorpionfree98](https://github.com/scorpionfree98)
 - 问题反馈: [Issues](https://github.com/scorpionfree98/json_reader/issues)

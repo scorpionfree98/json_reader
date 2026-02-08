@@ -6,7 +6,22 @@
     <title>JSON格式化工具</title>
     <!-- 引入Layui的CSS样式 -->
     <link rel="stylesheet" href="lib/layui/css/layui.css">
+    
     <style>
+        /* 你的 styles.css 或 main.css */
+
+
+
+        /* 修复 KaTeX 在某些 flex/grid 布局下的溢出问题 */
+        .katex-display {
+            margin: 0.5em 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        /* 你的 JSON 高亮样式 (假设) */
+        
+        /* ... */
         /* 自定义CSS样式 */
         #json-display {
             margin-top: 20px;
@@ -34,6 +49,31 @@
             line-height: 1.5em;
             /* 调整行高 */
         }
+        /* LaTeX 样式 */
+        .latex-inline {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-size: 16px;
+            padding: 0 5px;
+        }
+        .latex-inline .katex {
+            color: #FFD700;
+        }
+        .latex-block {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            font-size: 18px;
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .latex-block .katex {
+            color: #FFD700;
+        }
 
         .json-object,
         .json-array {
@@ -42,7 +82,7 @@
         }
 
         .json-key::after {
-            content: ': ';
+            /* content: ': '; */
             margin-right: 0.5em;
         }
 
@@ -186,6 +226,28 @@
                         <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
                         <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
                         <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
+                        <div class="layui-form-item" style="margin-bottom: 0; display: inline-block; vertical-align: middle;">
+                            <label class="layui-form-label" style="width: auto; padding: 9px 10px;">复制格式：</label>
+                            <div class="layui-input-inline" style="width: 200px;">
+                                <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
+                                    <option value="default">默认格式 ["key"]</option>
+                                    <option value="dot">点号格式 .key</option>
+                                    <option value="jsonpath">JSONPath $.key</option>
+                                    <option value="bracket">方括号格式 ['key']</option>
+                                    <option value="python">Python .get</option>
+                                    <option value="custom">自定义格式</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="layui-form-item" id="customFormatContainer" style="margin-bottom: 0; display: none;">
+                            <label class="layui-form-label" style="width: auto; padding: 9px 10px;">自定义格式：</label>
+                            <div class="layui-input-inline" style="width: 150px;">
+                                <input type="text" id="customKeyFormat" value="{key}" class="layui-input">
+                            </div>
+                            <div class="layui-input-inline" style="width: 150px;">
+                                <input type="text" id="customIndexFormat" value="{index}" class="layui-input">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

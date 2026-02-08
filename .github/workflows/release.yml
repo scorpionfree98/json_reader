@@ -38,7 +38,7 @@ jobs:
             condition: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
           - platform: macos-latest
             target: aarch64-apple-darwin
-            arch: arm64
+            arch: aarch64
             condition: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.build_macos == 'false') }}
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
@@ -220,6 +220,10 @@ jobs:
             if ls dmg/*.dmg 1> /dev/null 2>&1; then
               mv dmg/*.dmg "$NEW_NAME"
               echo "DMG 重命名成功"
+              # 创建 latest 版本副本
+              LATEST_NAME="${PRODUCT_NAME}_latest-macos-${ARCH}.dmg"
+              cp "$NEW_NAME" "$LATEST_NAME"
+              echo "Latest DMG 副本创建成功: $LATEST_NAME"
             else
               echo "警告: 未找到 DMG 文件"
             fi
@@ -228,6 +232,10 @@ jobs:
             if ls macos/*.tar.gz 1> /dev/null 2>&1; then
               mv macos/*.tar.gz "$NEW_NAME_TARGZ"
               echo "TAR.GZ 重命名成功"
+              # 创建 latest 版本副本
+              LATEST_NAME_TARGZ="${PRODUCT_NAME}_latest-macos-${ARCH}.app.tar.gz"
+              cp "$NEW_NAME_TARGZ" "$LATEST_NAME_TARGZ"
+              echo "Latest TAR.GZ 副本创建成功: $LATEST_NAME_TARGZ"
             else
               echo "警告: 未找到 TAR.GZ 文件"
             fi
@@ -249,6 +257,14 @@ jobs:
             if ls msi/*.msi 1> /dev/null 2>&1; then
               mv msi/*.msi "${NEW_NAME_BASE}.msi"
               echo "MSI 重命名成功"
+              # 创建 latest 版本副本
+              if [ -n "$WEBVIEW" ]; then
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              else
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64"
+              fi
+              cp "${NEW_NAME_BASE}.msi" "${LATEST_NAME_BASE}.msi"
+              echo "Latest MSI 副本创建成功: ${LATEST_NAME_BASE}.msi"
             else
               echo "警告: 未找到 MSI 文件"
             fi
@@ -256,6 +272,14 @@ jobs:
             if ls nsis/*.exe 1> /dev/null 2>&1; then
               mv nsis/*.exe "${NEW_NAME_BASE}.exe"
               echo "NSIS 重命名成功"
+              # 创建 latest 版本副本
+              if [ -n "$WEBVIEW" ]; then
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              else
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64"
+              fi
+              cp "${NEW_NAME_BASE}.exe" "${LATEST_NAME_BASE}.exe"
+              echo "Latest NSIS 副本创建成功: ${LATEST_NAME_BASE}.exe"
             else
               echo "警告: 未找到 NSIS 文件"
             fi
@@ -298,7 +322,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}-${{ matrix.webview2 || '' }}webview2-release
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-release
           path: |
             src-tauri/target/${{ matrix.target }}/release/bundle/*.msi
             src-tauri/target/${{ matrix.target }}/release/bundle/*.exe

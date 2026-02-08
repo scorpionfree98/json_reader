@@ -12,19 +12,19 @@ importers:
         specifier: 2.9.1
         version: 2.9.1
       '@tauri-apps/plugin-autostart':
-        specifier: ^2.5.1
+        specifier: ~2.5.1
         version: 2.5.1
       '@tauri-apps/plugin-clipboard-manager':
-        specifier: ^2.3.2
+        specifier: ~2.3.2
         version: 2.3.2
       '@tauri-apps/plugin-process':
-        specifier: ^2.3.1
+        specifier: ~2.3.1
         version: 2.3.1
       '@tauri-apps/plugin-updater':
-        specifier: ^2.9.0
+        specifier: ~2.9.0
         version: 2.9.0
       '@tauri-apps/plugin-window-state':
-        specifier: ^2.4.1
+        specifier: ~2.4.1
         version: 2.4.1
       '@types/jquery':
         specifier: ~3.5.33
@@ -32,10 +32,16 @@ importers:
       jquery:
         specifier: ~3.7.1
         version: 3.7.1
+      katex:
+        specifier: ^0.16.28
+        version: 0.16.28
     devDependencies:
       '@tauri-apps/cli':
-        specifier: ^2.10.0
+        specifier: ^2.9.0
         version: 2.10.0
+      '@types/katex':
+        specifier: ^0.16.8
+        version: 0.16.8
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -403,8 +409,15 @@ packages:
   '@types/jquery@3.5.33':
     resolution: {integrity: sha512-SeyVJXlCZpEki5F0ghuYe+L+PprQta6nRZqhONt9F13dWBtR/ftoaIbdRQ7cis7womE+X2LKhsDdDtkkDhJS6g==}
 
+  '@types/katex@0.16.8':
+    resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
+
   '@types/sizzle@2.3.10':
     resolution: {integrity: sha512-TC0dmN0K8YcWEAEfiPi5gJP14eJe30TTGjkvek3iM/1NdHHsdCA/Td6GvNndMOo/iSnIsZ4HuuhrYPDAmbxzww==}
+
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
 
   esbuild@0.21.5:
     resolution: {integrity: sha512-mg3OPMV4hXywwpoDxu3Qda5xCKQi+vCTZq8S9J/EpkhB2HzKXq4SNFZE3+NK93JYxc8VMSep+lOUSC/RVKaBqw==}
@@ -418,6 +431,10 @@ packages:
 
   jquery@3.7.1:
     resolution: {integrity: sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==}
+
+  katex@0.16.28:
+    resolution: {integrity: sha512-YHzO7721WbmAL6Ov1uzN/l5mY5WWWhJBSW+jq4tkfZfsxmo1hu6frS0EOswvjBUnWE6NtjEs48SFn5CQESRLZg==}
+    hasBin: true
 
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
@@ -697,7 +714,11 @@ snapshots:
     dependencies:
       '@types/sizzle': 2.3.10
 
+  '@types/katex@0.16.8': {}
+
   '@types/sizzle@2.3.10': {}
+
+  commander@8.3.0: {}
 
   esbuild@0.21.5:
     optionalDependencies:
@@ -729,6 +750,10 @@ snapshots:
     optional: true
 
   jquery@3.7.1: {}
+
+  katex@0.16.28:
+    dependencies:
+      commander: 8.3.0
 
   nanoid@3.3.11: {}
 
