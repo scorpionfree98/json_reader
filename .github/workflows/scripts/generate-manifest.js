@@ -87,18 +87,18 @@ async function generateManifest() {
     },
     {
       key: 'darwin-aarch64',
-      signatureDir: 'signatures/macos-latest-arm64-signature',
-      fileName: `${productName}_${version}-macos-arm64.dmg`
+      signatureDir: 'signatures/macos-latest-aarch64-signature',
+      fileName: `${productName}_${version}-macos-aarch64.dmg`
+    },
+    {
+      key: 'windows-x86_64-webview2',
+      signatureDir: 'signatures/windows-latest-x64-with-webview2-signature',
+      fileName: `${productName}_${version}-windows-x64-webview2.exe`
     },
     {
       key: 'windows-x86_64',
-      signatureDir: 'signatures/windows-latest-x64-withwebview2-signature',
-      fileName: `${productName}_${version}-windows-x64-withwebview2.exe`
-    },
-    {
-      key: 'windows-x86_64',
-      signatureDir: 'signatures/windows-latest-x64-withoutwebview2-signature',
-      fileName: `${productName}_${version}-windows-x64-withoutwebview2.exe`
+      signatureDir: 'signatures/windows-latest-x64-signature',
+      fileName: `${productName}_${version}-windows-x64.exe`
     }
   ];
 

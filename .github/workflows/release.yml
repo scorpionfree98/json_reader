@@ -227,13 +227,13 @@ jobs:
             else
               echo "警告: 未找到 DMG 文件"
             fi
-            NEW_NAME_TARGZ="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.tar.gz"
+            NEW_NAME_TARGZ="${PRODUCT_NAME}_${VERSION}-macos-${ARCH}.app.tar.gz"
             echo "TAR.GZ 新名称: $NEW_NAME_TARGZ"
             if ls macos/*.tar.gz 1> /dev/null 2>&1; then
               mv macos/*.tar.gz "$NEW_NAME_TARGZ"
               echo "TAR.GZ 重命名成功"
               # 创建 latest 版本副本
-              LATEST_NAME_TARGZ="${PRODUCT_NAME}_latest-macos-${ARCH}.tar.gz"
+              LATEST_NAME_TARGZ="${PRODUCT_NAME}_latest-macos-${ARCH}.app.tar.gz"
               cp "$NEW_NAME_TARGZ" "$LATEST_NAME_TARGZ"
               echo "Latest TAR.GZ 副本创建成功: $LATEST_NAME_TARGZ"
             else
@@ -258,7 +258,11 @@ jobs:
               mv msi/*.msi "${NEW_NAME_BASE}.msi"
               echo "MSI 重命名成功"
               # 创建 latest 版本副本
-              LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              if [ -n "$WEBVIEW" ]; then
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              else
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64"
+              fi
               cp "${NEW_NAME_BASE}.msi" "${LATEST_NAME_BASE}.msi"
               echo "Latest MSI 副本创建成功: ${LATEST_NAME_BASE}.msi"
             else
@@ -269,7 +273,11 @@ jobs:
               mv nsis/*.exe "${NEW_NAME_BASE}.exe"
               echo "NSIS 重命名成功"
               # 创建 latest 版本副本
-              LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              if [ -n "$WEBVIEW" ]; then
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64-${WEBVIEW}"
+              else
+                LATEST_NAME_BASE="${PRODUCT_NAME}_latest-windows-x64"
+              fi
               cp "${NEW_NAME_BASE}.exe" "${LATEST_NAME_BASE}.exe"
               echo "Latest NSIS 副本创建成功: ${LATEST_NAME_BASE}.exe"
             else
@@ -340,7 +348,7 @@ jobs:
       - name: Upload update signature
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-{0}webview2', matrix.webview2) || '' }}-signature
+          name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.webview2 && format('-with-{0}', matrix.webview2) || '' }}-signature
           path: |
             src-tauri/target/${{ matrix.target }}/release/signatures/
             src-tauri/target/${{ matrix.target }}/release/bundle/update/

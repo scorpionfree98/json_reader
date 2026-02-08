@@ -40,7 +40,8 @@
 
 ### Windows
 
-- [下载安装程序](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-windows-x64-withwebview2.exe)
+- [下载安装程序 包含webview2（较大、兼容性好）](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-windows-x64-webview2.exe)
+- [下载安装程序 较小，安装方便，适合系统自带webview2的情况](https://github.com/scorpionfree98/json_reader/releases/latest/download/JSONFormatter_latest-windows-x64.exe)
 
 ## 📖 使用说明
 
