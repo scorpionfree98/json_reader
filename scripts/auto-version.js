@@ -16,10 +16,11 @@ function cleanString(str) {
 // 获取Git最新标签（纯Node.js实现，避免平台差异）
 function getLatestTag() {
   try {
-    // 获取所有标签
-    const tagsOutput = execSync('git tag 2>/dev/null || echo ""', {
+    // 获取所有标签（使用数组参数避免 shell 差异）
+    const tagsOutput = execSync('git tag', {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['pipe', 'pipe', 'ignore'],
+      shell: true
     });
     
     // 过滤出格式为vX.Y.Z的标签
@@ -63,9 +64,10 @@ function getLatestTag() {
 // 获取Git提交次数
 function getCommitCount() {
   try {
-    const count = execSync('git rev-list --count HEAD 2>/dev/null || echo "0"', { 
+    const count = execSync('git rev-list --count HEAD', {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['pipe', 'pipe', 'ignore'],
+      shell: true
     });
     return parseInt(cleanString(count)) || 0;
   } catch (error) {
@@ -76,9 +78,10 @@ function getCommitCount() {
 // 获取短提交哈希
 function getShortCommitHash() {
   try {
-    const hash = execSync('git rev-parse --short HEAD 2>/dev/null || echo ""', { 
+    const hash = execSync('git rev-parse --short HEAD', {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['pipe', 'pipe', 'ignore'],
+      shell: true
     });
     return cleanString(hash);
   } catch (error) {
