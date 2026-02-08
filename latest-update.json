@@ -1,6 +1,19 @@
 {
-  "version": "0.0.0-test-",
-  "notes": "版本 0.0.0-test- 的发布说明",
-  "pub_date": "2026-01-09T11:17:23.502Z",
-  "platforms": {}
+  "version": "0.1.14",
+  "notes": "版本 0.1.14 的发布说明",
+  "pub_date": "2026-02-08T10:05:48.176Z",
+  "platforms": {
+    "darwin-x86_64": {
+      "signature": "test-signature-x64",
+      "url": "https://github.com/scorpionfree98/json_reader/releases/download/0.1.14/JSONFormatter_0.1.14-macos-x64.dmg"
+    },
+    "darwin-aarch64": {
+      "signature": "test-signature-aarch64",
+      "url": "https://github.com/scorpionfree98/json_reader/releases/download/0.1.14/JSONFormatter_0.1.14-macos-aarch64.dmg"
+    },
+    "windows-x86_64": {
+      "signature": "test-signature-x64",
+      "url": "https://github.com/scorpionfree98/json_reader/releases/download/0.1.14/JSONFormatter_0.1.14-windows-x64.exe"
+    }
+  }
 }
