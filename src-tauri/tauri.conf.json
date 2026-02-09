@@ -1,7 +1,7 @@
 {
   "identifier": "com.example.jsonformatter",
   "productName": "JSONFormatter",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
@@ -58,8 +58,8 @@
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE1QjA2Q0E0NUFCOUI3QzcKUldUSHQ3bGFwR3l3RlkwSnBMdk1kN2tlek5SOWhCOU90bHFSVEdEK2Y0T1BXL08xSHhleEtKckEK",
       "endpoints": [
-        "https://github.com/scorpionfree98/json_reader/releases/latest/download/latest-update.json",
-        "https://gitee.com/scorpionfree98/json_reader/releases/latest/download/latest-update-gitee.json"
+        "https://gitee.com/scorpionfree98/json_reader_release/raw/master/latest-update-gitee.json",
+        "https://github.com/scorpionfree98/json_reader/releases/latest/download/latest-update.json"
       ]
     }
   }
