@@ -647,3 +647,80 @@ jobs:
           echo ""
           echo "=== Gitee Release 同步完成 ==="
           echo "链接: https://gitee.com/${GITEE_OWNER}/${GITEE_REPO}/releases/tag/${TAG_NAME}"
+
+      - name: Sync update manifest to another Gitee repo
+        if: github.event.inputs.skip_release == 'false' || github.event_name == 'push'
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TARGET_OWNER: scorpionfree98
+          TARGET_REPO: json_reader_release
+          TARGET_BRANCH: master
+          TARGET_FILE: latest-update-gitee.json
+        run: |
+          echo "=== 同步 update manifest 到另一个 Gitee 项目 ==="
+          echo "目标项目: ${TARGET_OWNER}/${TARGET_REPO}"
+          echo "目标分支: ${TARGET_BRANCH}"
+          echo "目标文件: ${TARGET_FILE}"
+
+          if [ ! -f "latest-update-gitee.json" ]; then
+            echo "❌ 源文件 latest-update-gitee.json 不存在"
+            exit 1
+          fi
+
+          # 获取目标文件的当前 SHA（如果存在）
+          echo ""
+          echo "=== 获取目标文件信息 ==="
+          FILE_INFO=$(curl -s "https://gitee.com/api/v5/repos/${TARGET_OWNER}/${TARGET_REPO}/contents/${TARGET_FILE}?access_token=${GITEE_TOKEN}&ref=${TARGET_BRANCH}")
+          FILE_SHA=$(echo "$FILE_INFO" | jq -r '.sha // empty')
+
+          if [ -n "$FILE_SHA" ] && [ "$FILE_SHA" != "null" ]; then
+            echo "目标文件已存在，SHA: $FILE_SHA"
+            UPDATE_TYPE="update"
+          else
+            echo "目标文件不存在，将创建新文件"
+            UPDATE_TYPE="create"
+            FILE_SHA=""
+          fi
+
+          # 读取文件内容并进行 base64 编码
+          FILE_CONTENT=$(base64 -w 0 latest-update-gitee.json)
+          COMMIT_MESSAGE="Update ${TARGET_FILE} from GitHub Actions"
+
+          # 更新或创建文件
+          echo ""
+          echo "=== ${UPDATE_TYPE} 文件 ==="
+          if [ "$UPDATE_TYPE" = "update" ]; then
+            RESPONSE=$(curl -s -X PUT "https://gitee.com/api/v5/repos/${TARGET_OWNER}/${TARGET_REPO}/contents/${TARGET_FILE}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"access_token\": \"${GITEE_TOKEN}\",
+                \"content\": \"${FILE_CONTENT}\",
+                \"message\": \"${COMMIT_MESSAGE}\",
+                \"sha\": \"${FILE_SHA}\",
+                \"branch\": \"${TARGET_BRANCH}\"
+              }")
+          else
+            RESPONSE=$(curl -s -X POST "https://gitee.com/api/v5/repos/${TARGET_OWNER}/${TARGET_REPO}/contents/${TARGET_FILE}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"access_token\": \"${GITEE_TOKEN}\",
+                \"content\": \"${FILE_CONTENT}\",
+                \"message\": \"${COMMIT_MESSAGE}\",
+                \"branch\": \"${TARGET_BRANCH}\"
+              }")
+          fi
+
+          # 检查结果
+          if echo "$RESPONSE" | jq -e '.content' > /dev/null 2>&1; then
+            echo "✅ 文件同步成功"
+            NEW_SHA=$(echo "$RESPONSE" | jq -r '.content.sha')
+            echo "新 SHA: $NEW_SHA"
+          else
+            echo "❌ 文件同步失败"
+            echo "响应: $RESPONSE"
+            exit 1
+          fi
+
+          echo ""
+          echo "=== 同步完成 ==="
+          echo "文件链接: https://gitee.com/${TARGET_OWNER}/${TARGET_REPO}/raw/${TARGET_BRANCH}/${TARGET_FILE}"
