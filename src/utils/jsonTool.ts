@@ -12,6 +12,8 @@ interface JsonTool {
     copyToClipboard(value: any, path?: string): void;
     formatKeyPath(path: string, format: string): string;
     parsePathTokens(path: string): Array<{type: 'object' | 'array', value: string}>;
+    renderTreeView(obj: any, container: JQuery): void;
+    updateTreeView(obj: any): void;
 }
 
 declare const layer: {
@@ -71,7 +73,9 @@ export const jsonTool: JsonTool = {
         try {
             const jsonObj = JSON.parse(info);
             const jsonText = JSON.stringify(jsonObj, null, 4);
+            // 同步更新两个文本框
             this.resetTextAreaValue('sourceText', jsonText);
+            $('#splitSourceText').val(jsonText);
             $("#valid-result")
                 .html("格式正确")
                 .removeClass("es-fail").addClass("es-empty");
@@ -284,31 +288,174 @@ export const jsonTool: JsonTool = {
         $('#json-display').off('click', '.json-toggle-string').on('click', '.json-toggle-string', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            // const $toggle = $(this);
-            // 这里逻辑微调：toggle-string 内部包含了 info，点击其实是切换自身状态
-            // 根据你原来的 DOM 结构调整：
-            // 原结构：toggle 包含了 text("-") 和 append($info)。
-            // 点击 toggle 会触发 info 的点击吗？取决于布局。
-            // 建议：点击前面的 [-] 符号折叠
-            
-            // 简单实现：点击前面的符号只是视觉效果，或者你可以实现字符串太长时的折叠
-            //  if ($toggle.text().includes('-')) {
-            //      $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('+');
-            //      $toggle.find('.json-string').hide();
-            //  } else {
-            //      $toggle.contents().filter((_, node) => node.nodeType === 3).first().replaceWith('-');
-            //      $toggle.find('.json-string').show();
-            //  }
             const $parent = $(this).parent();
             const $children = $parent.find('.json-string').first();
             if ($children.is(':visible')) {
-                $children.hide(); // 相当于 display: none
+                $children.hide();
                 $(this).text('+');
             } else {
-                $children.show(); // 恢复显示
+                $children.show();
                 $(this).text('-');
             }
         });
+    },
+
+    // 渲染树形视图
+    renderTreeView(obj: any, container: JQuery, path: string = '', isRoot: boolean = true): void {
+        const type = typeof obj;
+        // 获取转义状态
+        const isExplain = $('#explain')?.prop('checked') || false;
+        
+        if (obj === null) {
+            container.append(`<span class="tree-null tree-value" data-path="${path}">null</span>`);
+        }
+        else if (type === 'number') {
+            container.append(`<span class="tree-number tree-value" data-path="${path}">${obj}</span>`);
+        }
+        else if (type === 'boolean') {
+            container.append(`<span class="tree-boolean tree-value" data-path="${path}">${obj}</span>`);
+        }
+        else if (type === 'string') {
+            const strObj = obj as string;
+            // 检测是否包含 LaTeX 特征
+            const hasLaTeX = strObj.includes('$') || /\{frac\}|\{times\}/.test(strObj);
+            
+            if (isExplain && hasLaTeX) {
+                // 使用 KaTeX 渲染
+                const renderedHtml = renderLatexString(strObj);
+                const $valueSpan = $('<span>').addClass('tree-string tree-value').attr('data-path', path);
+                $valueSpan.html(renderedHtml);
+                container.append($valueSpan);
+            } else {
+                // 普通字符串显示
+                const displayStr = strObj.length > 100 ? strObj.substring(0, 100) + '...' : strObj;
+                container.append(`<span class="tree-string tree-value" data-path="${path}" title="${strObj.replace(/"/g, '&quot;')}">"${displayStr.replace(/"/g, '&quot;')}"</span>`);
+            }
+        }
+        else if (Array.isArray(obj)) {
+            const $node = $('<div>').addClass(isRoot ? 'tree-node-root' : 'tree-node');
+            const $toggle = $('<span>').addClass('tree-toggle').text('▼').attr('data-collapsed', 'false');
+            const $bracketOpen = $('<span>').addClass('tree-bracket').text('[');
+            const $children = $('<div>').addClass('tree-children');
+            const $bracketClose = $('<span>').addClass('tree-bracket').text(']');
+            const $ellipsis = $('<span>').addClass('tree-ellipsis hidden').text(`... ${obj.length} items`);
+            
+            obj.forEach((item, index) => {
+                const $item = $('<div>').addClass('tree-item');
+                const itemPath = path ? `${path}[${index}]` : `[${index}]`;
+                
+                // 数组索引
+                $item.append($('<span>').addClass('tree-key').text(index));
+                
+                // 递归渲染值
+                const $valueContainer = $('<span>');
+                this.renderTreeView(item, $valueContainer, itemPath, false);
+                $item.append($valueContainer);
+                
+                if (index < obj.length - 1) {
+                    $item.append($('<span>').text(','));
+                }
+                
+                $children.append($item);
+            });
+            
+            $toggle.on('click', function() {
+                const $this = $(this);
+                const isCollapsed = $this.attr('data-collapsed') === 'true';
+                const $parent = $this.closest('.tree-node, .tree-node-root');
+                
+                if (isCollapsed) {
+                    $parent.find('.tree-children').first().removeClass('collapsed');
+                    $parent.find('.tree-ellipsis').first().addClass('hidden');
+                    $parent.find('.tree-bracket').last().removeClass('hidden');
+                    $this.text('▼').attr('data-collapsed', 'false');
+                } else {
+                    $parent.find('.tree-children').first().addClass('collapsed');
+                    $parent.find('.tree-ellipsis').first().removeClass('hidden');
+                    $parent.find('.tree-bracket').last().addClass('hidden');
+                    $this.text('▶').attr('data-collapsed', 'true');
+                }
+            });
+            
+            $node.append($toggle, $bracketOpen, $children, $ellipsis, $bracketClose);
+            container.append($node);
+        }
+        else if (type === 'object') {
+            const $node = $('<div>').addClass(isRoot ? 'tree-node-root' : 'tree-node');
+            const $toggle = $('<span>').addClass('tree-toggle').text('▼').attr('data-collapsed', 'false');
+            const $bracketOpen = $('<span>').addClass('tree-bracket').text('{');
+            const $children = $('<div>').addClass('tree-children');
+            const $bracketClose = $('<span>').addClass('tree-bracket').text('}');
+            const $ellipsis = $('<span>').addClass('tree-ellipsis hidden').text(`... ${Object.keys(obj).length} keys`);
+            
+            const keys = Object.keys(obj);
+            keys.forEach((key, index) => {
+                const $item = $('<div>').addClass('tree-item');
+                const escapedKey = key.replace(/"/g, '\\"');
+                const newPath = path ? `${path}["${escapedKey}"]` : `["${escapedKey}"]`;
+                
+                // 键名
+                const $keySpan = $('<span>')
+                    .addClass('tree-key')
+                    .text(`"${key}"`)
+                    .on('dblclick', () => {
+                        const format = $('#copyFormat').val() as string || 'default';
+                        const formattedPath = this.formatKeyPath(newPath, format);
+                        this.copyToClipboard(formattedPath, newPath);
+                    });
+                $item.append($keySpan);
+                
+                // 递归渲染值
+                const $valueContainer = $('<span>');
+                this.renderTreeView(obj[key], $valueContainer, newPath, false);
+                $item.append($valueContainer);
+                
+                if (index < keys.length - 1) {
+                    $item.append($('<span>').text(','));
+                }
+                
+                $children.append($item);
+            });
+            
+            $toggle.on('click', function() {
+                const $this = $(this);
+                const isCollapsed = $this.attr('data-collapsed') === 'true';
+                const $parent = $this.closest('.tree-node, .tree-node-root');
+                
+                if (isCollapsed) {
+                    $parent.find('.tree-children').first().removeClass('collapsed');
+                    $parent.find('.tree-ellipsis').first().addClass('hidden');
+                    $parent.find('.tree-bracket').last().removeClass('hidden');
+                    $this.text('▼').attr('data-collapsed', 'false');
+                } else {
+                    $parent.find('.tree-children').first().addClass('collapsed');
+                    $parent.find('.tree-ellipsis').first().removeClass('hidden');
+                    $parent.find('.tree-bracket').last().addClass('hidden');
+                    $this.text('▶').attr('data-collapsed', 'true');
+                }
+            });
+            
+            $node.append($toggle, $bracketOpen, $children, $ellipsis, $bracketClose);
+            container.append($node);
+        }
+        
+        // 绑定值点击复制事件
+        container.find('.tree-value').off('dblclick').on('dblclick', function() {
+            const value = $(this).text();
+            const cleanValue = value.replace(/^"|"$/g, ''); // 去除字符串引号
+            jsonTool.copyToClipboard(cleanValue);
+        });
+    },
+
+    // 更新树形视图
+    updateTreeView(obj: any): void {
+        const $treeView = $('#tree-view');
+
+        $treeView.empty();
+
+        if (obj !== undefined && obj !== null) {
+            this.renderTreeView(obj, $treeView, '', true);
+        }
     }
 };
 

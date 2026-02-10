@@ -49,7 +49,7 @@
             line-height: 1.5em;
             /* 调整行高 */
         }
-        /* LaTeX 样式 */
+        /* LaTeX 样式 - 使用与树形视图字符串相近的颜色 */
         .latex-inline {
             font-family: 'Times New Roman', Times, serif;
             font-style: italic;
@@ -57,7 +57,7 @@
             padding: 0 5px;
         }
         .latex-inline .katex {
-            color: #FFD700;
+            color: #0d7377;
         }
         .latex-block {
             font-family: 'Times New Roman', Times, serif;
@@ -72,7 +72,13 @@
             word-wrap: break-word;
         }
         .latex-block .katex {
-            color: #FFD700;
+            color: #0d7377;
+        }
+
+        /* 夜间模式下的 LaTeX 颜色 */
+        body.dark-mode .latex-inline .katex,
+        body.dark-mode .latex-block .katex {
+            color: #7fdbca;
         }
 
         .json-object,
@@ -195,6 +201,381 @@
             z-index: 1000;
             pointer-events: none;
         }
+
+        /* 分屏布局样式 */
+        .split-view {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 250px);
+            min-height: 400px;
+        }
+
+        .split-left, .split-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .split-left {
+            border-right: 2px solid #e6e6e6;
+            padding-right: 20px;
+        }
+
+        .split-right {
+            padding-left: 10px;
+        }
+
+        .panel-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background-color: #f2f2f2;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-header i {
+            font-size: 16px;
+        }
+
+        /* 树形视图样式 */
+        #tree-view {
+            flex: 1;
+            overflow: auto;
+            background-color: #fafafa;
+            border: 1px solid #e6e6e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .tree-node {
+            margin-left: 20px;
+            position: relative;
+        }
+
+        .tree-node-root {
+            margin-left: 0;
+        }
+
+        .tree-toggle {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            font-size: 10px;
+            color: #666;
+            user-select: none;
+        }
+
+        .tree-toggle:hover {
+            color: #333;
+        }
+
+        .tree-key {
+            color: #881391;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .tree-key:hover {
+            background-color: #e8e8e8;
+        }
+
+        .tree-key::after {
+            content: ': ';
+            color: #333;
+        }
+
+        .tree-string {
+            color: #0d7377;
+        }
+
+        .tree-number {
+            color: #1a73e8;
+        }
+
+        .tree-boolean {
+            color: #e65100;
+        }
+
+        .tree-null {
+            color: #757575;
+            font-style: italic;
+        }
+
+        .tree-bracket {
+            color: #333;
+        }
+
+        .tree-children {
+            display: block;
+        }
+
+        .tree-children.collapsed {
+            display: none;
+        }
+
+        .tree-item {
+            padding: 2px 0;
+        }
+
+        .tree-value {
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.2s;
+        }
+
+        .tree-value:hover {
+            background-color: #e3f2fd;
+        }
+
+        .tree-ellipsis {
+            color: #999;
+            font-style: italic;
+            margin-left: 4px;
+        }
+
+        /* 模式切换按钮组 */
+        .view-mode-group {
+            margin-left: 10px;
+        }
+
+        .view-mode-btn {
+            padding: 4px 12px;
+            border: 1px solid #d2d2d2;
+            background: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .view-mode-btn:first-child {
+            border-radius: 4px 0 0 4px;
+        }
+
+        .view-mode-btn:last-child {
+            border-radius: 0 4px 4px 0;
+        }
+
+        .view-mode-btn.active {
+            background: #1E9FFF;
+            color: #fff;
+            border-color: #1E9FFF;
+        }
+
+        .view-mode-btn:hover:not(.active) {
+            background: #f2f2f2;
+        }
+
+        /* 隐藏状态 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 编辑器全屏模式 */
+        .editor-full #json-display {
+            max-height: none;
+            height: calc(100vh - 300px);
+        }
+
+        /* 统一编辑器容器样式 */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .editor-container textarea {
+            flex: 1;
+            resize: none;
+            border: 1px solid #e6e6e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            background-color: #fafafa;
+        }
+
+        /* 编辑器模式下的预览区域 */
+        #editor-mode .panel-header {
+            margin-bottom: 10px;
+        }
+
+        /* 夜间模式样式 */
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .container {
+            background-color: #1a1a1a;
+        }
+
+        body.dark-mode .layui-form-label {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .settings-row {
+            background-color: #2d2d2d !important;
+        }
+
+        body.dark-mode .panel-header {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #json-display {
+            background-color: #2d2d2d;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode #tree-view {
+            background-color: #2d2d2d;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .editor-container textarea {
+            background-color: #2d2d2d;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .split-left {
+            border-color: #444;
+        }
+
+        body.dark-mode .tree-key {
+            color: #d4a5d4;
+        }
+
+        body.dark-mode .tree-key:hover {
+            background-color: #3d3d3d;
+        }
+
+        body.dark-mode .tree-string {
+            color: #7fdbca;
+        }
+
+        body.dark-mode .tree-number {
+            color: #82b1ff;
+        }
+
+        body.dark-mode .tree-boolean {
+            color: #ffab91;
+        }
+
+        body.dark-mode .tree-null {
+            color: #b0b0b0;
+        }
+
+        body.dark-mode .tree-toggle {
+            color: #999;
+        }
+
+        body.dark-mode .tree-toggle:hover {
+            color: #ccc;
+        }
+
+        body.dark-mode .version-display {
+            background-color: #2d2d2d;
+            color: #999;
+        }
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            margin-left: 10px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            transition: all 0.3s;
+        }
+
+        body.dark-mode .theme-toggle {
+            background-color: #3d3d3d;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+
+        .theme-toggle:hover {
+            background-color: #e0e0e0;
+        }
+
+        body.dark-mode .theme-toggle:hover {
+            background-color: #4d4d4d;
+        }
+
+        /* 分屏模式小按钮工具栏 */
+        .split-toolbar {
+            margin-left: auto;
+            display: flex;
+            gap: 4px;
+        }
+
+        .split-btn {
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background-color: #fff;
+            color: #666;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+
+        .split-btn:hover {
+            background-color: #f5f5f5;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+
+        .split-btn:active {
+            background-color: #e6f7ff;
+        }
+
+        body.dark-mode .split-btn {
+            background-color: #2d2d2d;
+            border-color: #444;
+            color: #999;
+        }
+
+        body.dark-mode .split-btn:hover {
+            background-color: #3d3d3d;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+
+        body.dark-mode .split-btn:active {
+            background-color: #1890ff22;
+        }
+
+        /* 调整 panel-header 为 flex 布局 */
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 
@@ -207,59 +588,95 @@
         </div>
 
         <div class="layui-form no-drag">
-            <!-- 关键：添加与JS对应 -->
-            <div class="layui-form-item layui-form-text">
+            <!-- 编辑器模式下的 JSON 输入框 -->
+            <div id="editor-input-container" class="layui-form-item layui-form-text">
                 <label class="layui-form-label ">JSON字符串：</label>
                 <div class="layui-input-block no-drag">
-                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="1"></textarea>
+                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="10"></textarea>
                 </div>
             </div>
 
+            <!-- 工具栏 -->
             <div class="layui-form-item no-drag">
                 <div class="layui-input-block no-drag">
-                    <div class="layui-btn-group no-drag">
-                        <button id="pasteBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-read"></i>
-                            从剪贴板读取</button>
-                        <button id="formatBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-release"></i>
-                            格式化JSON</button>
-                        <button id="clearBtn" class="layui-btn layui-btn-primary no-drag"><i
-                                class="layui-icon layui-icon-delete"></i> 清空</button>
+                    <!-- 第一行：主要操作按钮 -->
+                    <div class="toolbar-row" style="margin-bottom: 10px;">
+                        <div class="layui-btn-group no-drag">
+                            <button id="pasteBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-read"></i> 从剪贴板读取</button>
+                            <button id="formatBtn" class="layui-btn layui-btn-normal no-drag"><i class="layui-icon layui-icon-release"></i> 格式化JSON</button>
+                            <button id="clearBtn" class="layui-btn layui-btn-primary no-drag"><i class="layui-icon layui-icon-delete"></i> 清空</button>
+                        </div>
+
+                        <div class="layui-btn-group no-drag" style="margin-left: 10px;">
+                            <button id="minimize" class="layui-btn layui-bg-blue no-drag"><i class="layui-icon layui-icon-eye-invisible"></i> 最小化</button>
+                            <button id="maximizeBtn" class="layui-btn layui-btn-primary no-drag" title="最大化"><i class="layui-icon layui-icon-screen-full"></i> 最大化</button>
+                            <button id="close" class="layui-btn layui-bg-red no-drag"><i class="layui-icon layui-icon-close"></i> 关闭</button>
+                        </div>
                     </div>
 
-                    <div class="layui-btn-group no-drag">
-                        <button id="minimize" class="layui-btn layui-bg-blue no-drag"><i
-                                class="layui-icon layui-icon-eye-invisible"></i>最小化</button>
-                        <button id="close" class="layui-btn layui-bg-red no-drag"><i
-                                class="layui-icon  layui-icon-close"></i>关闭</button>
-                        <button id="checkUpdate" class="layui-btn no-drag"><i
-                                class="layui-icon layui-icon-radio"></i>检查更新</button>
-                    </div>
+                    <!-- 第二行：设置选项 -->
+                    <div class="toolbar-row settings-row" style="padding: 10px; background-color: #f8f8f8; border-radius: 4px;">
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 15px;">
+                            <!-- 视图模式 -->
+                            <div class="setting-group">
+                                <label style="font-weight: bold; margin-right: 5px;">视图:</label>
+                                <div class="view-mode-group no-drag" style="display: inline-block;">
+                                    <button class="view-mode-btn active" data-mode="editor" title="编辑器模式">
+                                        <i class="layui-icon layui-icon-form"></i> 编辑器
+                                    </button>
+                                    <button class="view-mode-btn" data-mode="split" title="分屏模式">
+                                        <i class="layui-icon layui-icon-senior"></i> 分屏
+                                    </button>
+                                </div>
+                            </div>
 
-                    <div class="layui-form no-drag" style="margin-top: 10px;">
-                        <!-- 关键：每个复选框设置name属性，并保持lay-filter一致 -->
-                        <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
-                        <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
-                        <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
-                        <div class="layui-form-item" style="margin-bottom: 0; display: inline-block; vertical-align: middle;">
-                            <label class="layui-form-label" style="width: auto; padding: 9px 10px;">复制格式：</label>
-                            <div class="layui-input-inline" style="width: 200px;">
-                                <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
-                                    <option value="default">默认格式 ["key"]</option>
-                                    <option value="dot">点号格式 .key</option>
-                                    <option value="jsonpath">JSONPath $.key</option>
-                                    <option value="bracket">方括号格式 ['key']</option>
-                                    <option value="python">Python .get</option>
-                                    <option value="custom">自定义格式</option>
-                                </select>
+                            <!-- 功能选项 -->
+                            <div class="setting-group">
+                                <label style="font-weight: bold; margin-right: 5px;">选项:</label>
+                                <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
+                                <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
+                                <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
+                                <input type="checkbox" lay-filter="disableUpdate" id="disableUpdate" title="禁用更新" class="no-drag">
+                            </div>
+
+                            <!-- 复制格式 -->
+                            <div class="setting-group">
+                                <label style="font-weight: bold; margin-right: 5px;">复制格式:</label>
+                                <div class="layui-input-inline" style="width: 180px;">
+                                    <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
+                                        <option value="default">默认 ["key"]</option>
+                                        <option value="dot">点号 .key</option>
+                                        <option value="jsonpath">JSONPath $.key</option>
+                                        <option value="bracket">方括号 ['key']</option>
+                                        <option value="python">Python .get</option>
+                                        <option value="custom">自定义</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 检查更新按钮 -->
+                            <div class="setting-group">
+                                <button id="checkUpdate" class="layui-btn layui-btn-sm layui-btn-primary no-drag">
+                                    <i class="layui-icon layui-icon-radio"></i> 检查更新
+                                </button>
+                            </div>
+
+                            <!-- 主题切换 -->
+                            <div class="setting-group">
+                                <button id="themeToggle" class="theme-toggle no-drag" title="切换主题">
+                                    <i class="layui-icon layui-icon-sun"></i> 白天
+                                </button>
                             </div>
                         </div>
-                        <div class="layui-form-item" id="customFormatContainer" style="margin-bottom: 0; display: none;">
-                            <label class="layui-form-label" style="width: auto; padding: 9px 10px;">自定义格式：</label>
-                            <div class="layui-input-inline" style="width: 150px;">
-                                <input type="text" id="customKeyFormat" value="{key}" class="layui-input">
+
+                        <!-- 自定义格式容器 -->
+                        <div class="layui-form-item" id="customFormatContainer" style="margin-bottom: 0; margin-top: 10px; display: none;">
+                            <label class="layui-form-label" style="width: auto; padding: 5px 10px;">自定义格式：</label>
+                            <div class="layui-input-inline" style="width: 120px;">
+                                <input type="text" id="customKeyFormat" value="{key}" class="layui-input" placeholder="键格式">
                             </div>
-                            <div class="layui-input-inline" style="width: 150px;">
-                                <input type="text" id="customIndexFormat" value="{index}" class="layui-input">
+                            <div class="layui-input-inline" style="width: 120px;">
+                                <input type="text" id="customIndexFormat" value="{index}" class="layui-input" placeholder="索引格式">
                             </div>
                         </div>
                     </div>
@@ -267,7 +684,55 @@
             </div>
 
             <div id="valid-result" class="no-drag"></div>
-            <div id="json-display" class="layui-panel no-drag"></div>
+            
+            <!-- 编辑器模式 -->
+            <div id="editor-mode" class="mode-container">
+                <div class="panel-header">
+                    <i class="layui-icon layui-icon-form"></i> JSON 预览
+                </div>
+                <div id="json-display" class="layui-panel no-drag"></div>
+            </div>
+            
+            <!-- 分屏模式 -->
+            <div id="split-mode" class="mode-container hidden">
+                <div class="split-view">
+                    <div class="split-left">
+                        <div class="panel-header">
+                            <i class="layui-icon layui-icon-form"></i> JSON Editor
+                            <!-- 分屏模式小按钮工具栏 -->
+                            <div class="split-toolbar">
+                                <button class="split-btn" id="splitFormatBtn" title="格式化">
+                                    <i class="layui-icon layui-icon-release"></i>
+                                </button>
+                                <button class="split-btn" id="splitPasteBtn" title="粘贴">
+                                    <i class="layui-icon layui-icon-read"></i>
+                                </button>
+                                <button class="split-btn" id="splitClearBtn" title="清空">
+                                    <i class="layui-icon layui-icon-delete"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="editor-container">
+                            <textarea id="splitSourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="10"></textarea>
+                        </div>
+                    </div>
+                    <div class="split-right">
+                        <div class="panel-header">
+                            <i class="layui-icon layui-icon-tree"></i> Tree Viewer
+                            <!-- 树形视图工具栏 -->
+                            <div class="split-toolbar">
+                                <button class="split-btn" id="splitExpandAll" title="展开全部">
+                                    <i class="layui-icon layui-icon-spread-left"></i>
+                                </button>
+                                <button class="split-btn" id="splitCollapseAll" title="折叠全部">
+                                    <i class="layui-icon layui-icon-shrink-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="tree-view"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
