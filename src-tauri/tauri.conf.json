@@ -20,15 +20,15 @@
       {
         "label": "main",
         "title": "JSON 格式化工具",
-        "width": 800,
-        "height": 400,
+        "width": 600,
+        "height": 600,
         "visible": true,
-        "decorations": false,
+        "decorations": true,
         "resizable": true,
         "acceptFirstMouse": true,
         "center": true,
-        "minWidth": 600,
-        "minHeight": 600
+        "minWidth": 300,
+        "minHeight": 300
       }
     ]
   },
