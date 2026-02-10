@@ -201,7 +201,7 @@ fn set_always_on_top(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
     }
 }
 
-/// Handle frontend "set_autostart" command (desktop only)
+/// 注意：前端已经处理了实际的自启启用/禁用逻辑，这里只同步菜单状态
 #[command]
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn set_autostart(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
@@ -224,7 +224,7 @@ fn set_autostart(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
 /// Handle frontend "set_update_disabled" command
 #[command]
 fn set_update_disabled(
-    app: tauri::AppHandle<Wry>,
+    _app: tauri::AppHandle<Wry>,
     state: State<TrayMenuState>,
     update_state: State<UpdateState>,
     disabled: bool,

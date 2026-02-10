@@ -4,6 +4,21 @@ import 'katex/dist/katex.min.css'; // 必须引入 CSS，否则公式显示会�
 
 import { readText as readClipboardText, writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 
+// 辅助函数：安全获取 layui 对象
+function getLayui(): any {
+    return (window as any).layui;
+}
+
+// 辅助函数：安全显示 layui 消息
+function showLayuiMsg(msg: string, options?: any): void {
+    const layui = getLayui();
+    if (layui && layui.layer) {
+        layui.layer.msg(msg, options);
+    } else {
+        console.log('LayUI message:', msg);
+    }
+}
+
 interface JsonTool {
     resetTextAreaValue(objId: string, value: string): void;
     jsonFormat(): void;
@@ -15,10 +30,6 @@ interface JsonTool {
     renderTreeView(obj: any, container: JQuery): void;
     updateTreeView(obj: any): void;
 }
-
-declare const layer: {
-    msg: (text: string, options?: { time?: number }) => void;
-};
 
 // 辅助函数：处理 LaTeX 渲染
 const renderLatexString = (str: string): string => {
@@ -99,10 +110,10 @@ export const jsonTool: JsonTool = {
         try {
             await writeClipboardText(valueText);
             console.log('已复制:', valueText);
-            layer.msg(`已复制到剪贴板: ${valueText}`, { time: 1000 });
+            showLayuiMsg(`已复制到剪贴板: ${valueText}`, { time: 1000 });
         } catch (e) {
             console.error('复制失败:', e);
-            layer.msg(`复制失败: ${(e as Error).message}`, { time: 1000 });
+            showLayuiMsg(`复制失败: ${(e as Error).message}`, { time: 1000 });
         }
     },
 

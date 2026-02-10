@@ -21,7 +21,7 @@
         "label": "main",
         "title": "JSON 格式化工具",
         "width": 800,
-        "height": 800,
+        "height": 400,
         "visible": true,
         "decorations": false,
         "resizable": true,

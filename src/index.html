@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>JSON格式化工具</title>
-    <!-- 引入Layui的CSS样式 -->
-    <link rel="stylesheet" href="lib/layui/css/layui.css">
+
     
     <style>
         /* 你的 styles.css 或 main.css */
@@ -57,7 +56,7 @@
             padding: 0 5px;
         }
         .latex-inline .katex {
-            color: #0d7377;
+            color: #11c7ce;
         }
         .latex-block {
             font-family: 'Times New Roman', Times, serif;
@@ -174,9 +173,13 @@
             display: none;
         }
 
-        /* 可拖动区域 */
+        /* 可拖动区域 - 使用 !important 确保优先级 */
         .drag-region {
-            -webkit-app-region: drag;
+            -webkit-app-region: drag !important;
+        }
+
+        .drag-region * {
+            -webkit-app-region: drag !important;
         }
 
         /* 不可拖动区域 */
@@ -184,7 +187,7 @@
             -webkit-app-region: no-drag;
         }
 
-        .no-drag * {
+        .no-drag *:not(.drag-region):not(.drag-region *) {
             -webkit-app-region: no-drag;
         }
 
@@ -640,9 +643,9 @@
                             </div>
 
                             <!-- 复制格式 -->
-                            <div class="setting-group">
-                                <label style="font-weight: bold; margin-right: 5px;">复制格式:</label>
-                                <div class="layui-input-inline" style="width: 180px;">
+                            <div class="setting-group" style="display: flex; align-items: center;">
+                                <label style="font-weight: bold; margin-right: 8px; white-space: nowrap;">复制格式:</label>
+                                <div class="layui-input-inline" style="width: 180px; margin: 0;">
                                     <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
                                         <option value="default">默认 ["key"]</option>
                                         <option value="dot">点号 .key</option>
@@ -664,7 +667,7 @@
                             <!-- 主题切换 -->
                             <div class="setting-group">
                                 <button id="themeToggle" class="theme-toggle no-drag" title="切换主题">
-                                    <i class="layui-icon layui-icon-sun"></i> 白天
+                                    <i class="layui-icon layui-icon-light"></i> 白天
                                 </button>
                             </div>
                         </div>
@@ -740,7 +743,6 @@
     <div id="version-display" class="version-display no-drag"></div>
 
     <!-- 引入外部资源 -->
-    <script src="./lib/layui/layui.js"></script>
     <script type="module" src="/main.ts"></script>
 </body>
 

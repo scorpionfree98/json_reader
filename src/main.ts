@@ -17,31 +17,44 @@ import { readText as readClipboardText } from '@tauri-apps/plugin-clipboard-mana
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
 
+// 导入 LayUI CSS（npm 安装）
+import 'layui/dist/css/layui.css';
+// 导入 LayUI 深色主题 CSS
+import 'layui-theme-dark/dist/layui-theme-dark-selector.css';
+// 导入 LayUI JS
+import 'layui/dist/layui.js';
+
+// 声明全局 layui 对象
+declare global {
+  interface Window {
+    layui: any;
+  }
+}
+
+// 获取全局 layui 对象
+const layui = window.layui;
+
 // 工具函数
 const byId = (id: string) => $(`#${id}`);
 const byClass = (cls: string) => $(`.${cls}`);
 
-// 补全 layui 类型定义
-declare const layui: {
-  use: (modules: string[], callback: () => void) => void;
-  form: {
-    on: (event: string, handler: (data: any) => void) => void;
-    render: () => void;
-  };
-  layer: typeof layer;
-};
+// 应用窗口对象（延迟初始化，确保在 Tauri 环境中正确获取）
+let appWindow: ReturnType<typeof getCurrentWebviewWindow> | null = null;
+let isTauriEnv = false;
 
-// 补全 layer 类型定义
-declare const layer: {
-  msg: (text: string, options?: { time?: number }) => void;
-  confirm: (text: string, options: { btn: string[] }, yes: () => void, no: () => void) => void;
-  use: (modules: string[], callback: () => void) => void;
-  form: any;
-  layer: any;
-};
+// 初始化 Tauri 环境
+try {
+  appWindow = getCurrentWebviewWindow();
+  isTauriEnv = true;
+  console.log('Tauri 环境检测成功');
+} catch (e) {
+  console.log('非 Tauri 环境，使用浏览器模式');
+  isTauriEnv = false;
+  appWindow = null;
+}
 
-// 应用窗口对象
-const appWindow = getCurrentWebviewWindow();
+// 检测是否在 Tauri 环境中运行
+const isTauri = () => isTauriEnv;
 
 // 状态管理
 let isExplainEnabled = false;
@@ -101,15 +114,26 @@ function saveTheme(isDark: boolean) {
   }
 }
 
-// 应用主题
+// 应用主题 - 使用 layui-theme-dark 方式
 function applyTheme(isDark: boolean) {
+  const html = document.documentElement;
   if (isDark) {
+    html.classList.add('dark');
     document.body.classList.add('dark-mode');
-    $('#themeToggle').html('<i class="layui-icon layui-icon-sun"></i> 白天');
+    $('#themeToggle').html('<i class="layui-icon layui-icon-light"></i> 白天');
   } else {
+    html.classList.remove('dark');
     document.body.classList.remove('dark-mode');
     $('#themeToggle').html('<i class="layui-icon layui-icon-moon"></i> 夜间');
   }
+}
+
+// 显示Layui消息（安全封装）
+function showLayuiMsg(text: string) {
+  // 确保 layer 模块已加载
+  layui.use(['layer'], function() {
+    layui.layer.msg(text);
+  });
 }
 
 // 切换主题
@@ -190,7 +214,7 @@ function syncContentToMode(mode: ViewMode) {
 
 // 绑定模式切换事件
 function bindViewModeEvents() {
-  $('.view-mode-btn').on('click', function() {
+  $('.view-mode-btn').off('click').on('click', function() {
     const mode = $(this).data('mode') as ViewMode;
     switchViewMode(mode);
     showLayuiMsg(`已切换到${$(this).text().trim()}模式`);
@@ -198,6 +222,10 @@ function bindViewModeEvents() {
 
   // 最大化按钮
   $('#maximizeBtn').on('click', async () => {
+    if (!appWindow) {
+      showLayuiMsg('窗口控制仅在应用模式中可用');
+      return;
+    }
     try {
       const isMaximized = await appWindow.isMaximized();
       if (isMaximized) {
@@ -214,18 +242,20 @@ function bindViewModeEvents() {
   });
 
   // 监听窗口最大化状态变化
-  appWindow.listen('tauri://resize', async () => {
-    try {
-      const isMaximized = await appWindow.isMaximized();
-      if (isMaximized) {
-        $('#maximizeBtn').html('<i class="layui-icon layui-icon-screen-restore"></i> 还原');
-      } else {
-        $('#maximizeBtn').html('<i class="layui-icon layui-icon-screen-full"></i> 最大化');
+  if (appWindow) {
+    appWindow.listen('tauri://resize', async () => {
+      try {
+        const isMaximized = await appWindow!.isMaximized();
+        if (isMaximized) {
+          $('#maximizeBtn').html('<i class="layui-icon layui-icon-screen-restore"></i> 还原');
+        } else {
+          $('#maximizeBtn').html('<i class="layui-icon layui-icon-screen-full"></i> 最大化');
+        }
+      } catch (error) {
+        console.error('获取窗口状态失败:', error);
       }
-    } catch (error) {
-      console.error('获取窗口状态失败:', error);
-    }
-  });
+    });
+  }
 
   // 分屏模式编辑器实时同步 - 使用 off 防止重复绑定
   $('#splitSourceText').off('input').on('input', function() {
@@ -287,24 +317,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 初始化复选框状态
 async function initCheckboxStates() {
   try {
-    // 初始化置顶状态
-    const topChecked = await appWindow.isAlwaysOnTop();
-    byId('topCheck')?.prop('checked', topChecked);
+    // 初始化置顶状态（仅在 Tauri 环境中）
+    if (appWindow) {
+      const topChecked = await appWindow.isAlwaysOnTop();
+      byId('topCheck')?.prop('checked', topChecked);
+    }
 
-    // 初始化自启动状态
-    const autoStartChecked = await isAutostartEnabled();
-    byId('autoStart')?.prop('checked', autoStartChecked);
+    // 初始化自启动状态（仅在 Tauri 环境中）
+    if (isTauri()) {
+      const autoStartChecked = await isAutostartEnabled();
+      byId('autoStart')?.prop('checked', autoStartChecked);
+    }
 
     // 初始化转义状态
     isExplainEnabled = byId('explain')?.prop('checked') || false;
 
-    // 初始化禁用更新状态
-    try {
-      const updateDisabled = await invoke('get_update_disabled') as boolean;
-      isUpdateDisabled = updateDisabled;
-      byId('disableUpdate')?.prop('checked', updateDisabled);
-    } catch (e) {
-      console.log('获取禁用更新状态失败:', e);
+    // 初始化禁用更新状态（仅在 Tauri 环境中）
+    if (isTauri()) {
+      try {
+        const updateDisabled = await invoke('get_update_disabled') as boolean;
+        isUpdateDisabled = updateDisabled;
+        byId('disableUpdate')?.prop('checked', updateDisabled);
+      } catch (e) {
+        console.log('获取禁用更新状态失败:', e);
+      }
     }
   } catch (error) {
     console.error('初始化复选框状态失败:', error);
@@ -313,9 +349,11 @@ async function initCheckboxStates() {
 
 // 绑定按钮事件
 function bindButtonEvents() {
-  // 窗口控制按钮 - 使用 off 防止重复绑定
-  byId('minimize')?.off('click').on('click', () => appWindow.minimize());
-  byId('close')?.off('click').on('click', () => appWindow.close());
+  // 窗口控制按钮 - 使用 off 防止重复绑定（仅在 Tauri 环境中）
+  if (appWindow) {
+    byId('minimize')?.off('click').on('click', () => appWindow!.minimize());
+    byId('close')?.off('click').on('click', () => appWindow!.close());
+  }
 
   // 功能按钮 - 使用 off 防止重复绑定
   byId('pasteBtn')?.off('click').on('click', tryPasteFromClipboard);
@@ -323,10 +361,18 @@ function bindButtonEvents() {
   byId('formatBtn')?.off('click').on('click', () => formatJson());
   byId('checkUpdate')?.off('click').on('click', () => checkUpdate(true));
 
-  // 拖拽区域 - 使用 off 防止重复绑定
-  byClass('drag-region').off('mousedown').on('mousedown', () => {
-    appWindow.startDragging();
-  });
+  // 拖拽区域 - 使用 off 防止重复绑定（仅在 Tauri 环境中）
+  if (appWindow) {
+    const dragRegion = byClass('drag-region');
+    console.log('绑定拖拽区域事件，元素数量:', dragRegion.length);
+    dragRegion.off('mousedown').on('mousedown', (e) => {
+      console.log('拖拽区域 mousedown 事件触发');
+      e.preventDefault();
+      appWindow!.startDragging();
+    });
+  } else {
+    console.log('appWindow 不存在，跳过拖拽区域绑定');
+  }
 
   // 分屏模式小按钮事件绑定
   bindSplitToolbarEvents();
@@ -403,7 +449,6 @@ function bindCheckboxEvents() {
 function initLayuiForm() {
   layui.use(['form'], function () {
     const form = layui.form;
-    const layer = layui.layer;
 
     // 渲染表单元素，生成Layui动态元素
     form.render();
@@ -426,7 +471,7 @@ function initLayuiForm() {
         }
       }
       
-      layer.msg(`转义状态已${isExplainEnabled ? '启用' : '禁用'}`);
+      layui.layer.msg(`转义状态已${isExplainEnabled ? '启用' : '禁用'}`);
     });
 
     // 置顶复选框事件
@@ -442,7 +487,7 @@ function initLayuiForm() {
     // 禁用更新复选框事件
     form.on('checkbox(disableUpdate)', function () {
       isUpdateDisabled = $(this).prop('checked');
-      layer.msg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
+      layui.layer.msg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
       // 通知后端更新状态
       invoke('set_update_disabled', { disabled: isUpdateDisabled });
     });
@@ -461,6 +506,7 @@ function initLayuiForm() {
 
 // 窗口关闭时保存状态
 window.addEventListener('beforeunload', () => {
+  if (!isTauri()) return;
   try {
     saveWindowState(StateFlags.ALL);
   } catch { /* 忽略保存失败的情况 */ }
@@ -468,6 +514,10 @@ window.addEventListener('beforeunload', () => {
 
 // 验证并更新置顶状态显示
 export async function toggleTopInfo() {
+  if (!appWindow) {
+    showLayuiMsg('置顶功能仅在应用模式中可用');
+    return;
+  }
   try {
     const finalStatus = await appWindow.isAlwaysOnTop();
     console.log('最终置顶状态:', finalStatus);
@@ -483,6 +533,10 @@ export async function toggleTopInfo() {
 
 // 切换置顶状态并通知后端同步
 export async function toggleTop() {
+  if (!appWindow) {
+    showLayuiMsg('置顶功能仅在应用模式中可用');
+    return;
+  }
   try {
     console.log('开始切换置顶状态...');
     // 获取当前状态并计算新状态
@@ -508,6 +562,10 @@ export async function toggleTop() {
 
 // 验证并更新自启动状态显示
 export async function toggleAutostartInfo() {
+  if (!isTauri()) {
+    showLayuiMsg('自启动功能仅在应用模式中可用');
+    return;
+  }
   try {
     const finalStatus = await isAutostartEnabled();
     console.log('最终自启动状态:', finalStatus);
@@ -523,13 +581,17 @@ export async function toggleAutostartInfo() {
 
 // 切换自启动状态并通知后端同步
 export async function toggleAutostart() {
+  if (!isTauri()) {
+    showLayuiMsg('自启动功能仅在应用模式中可用');
+    return;
+  }
   try {
     // 获取当前状态
     const enabled = await isAutostartEnabled();
     console.log('当前自启动状态:', enabled);
     const newStatus = !enabled;
 
-    // 执行状态修改（修复逻辑错误）
+    // 执行状态修改
     if (newStatus) {
       await enableAutostart();
     } else {
@@ -537,9 +599,9 @@ export async function toggleAutostart() {
     }
 
     const actualStatus = await isAutostartEnabled();
-    console.log('当前自启动状态:', actualStatus);
-
-    // 通知后端更新状态（关键修改）
+    console.log('切换后自启动状态:', actualStatus);
+    
+    // 通知后端同步托盘菜单状态
     await invoke('set_autostart');
     
     // 验证并刷新状态显示
@@ -550,34 +612,36 @@ export async function toggleAutostart() {
   }
 }
 
-// 监听后端事件
-(async () => {
-  try {
-    // 监听显示/隐藏事件
-    unlistenFns.push(await listen('tray://show', () => appWindow.show()));
-    unlistenFns.push(await listen('tray://hide', () => appWindow.hide()));
+// 监听后端事件（仅在 Tauri 环境中）
+if (isTauri() && appWindow) {
+  (async () => {
+    try {
+      // 监听显示/隐藏事件
+      unlistenFns.push(await listen('tray://show', () => appWindow!.show()));
+      unlistenFns.push(await listen('tray://hide', () => appWindow!.hide()));
 
-    // 监听置顶切换事件
-    unlistenFns.push(await listen('tray://toggle-always-on-top', toggleTopInfo));
+      // 监听置顶切换事件
+      unlistenFns.push(await listen('tray://toggle-always-on-top', toggleTopInfo));
 
-    // 监听自启动切换事件
-    unlistenFns.push(await listen('tray://toggle-autostart', toggleAutostartInfo));
+      // 监听自启动切换事件
+      unlistenFns.push(await listen('tray://toggle-autostart', toggleAutostartInfo));
 
-    // 监听禁用更新切换事件
-    unlistenFns.push(await listen('tray://toggle-disable-update', (event) => {
-      const disabled = event.payload as boolean;
-      isUpdateDisabled = disabled;
-      byId('disableUpdate')?.prop('checked', disabled);
-      showLayuiMsg(`自动更新已${disabled ? '禁用' : '启用'}`);
-    }));
+      // 监听禁用更新切换事件
+      unlistenFns.push(await listen('tray://toggle-disable-update', (event) => {
+        const disabled = event.payload as boolean;
+        isUpdateDisabled = disabled;
+        byId('disableUpdate')?.prop('checked', disabled);
+        showLayuiMsg(`自动更新已${disabled ? '禁用' : '启用'}`);
+      }));
 
-    // 监听托盘检查更新事件（托盘菜单触发，视为手动检查）
-    unlistenFns.push(await listen('tray://check-updates', () => checkUpdate(true)));
-  } catch (e) {
-    console.warn('注册事件失败：', e);
-    showLayuiMsg('注册事件失败：' + (e instanceof Error ? e.message : String(e)));
-  }
-})();
+      // 监听托盘检查更新事件（托盘菜单触发，视为手动检查）
+      unlistenFns.push(await listen('tray://check-updates', () => checkUpdate(true)));
+    } catch (e) {
+      console.warn('注册事件失败：', e);
+      showLayuiMsg('注册事件失败：' + (e instanceof Error ? e.message : String(e)));
+    }
+  })();
+}
 
 // 检查更新
 // isManual: 是否为手动检查（true=手动点击检查，false=自动检查）
@@ -590,7 +654,7 @@ export async function checkUpdate(isManual = false) {
 
   // 如果禁用了更新且是手动检查，提示用户
   if (isUpdateDisabled && isManual) {
-    layer.msg('自动更新已禁用，请在设置中启用后再检查更新');
+    showLayuiMsg('自动更新已禁用，请在设置中启用后再检查更新');
     return;
   }
 
@@ -604,37 +668,40 @@ export async function checkUpdate(isManual = false) {
       console.log('发现新版本:', res.version, '当前:', res.currentVersion);
       console.log('准备显示更新确认对话框...');
 
-      layer.confirm(`当前版本: ${res.currentVersion}，发现新版本: ${res.version}，是否现在更新？`, {
-        btn: ['确定', '关闭']
-      }, async function () {
-        console.log('用户点击了确定，开始下载更新...');
-        try {
-          await res.downloadAndInstall(
-            (event) => {
-              // 下载进度回调
-              switch (event.event) {
-                case 'Started':
-                  console.log('下载开始，总大小:', event.data.contentLength || '未知');
-                  break;
-                case 'Progress':
-                  console.log('下载进度:', event.data.chunkLength, '字节');
-                  break;
-                case 'Finished':
-                  console.log('下载完成');
-                  break;
-              }
-            },
-            { timeout: 300000 } // 5分钟超时（对于较大的安装包如 WebView2 版本约 753MB）
-          );
-          console.log('更新下载安装完成，准备重启应用...');
-          await relaunch();
-        } catch (error) {
-          console.error('更新失败:', error);
-          showLayuiMsg('更新失败，请稍后再试');
-        }
-      }, function () {
-        console.log('用户点击了关闭，取消更新');
-        showLayuiMsg('已取消更新');
+      // 使用 showLayuiMsg 来确保 layer 模块已加载
+      layui.use(['layer'], function() {
+        layui.layer.confirm(`当前版本: ${res.currentVersion}，发现新版本: ${res.version}，是否现在更新？`, {
+          btn: ['确定', '关闭']
+        }, async function () {
+          console.log('用户点击了确定，开始下载更新...');
+          try {
+            await res.downloadAndInstall(
+              (event) => {
+                // 下载进度回调
+                switch (event.event) {
+                  case 'Started':
+                    console.log('下载开始，总大小:', event.data.contentLength || '未知');
+                    break;
+                  case 'Progress':
+                    console.log('下载进度:', event.data.chunkLength, '字节');
+                    break;
+                  case 'Finished':
+                    console.log('下载完成');
+                    break;
+                }
+              },
+              { timeout: 300000 } // 5分钟超时（对于较大的安装包如 WebView2 版本约 753MB）
+            );
+            console.log('更新下载安装完成，准备重启应用...');
+            await relaunch();
+          } catch (error) {
+            console.error('更新失败:', error);
+            showLayuiMsg('更新失败，请稍后再试');
+          }
+        }, function () {
+          console.log('用户点击了关闭，取消更新');
+          showLayuiMsg('已取消更新');
+        });
       });
     } else {
       console.log('已是最新版本，准备显示提示...');
@@ -654,15 +721,17 @@ export async function checkUpdate(isManual = false) {
 }
 
 // 初始检查更新（添加延迟，避免应用启动时过于频繁的网络请求）
-(async () => {
-  try {
-    // 延迟 3 秒后检查更新，给应用一些启动时间
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    await checkUpdate();
-  } catch (error) {
-    console.error('初始检查更新失败:', error);
-  }
-})();
+if (isTauri()) {
+  (async () => {
+    try {
+      // 延迟 3 秒后检查更新，给应用一些启动时间
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      await checkUpdate();
+    } catch (error) {
+      console.error('初始检查更新失败:', error);
+    }
+  })();
+}
 
 // 清空输入内容
 export function clearInputContent() {
@@ -719,15 +788,6 @@ export async function tryPasteFromClipboard() {
   } catch (error) {
     console.error('从剪贴板读取失败:', error);
     showLayuiMsg('读取剪贴板失败');
-  }
-}
-
-// 显示Layui消息（安全封装）
-function showLayuiMsg(text: string) {
-  if (typeof layui !== 'undefined' && layui.layer) {
-    layui.layer.msg(text);
-  } else {
-    console.log('[Layui未加载]', text);
   }
 }
 

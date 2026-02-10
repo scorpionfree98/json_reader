@@ -26,7 +26,9 @@
     "@tauri-apps/plugin-window-state": "~2.4.1",
     "@types/jquery": "~3.5.33",
     "jquery": "~3.7.1",
-    "katex": "^0.16.28"
+    "katex": "^0.16.28",
+    "layui": "^2.13.3",
+    "layui-theme-dark": "^2.10.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "~2.9.0",
