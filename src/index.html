@@ -90,7 +90,7 @@
             border-radius: 5px;
             flex: 1;
             min-height: 100px;
-            /* max-height: calc(100vh - 450px); */
+            max-height: calc(100vh - 450px); 
             overflow: auto;
             overflow-x: auto;
             overflow-y: auto;
@@ -129,6 +129,11 @@
         .json-number { color: #d3869b; }
         .json-boolean { color: #fe8019; }
         .json-null { color: #b8bb26; }
+
+        /* 保留空白符样式 */
+        .preserve-whitespace {
+            white-space: pre-wrap !important;
+        }
 
         .json-children {
             position: relative;

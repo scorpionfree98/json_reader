@@ -142,6 +142,14 @@ const createValueElement = (value: any, type: string, path: string): JQuery => {
 
     if (isExplain && hasLatex(strValue)) {
       $el.html(`<span class="latex-container">${renderLatexString(strValue)}</span>`);
+    } else if (isExplain) {
+      // 转义状态下，处理转义字符
+      const processedStr = strValue
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\');
+      $el.html(`<span>${JSON.stringify(processedStr).slice(1, -1)}</span>`).addClass('preserve-whitespace');
     } else {
       $el.html(`<span>${JSON.stringify(value)}</span>`).addClass('preserve-whitespace');
     }
