@@ -735,6 +735,17 @@
             <div class="split-left" id="splitLeftPanel">
                 <div class="panel-header">
                     <i class="layui-icon layui-icon-form"></i> JSON Editor
+                    <div class="split-toolbar no-drag">
+
+                        <button class="split-btn view-mode-btn" data-mode="editor" title="切换到编辑器模式"><i class="layui-icon layui-icon-form"></i></button>
+                        <button class="split-btn" id="splitFormatBtn" title="格式化"><i class="layui-icon layui-icon-release"></i></button>
+                        <button class="split-btn" id="splitPasteBtn" title="粘贴"><i class="layui-icon layui-icon-read"></i></button>
+                        <button class="split-btn" id="splitClearBtn" title="清空"><i class="layui-icon layui-icon-delete"></i></button>
+                        <button class="split-btn" id="splitThemeToggle" title="切换主题"><i class="layui-icon layui-icon-moon"></i></button>
+                        <button class="split-btn" id="splitMinimize" title="最小化"><i class="layui-icon layui-icon-eye-invisible"></i></button>
+                        <button class="split-btn" id="splitMaximize" title="最大化"><i class="layui-icon layui-icon-screen-full"></i></button>
+                        <button class="split-btn" id="splitClose" title="关闭"><i class="layui-icon layui-icon-close"></i></button>
+                    </div>
                 </div>
                 <div class="editor-container">
                     <textarea id="splitSourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="10"></textarea>
@@ -745,19 +756,12 @@
                 <div class="panel-header">
                     <i class="layui-icon layui-icon-tree"></i> Tree Viewer
                     <div class="split-toolbar no-drag">
-                        <button class="split-btn view-mode-btn" data-mode="editor" title="切换到编辑器模式"><i class="layui-icon layui-icon-form"></i></button>
+
+                        <button class="split-btn" id="splitTopBtn" title="置顶"><i class="layui-icon layui-icon-top"></i></button>
+                        <button class="split-btn" id="splitExplainBtn" title="转义"><i class="layui-icon layui-icon-fonts-u"></i></button>
                         <button class="split-btn" id="splitExpandAll" title="展开全部"><i class="layui-icon layui-icon-spread-left"></i></button>
                         <button class="split-btn" id="splitCollapseAll" title="折叠全部"><i class="layui-icon layui-icon-shrink-right"></i></button>
-                        <button class="split-btn" id="splitFormatBtn" title="格式化"><i class="layui-icon layui-icon-release"></i></button>
-                        <button class="split-btn" id="splitPasteBtn" title="粘贴"><i class="layui-icon layui-icon-read"></i></button>
-                        <button class="split-btn" id="splitClearBtn" title="清空"><i class="layui-icon layui-icon-delete"></i></button>
-                        <button class="split-btn" id="splitExplainBtn" title="转义"><i class="layui-icon layui-icon-fonts-u"></i></button>
-                        <button class="split-btn" id="splitTopBtn" title="置顶"><i class="layui-icon layui-icon-top"></i></button>
                         <button class="split-btn" id="splitCopyFormatBtn" title="复制格式"><i class="layui-icon layui-icon-senior"></i></button>
-                        <button class="split-btn" id="splitThemeToggle" title="切换主题"><i class="layui-icon layui-icon-moon"></i></button>
-                        <button class="split-btn" id="splitMinimize" title="最小化"><i class="layui-icon layui-icon-eye-invisible"></i></button>
-                        <button class="split-btn" id="splitMaximize" title="最大化"><i class="layui-icon layui-icon-screen-full"></i></button>
-                        <button class="split-btn" id="splitClose" title="关闭"><i class="layui-icon layui-icon-close"></i></button>
                     </div>
                 </div>
                 <div id="tree-view"></div>

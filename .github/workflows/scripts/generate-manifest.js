@@ -105,11 +105,25 @@ async function generateManifest() {
     }
   ];
 
+  // 读取 release_note_lastest.txt 文件内容
+  let releaseNotes = `版本 ${version} 的发布说明`;
+  const releaseNotePath = path.join(__dirname, '../../../release_note_lastest.txt');
+  try {
+    if (fs.existsSync(releaseNotePath)) {
+      releaseNotes = fs.readFileSync(releaseNotePath, 'utf8').trim();
+      console.log('✅ 已读取 release_note_lastest.txt 文件');
+    } else {
+      console.warn('⚠️ 未找到 release_note_lastest.txt 文件，使用默认发布说明');
+    }
+  } catch (error) {
+    console.warn('⚠️ 读取 release_note_lastest.txt 失败:', error.message);
+  }
+
   // 生成 GitHub 版本的 manifest（所有文件都用 GitHub 链接）
   console.log('\n=== 创建 GitHub 版本更新清单 ===');
   const githubManifest = {
     version,
-    notes: `版本 ${version} 的发布说明`,
+    notes: releaseNotes,
     pub_date: new Date().toISOString(),
     platforms: {}
   };
@@ -118,7 +132,7 @@ async function generateManifest() {
   console.log('\n=== 创建 Gitee 版本更新清单 ===');
   const giteeManifest = {
     version,
-    notes: `版本 ${version} 的发布说明`,
+    notes: releaseNotes,
     pub_date: new Date().toISOString(),
     platforms: {}
   };
