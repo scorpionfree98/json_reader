@@ -205,20 +205,25 @@ async function closeWindow() {
 function syncContentToMode(mode: ViewMode) {
   if (mode === 'split') {
     const sourceText = $('#sourceText').val() as string;
-    $('#splitSourceText').val(sourceText);
+    const splitText = $('#splitSourceText').val() as string;
+    // 优先使用已有内容，如果分屏输入框为空则从编辑器同步
+    const text = splitText.trim() ? splitText : sourceText;
+    if (!splitText.trim() && sourceText.trim()) {
+      $('#splitSourceText').val(sourceText);
+    }
     try {
-      if (sourceText.trim()) {
-        const jsonObj = JSON.parse(sourceText);
+      if (text.trim()) {
+        const jsonObj = JSON.parse(text);
         jsonTool.updateTreeView(jsonObj);
       } else {
         $('#tree-view').empty();
       }
     } catch (e) {
-      $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误，无法渲染树形视图</div>');
+      $('#tree-view').empty();
     }
   } else {
     const splitText = $('#splitSourceText').val() as string;
-    if (splitText) {
+    if (splitText.trim()) {
       $('#sourceText').val(splitText);
     }
   }
@@ -281,13 +286,21 @@ export async function toggleTop() {
   try {
     const current = await appWindow.isAlwaysOnTop();
     const newStatus = !current;
-    byId('topCheck')?.prop('checked', newStatus);
     $('#splitTopBtn').toggleClass('active', newStatus);
     await appWindow.setAlwaysOnTop(newStatus);
     showLayuiMsg(`窗口${newStatus ? '已' : '未'}置顶`);
   } catch (error) {
     console.error('切换置顶状态失败:', error);
     showLayuiMsg('操作失败');
+    // 恢复 checkbox 状态
+    try {
+      const current = await appWindow.isAlwaysOnTop();
+      byId('topCheck')?.prop('checked', current);
+      $('#splitTopBtn').toggleClass('active', current);
+      layui.form.render('checkbox');
+    } catch (e) {
+      console.error('恢复状态失败:', e);
+    }
   }
 }
 
@@ -299,17 +312,23 @@ export async function toggleAutostart() {
   try {
     const current = await isAutostartEnabled();
     const newStatus = !current;
-    byId('autoStart')?.prop('checked', newStatus);
     if (newStatus) {
       await enableAutostart();
     } else {
       await disableAutostart();
     }
+    await invoke('set_autostart');
     showLayuiMsg(`开机自启动${newStatus ? '已启用' : '已禁用'}`);
-    invoke('set_autostart');
   } catch (error) {
     console.error('切换自启动失败:', error);
     showLayuiMsg('操作失败');
+    try {
+      const current = await isAutostartEnabled();
+      byId('autoStart')?.prop('checked', current);
+      layui.form.render('checkbox');
+    } catch (e) {
+      console.error('恢复状态失败:', e);
+    }
   }
 }
 
@@ -321,7 +340,9 @@ export function clearInputContent() {
 }
 
 export function formatJson() {
-  const text = $('#sourceText').val() as string;
+  const text = currentViewMode === 'split'
+    ? ($('#splitSourceText').val() as string)
+    : ($('#sourceText').val() as string);
   if (!text.trim()) {
     showLayuiMsg('请输入JSON字符串');
     return;
@@ -472,7 +493,7 @@ function collapseAllTree() {
 
 function refreshTreeView() {
   if (currentViewMode !== 'split') return;
-  const sourceText = $('#sourceText').val() as string;
+  const sourceText = ($('#splitSourceText').val() as string) || ($('#sourceText').val() as string);
   try {
     if (sourceText.trim()) {
       const jsonObj = JSON.parse(sourceText);
@@ -567,19 +588,25 @@ function bindSplitToolbarEvents() {
     const $btn = $(this);
     const isActive = !$btn.hasClass('active');
     $btn.toggleClass('active', isActive);
-    $('#explain').prop('checked', isActive);
     isExplainEnabled = isActive;
+    byId('explain')?.prop('checked', isActive);
+    layui.form.render('checkbox');
     formatJson();
     refreshTreeView();
     showLayuiMsg(`转义状态已${isActive ? '启用' : '禁用'}`);
   });
 
-  $('#splitTopBtn').off('click').on('click', function() {
-    const $btn = $(this);
-    const isActive = !$btn.hasClass('active');
-    $btn.toggleClass('active', isActive);
-    $('#topCheck').prop('checked', isActive);
-    toggleTop();
+  $('#splitTopBtn').off('click').on('click', async function() {
+    await toggleTop();
+    if (appWindow) {
+      try {
+        const current = await appWindow.isAlwaysOnTop();
+        byId('topCheck')?.prop('checked', current);
+        layui.form.render('checkbox');
+      } catch (e) {
+        console.error('同步置顶状态失败:', e);
+      }
+    }
   });
 
   // 复制格式弹窗
@@ -743,10 +770,18 @@ function initLayuiForm() {
       toggleAutostart();
     });
 
-    form.on('checkbox(disableUpdate)', function () {
-      isUpdateDisabled = $(this).prop('checked');
-      showLayuiMsg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
-      invoke('set_update_disabled', { disabled: isUpdateDisabled });
+    form.on('checkbox(disableUpdate)', async function () {
+      const newStatus = $(this).prop('checked');
+      try {
+        await invoke('set_update_disabled', { disabled: newStatus });
+        isUpdateDisabled = newStatus;
+        showLayuiMsg(`自动更新已${newStatus ? '禁用' : '启用'}`);
+      } catch (error) {
+        console.error('设置更新状态失败:', error);
+        showLayuiMsg('操作失败');
+        byId('disableUpdate')?.prop('checked', isUpdateDisabled);
+        layui.form.render('checkbox');
+      }
     });
 
     form.on('select(copyFormat)', function (data) {
@@ -809,7 +844,9 @@ function initTrayListeners() {
 async function initCheckboxStates() {
   try {
     if (appWindow) {
-      byId('topCheck')?.prop('checked', await appWindow.isAlwaysOnTop());
+      const isTop = await appWindow.isAlwaysOnTop();
+      byId('topCheck')?.prop('checked', isTop);
+      $('#splitTopBtn').toggleClass('active', isTop);
     }
     if (isTauri()) {
       byId('autoStart')?.prop('checked', await isAutostartEnabled());
@@ -821,6 +858,8 @@ async function initCheckboxStates() {
       }
     }
     isExplainEnabled = byId('explain')?.prop('checked') || false;
+    $('#splitExplainBtn').toggleClass('active', isExplainEnabled);
+    layui.form.render();
   } catch (error) {
     console.error('初始化复选框状态失败:', error);
   }
