@@ -118,3 +118,12 @@ $RECYCLE.BIN/
 Thumbs.db
 demo.key
 .github/PULL_REQUEST_TEMPLATE_Demo.md
+
+# Temporary test scripts and results
+comprehensive-test.mjs
+ui-test.mjs
+test-json-error.js
+test-verification.js
+test-results.txt
+TEST_REPORT.md
+GEMINI.md
