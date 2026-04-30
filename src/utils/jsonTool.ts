@@ -19,6 +19,7 @@ interface JsonTool {
   parsePathTokens(path: string): PathToken[];
   renderTreeView(obj: any, container: JQuery, path?: string, isRoot?: boolean): void;
   updateTreeView(obj: any): void;
+  parseJsonError(jsonStr: string, errorMsg: string): string;
 }
 
 // ==================== 工具函数 ====================
@@ -194,7 +195,6 @@ const renderCollection = (
       ? $('<li>').append(renderItem(value, key, newPath))
       : $('<li>')
           .append(createKeyElement(String(key), newPath))
-          .append(': ')
           .append(jsonTool.renderJson(value, newPath));
     if (index < entries.length - 1) $li.append(',');
     $ul.append($li);
@@ -240,15 +240,24 @@ const renderTreeValue = (obj: any, path: string, container: JQuery): void => {
     boolean: () => container.append(`<span class="tree-boolean tree-value" data-path="${path}">${obj}</span>`),
     string: () => {
       const strObj = obj as string;
-      // 在转义状态下，处理转义字符后再进行 LaTeX 检测
-      const processedStr = isExplain 
+
+      const processedStr = isExplain
         ? strObj.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
         : strObj;
-      
+
       if (isExplain && hasLatex(processedStr)) {
         const $valueSpan = $('<span>').addClass('tree-string tree-value').attr('data-path', path);
         $valueSpan.html(renderLatexString(processedStr));
         container.append($valueSpan);
+      } else if (isExplain) {
+        const displayStr = processedStr.length > 100 ? processedStr.substring(0, 100) + '...' : processedStr;
+        const $span = $('<span>')
+          .addClass('tree-string tree-value')
+          .attr('data-path', path)
+          .attr('title', strObj)
+          .css('white-space', 'pre-wrap')
+          .text(`"${displayStr}"`);
+        container.append($span);
       } else {
         const displayStr = strObj.length > 100 ? strObj.substring(0, 100) + '...' : strObj;
         container.append(`<span class="tree-string tree-value" data-path="${path}" title="${strObj.replace(/"/g, '&quot;')}">"${displayStr.replace(/"/g, '&quot;')}"</span>`);
@@ -349,12 +358,63 @@ export const jsonTool: JsonTool = {
 
     } catch (e: unknown) {
       const error = e as Error;
+      const errorInfo = this.parseJsonError(info, error.message);
       $("#valid-result")
-        .html(`格式错误：${error.message}`)
+        .html(`格式错误：${errorInfo}`)
         .addClass("es-fail")
         .removeClass("es-empty");
       showLayuiMsg('JSON格式错误');
     }
+  },
+
+  parseJsonError(jsonStr: string, errorMsg: string): string {
+    // 尝试从错误消息中提取位置信息
+    const positionMatch = errorMsg.match(/position\s+(\d+)/i);
+    const lineMatch = errorMsg.match(/line\s+(\d+)/i);
+    const columnMatch = errorMsg.match(/column\s+(\d+)/i);
+
+    let position = positionMatch ? parseInt(positionMatch[1]) : -1;
+    let line = lineMatch ? parseInt(lineMatch[1]) : -1;
+    let column = columnMatch ? parseInt(columnMatch[1]) : -1;
+
+    // 如果没有行号，尝试从位置计算
+    if (line === -1 && position >= 0) {
+      const lines = jsonStr.substring(0, position).split('\n');
+      line = lines.length;
+      column = lines[lines.length - 1].length + 1;
+    }
+
+    let result = errorMsg;
+
+    // 添加行号和列号信息
+    if (line > 0) {
+      result += `<br><strong>位置：第 ${line} 行`;
+      if (column > 0) {
+        result += `，第 ${column} 列`;
+      }
+      result += '</strong>';
+
+      // 显示上下文
+      const lines = jsonStr.split('\n');
+      if (line <= lines.length) {
+        const contextStart = Math.max(0, line - 2);
+        const contextEnd = Math.min(lines.length, line + 1);
+
+        result += '<br><br><strong>上下文：</strong><pre style="background:#f5f5f5;padding:8px;border-radius:4px;margin-top:5px;overflow-x:auto;">';
+
+        for (let i = contextStart; i < contextEnd; i++) {
+          const lineNum = i + 1;
+          const isErrorLine = lineNum === line;
+          const prefix = isErrorLine ? '<strong style="color:red;">→ ' : '  ';
+          const suffix = isErrorLine ? '</strong>' : '';
+          result += `${prefix}${lineNum}: ${lines[i].replace(/</g, '&lt;').replace(/>/g, '&gt;')}${suffix}\n`;
+        }
+
+        result += '</pre>';
+      }
+    }
+
+    return result;
   },
 
   renderJson(obj: any, path: string = ''): JQuery {
