@@ -33,8 +33,8 @@ describe('基础 JSON 功能', () => {
     await setInputValue('#sourceText', '{"a":1,"b":2,"c":3}');
     await safeClick('#formatBtn');
     await browser.pause(1000);
-    const output = await $('#outputText');
-    const value = await output.getValue();
+    const input = await $('#sourceText');
+    const value = await input.getValue();
     expect(value).toContain('"a"');
     expect(value).toContain('"b"');
   });

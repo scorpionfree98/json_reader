@@ -20,7 +20,9 @@ export const config = {
             // macOS: './src-tauri/target/debug/json_formatter_tauri'
             // Windows: './src-tauri/target/debug/json_formatter_tauri.exe'
             // Linux: './src-tauri/target/debug/json_formatter_tauri'
-            binary: './src-tauri/target/debug/json_formatter_tauri',
+            binary: process.platform === 'win32'
+                ? './src-tauri/target/debug/json_formatter_tauri.exe'
+                : './src-tauri/target/debug/json_formatter_tauri',
         }
     }],
 
