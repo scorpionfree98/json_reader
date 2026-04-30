@@ -38,6 +38,13 @@ const byId = (id: string) => $(`#${id}`);
 const byClass = (cls: string) => $(`.${cls}`);
 const getLayui = (): any => (window as any).layui;
 
+// HTML 转义函数（防止 XSS）
+const escapeHtml = (text: string): string => {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 // 应用窗口对象（延迟初始化，确保在 Tauri 环境中正确获取）
 let appWindow: ReturnType<typeof getCurrentWebviewWindow> | null = null;
 let isTauriEnv = false;
@@ -286,8 +293,8 @@ export async function toggleTop() {
   try {
     const current = await appWindow.isAlwaysOnTop();
     const newStatus = !current;
-    $('#splitTopBtn').toggleClass('active', newStatus);
     await appWindow.setAlwaysOnTop(newStatus);
+    $('#splitTopBtn').toggleClass('active', newStatus);
     showLayuiMsg(`窗口${newStatus ? '已' : '未'}置顶`);
   } catch (error) {
     console.error('切换置顶状态失败:', error);
@@ -410,6 +417,11 @@ export async function checkUpdate(isManual = false) {
       const latestVersion = update.version || '未知';
       const releaseNotes = update.body || '暂无更新日志';
 
+      // 转义 HTML 防止 XSS 注入
+      const escapedCurrentVersion = escapeHtml(currentVersion);
+      const escapedLatestVersion = escapeHtml(latestVersion);
+      const escapedReleaseNotes = escapeHtml(releaseNotes);
+
       // 显示确认对话框
       layui.use(['layer'], function() {
         const layer = layui.layer;
@@ -423,16 +435,16 @@ export async function checkUpdate(isManual = false) {
               <div style="margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                   <span style="color: #666;">当前版本：</span>
-                  <span style="font-weight: bold; color: #333;">${currentVersion}</span>
+                  <span style="font-weight: bold; color: #333;">${escapedCurrentVersion}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
                   <span style="color: #666;">最新版本：</span>
-                  <span style="font-weight: bold; color: #1890ff;">${latestVersion}</span>
+                  <span style="font-weight: bold; color: #1890ff;">${escapedLatestVersion}</span>
                 </div>
               </div>
               <div style="border-top: 1px solid #eee; padding-top: 15px;">
                 <div style="font-weight: bold; margin-bottom: 10px; color: #333;">更新日志：</div>
-                <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;">${releaseNotes}</div>
+                <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;">${escapedReleaseNotes}</div>
               </div>
             </div>
           `,
