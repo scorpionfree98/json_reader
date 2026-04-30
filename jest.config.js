@@ -9,6 +9,7 @@ export default {
       {
         tsconfig: {
           module: 'commonjs',
+          types: ['jest', 'node'],
         },
       },
     ],
