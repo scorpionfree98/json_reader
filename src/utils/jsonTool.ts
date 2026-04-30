@@ -535,4 +535,5 @@ export const jsonTool: JsonTool = {
   }
 };
 
+export { hasLatex, renderLatexString, escapeHtml };
 export default jsonTool;

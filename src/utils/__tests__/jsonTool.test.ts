@@ -38,6 +38,7 @@ jest.mock('@tauri-apps/plugin-clipboard-manager', () => ({
 }));
 
 import { jsonTool } from '../jsonTool';
+import { hasLatex, renderLatexString, escapeHtml } from '../jsonTool';
 
 // ==================== parsePathTokens tests ====================
 
@@ -108,5 +109,90 @@ describe('formatKeyPath', () => {
   test('unknown format falls back to default (returns path as-is)', () => {
     const path = '["users"][0]["name"]';
     expect(jsonTool.formatKeyPath(path, 'nonexistent_format')).toBe(path);
+  });
+});
+
+// ==================== hasLatex tests ====================
+
+describe('hasLatex', () => {
+  it('检测行内公式 $...$', () => {
+    expect(hasLatex('The formula is $E=mc^2$')).toBe(true);
+  });
+  it('检测块级公式 $$...$$', () => {
+    expect(hasLatex('$$\\int_0^1 x dx$$')).toBe(true);
+  });
+  it('普通文本返回 false', () => {
+    expect(hasLatex('Hello World')).toBe(false);
+  });
+  it('空字符串返回 false', () => {
+    expect(hasLatex('')).toBe(false);
+  });
+  it('检测 frac/times 关键字', () => {
+    expect(hasLatex('{frac}')).toBe(true);
+    expect(hasLatex('{times}')).toBe(true);
+  });
+});
+
+// ==================== renderLatexString tests ====================
+
+describe('renderLatexString', () => {
+  it('行内公式包含 latex-inline', () => {
+    expect(renderLatexString('text $x^2$ more')).toContain('latex-inline');
+  });
+  it('块级公式包含 latex-block', () => {
+    expect(renderLatexString('$$x^2$$')).toContain('latex-block');
+  });
+  it('普通文本原样返回', () => {
+    expect(renderLatexString('plain text')).toBe('plain text');
+  });
+  it('混合公式同时包含 latex-inline 和 latex-block', () => {
+    const result = renderLatexString('before $a$ middle $$b$$ after');
+    expect(result).toContain('latex-inline');
+    expect(result).toContain('latex-block');
+  });
+});
+
+// ==================== parseJsonError tests ====================
+
+describe('parseJsonError', () => {
+  it('提取 Chrome 格式 position', () => {
+    const result = jsonTool.parseJsonError('{"a": 1,}', 'Unexpected token } in JSON at position 9');
+    expect(result).toContain('行');
+  });
+  it('提取 Firefox 格式 line/column', () => {
+    const result = jsonTool.parseJsonError('{\n  "a": 1,\n}', 'JSON.parse: expected property name at line 3 column 1');
+    expect(result).toContain('第 3 行');
+    expect(result).toContain('第 1 列');
+  });
+  it('从 position 计算行号和列号', () => {
+    const result = jsonTool.parseJsonError('{\n  "a": 1,\n  "b": 2,\n}', 'Unexpected token } in JSON at position 23');
+    expect(result).toContain('行');
+  });
+  it('显示错误上下文', () => {
+    const result = jsonTool.parseJsonError('{\n  "a": 1,\n  "b": 2,\n}', 'Unexpected token } in JSON at position 23');
+    expect(result).toContain('上下文');
+  });
+  it('错误行标记 → 前缀', () => {
+    const result = jsonTool.parseJsonError('{\n  "a": 1,\n}', 'Unexpected token } in JSON at position 14');
+    expect(result).toContain('→');
+  });
+  it('HTML 转义防止 XSS', () => {
+    const result = jsonTool.parseJsonError('{}', '<script>alert("xss")</script>');
+    expect(result).not.toContain('<script>');
+    expect(result).toContain('&lt;script&gt;');
+  });
+});
+
+// ==================== escapeHtml tests ====================
+
+describe('escapeHtml', () => {
+  it('转义 HTML 特殊字符', () => {
+    expect(escapeHtml('<div>"test" & \'value\'</div>')).not.toContain('<div>');
+  });
+  it('普通文本不变', () => {
+    expect(escapeHtml('hello world')).toBe('hello world');
+  });
+  it('空字符串返回空字符串', () => {
+    expect(escapeHtml('')).toBe('');
   });
 });
