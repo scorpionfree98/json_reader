@@ -182,21 +182,10 @@ function updateMaximizeButton(isMaximized: boolean, buttonSelector?: string) {
 async function minimizeWindow() {
   if (appWindow) {
     try {
-      const platform = await invoke('get_platform') as string;
-      if (platform === 'macos') {
-        // macOS 上 minimize 可能失效，使用 hide 替代
-        await appWindow.hide();
-      } else {
-        await appWindow.minimize();
-      }
+      await appWindow.minimize();
     } catch (e) {
       console.error('窗口最小化失败:', e);
-      try {
-        await appWindow.hide();
-      } catch (hideError) {
-        console.error('hide 也失败了:', hideError);
-        showLayuiMsg('最小化窗口失败');
-      }
+      showLayuiMsg('最小化窗口失败');
     }
   } else {
     showLayuiMsg('窗口控制仅在应用模式中可用');
