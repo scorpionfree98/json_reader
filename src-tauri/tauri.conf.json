@@ -11,7 +11,7 @@
   "app": {
     "withGlobalTauri": false,
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src ipc: http://ipc.localhost https://gitee.com https://github.com",
       "capabilities": [
         "default"
       ]

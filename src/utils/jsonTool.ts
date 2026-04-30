@@ -24,6 +24,16 @@ interface JsonTool {
 
 // ==================== 工具函数 ====================
 
+// 最大渲染深度（防止循环引用和栈溢出）
+const MAX_RENDER_DEPTH = 50;
+
+// HTML 转义函数（防止 XSS）
+const escapeHtml = (text: string): string => {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const getLayui = (): any => (window as any).layui;
 
 const showLayuiMsg = (msg: string, options?: any): void => {
@@ -230,14 +240,20 @@ const createTreeToggle = ($children: JQuery, $ellipsis: JQuery, $bracketClose: J
     });
 };
 
-const renderTreeValue = (obj: any, path: string, container: JQuery): void => {
+const renderTreeValue = (obj: any, path: string, container: JQuery, depth: number = 0): void => {
+  // 检查深度限制
+  if (depth > MAX_RENDER_DEPTH) {
+    container.append($('<span>').addClass('tree-null tree-value').text('[max depth reached]'));
+    return;
+  }
+
   const type = typeof obj;
   const isExplain = $('#explain')?.prop('checked') || false;
 
   const valueRenderers: Record<string, () => void> = {
-    null: () => container.append(`<span class="tree-null tree-value" data-path="${path}">null</span>`),
-    number: () => container.append(`<span class="tree-number tree-value" data-path="${path}">${obj}</span>`),
-    boolean: () => container.append(`<span class="tree-boolean tree-value" data-path="${path}">${obj}</span>`),
+    null: () => container.append($('<span>').addClass('tree-null tree-value').attr('data-path', path).text('null')),
+    number: () => container.append($('<span>').addClass('tree-number tree-value').attr('data-path', path).text(String(obj))),
+    boolean: () => container.append($('<span>').addClass('tree-boolean tree-value').attr('data-path', path).text(String(obj))),
     string: () => {
       const strObj = obj as string;
 
@@ -260,7 +276,12 @@ const renderTreeValue = (obj: any, path: string, container: JQuery): void => {
         container.append($span);
       } else {
         const displayStr = strObj.length > 100 ? strObj.substring(0, 100) + '...' : strObj;
-        container.append(`<span class="tree-string tree-value" data-path="${path}" title="${strObj.replace(/"/g, '&quot;')}">"${displayStr.replace(/"/g, '&quot;')}"</span>`);
+        const $span = $('<span>')
+          .addClass('tree-string tree-value')
+          .attr('data-path', path)
+          .attr('title', strObj)
+          .text(`"${displayStr}"`);
+        container.append($span);
       }
     }
   };
@@ -268,9 +289,9 @@ const renderTreeValue = (obj: any, path: string, container: JQuery): void => {
   if (valueRenderers[type]) {
     valueRenderers[type]();
   } else if (Array.isArray(obj)) {
-    renderTreeCollection(obj, path, container, true);
+    renderTreeCollection(obj, path, container, true, false, depth);
   } else if (type === 'object') {
-    renderTreeCollection(obj, path, container, false);
+    renderTreeCollection(obj, path, container, false, false, depth);
   }
 };
 
@@ -279,7 +300,8 @@ const renderTreeCollection = (
   path: string,
   container: JQuery,
   isArray: boolean,
-  isRoot: boolean = false
+  isRoot: boolean = false,
+  depth: number = 0
 ): void => {
   const $node = $('<div>').addClass(isRoot ? 'tree-node-root' : 'tree-node');
   const $bracketOpen = $('<span>').addClass('tree-bracket').text(isArray ? '[' : '{');
@@ -313,7 +335,7 @@ const renderTreeCollection = (
     }
 
     const $valueContainer = $('<span>');
-    renderTreeValue(value, itemPath, $valueContainer);
+    renderTreeValue(value, itemPath, $valueContainer, depth + 1);
     $item.append($valueContainer);
 
     if (index < entries.length - 1) {
@@ -384,7 +406,7 @@ export const jsonTool: JsonTool = {
       column = lines[lines.length - 1].length + 1;
     }
 
-    let result = errorMsg;
+    let result = escapeHtml(errorMsg);
 
     // 添加行号和列号信息
     if (line > 0) {
@@ -493,7 +515,7 @@ export const jsonTool: JsonTool = {
   parsePathTokens,
 
   renderTreeView(obj: any, container: JQuery, path: string = '', isRoot: boolean = true): void {
-    renderTreeValue(obj, path, container);
+    renderTreeValue(obj, path, container, 0);
 
     // 绑定值点击复制事件
     container.find('.tree-value').off('dblclick').on('dblclick', function() {

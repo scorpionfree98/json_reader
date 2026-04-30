@@ -71,8 +71,9 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
 
     // Initialize "always on top" check state
     if let Some(win) = app_handle.get_webview_window("main") {
-        if let Ok(top_status) = win.is_always_on_top() {
-            let _ = toggle_top_i.set_checked(top_status);
+        match win.is_always_on_top() {
+            Ok(top_status) => { let _ = toggle_top_i.set_checked(top_status); }
+            Err(e) => eprintln!("初始化置顶状态失败: {:?}", e),
         }
     }
 
@@ -80,8 +81,9 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     {
         use tauri_plugin_autostart::ManagerExt;
-        if let Ok(autostart_status) = app_handle.autolaunch().is_enabled() {
-            let _ = autostart_i.set_checked(autostart_status);
+        match app_handle.autolaunch().is_enabled() {
+            Ok(autostart_status) => { let _ = autostart_i.set_checked(autostart_status); }
+            Err(e) => eprintln!("初始化自启动状态失败: {:?}", e),
         }
     }
 
@@ -167,7 +169,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                 let _ = app.emit("tray://check-updates", ());
             }
             "quit" => {
-                std::process::exit(0);
+                app.exit(0);
             }
             _ => {}
         })
