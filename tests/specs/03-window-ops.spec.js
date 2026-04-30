@@ -27,7 +27,14 @@ describe('窗口操作 (TODO #2)', () => {
   });
 
   it('窗口恢复后应可交互', async () => {
-    // 尝试与窗口交互以验证它仍然响应
+    // 恢复窗口(通过 Tauri API 恢复最小化的窗口)
+    await browser.execute(() => {
+        if (window.__TAURI__) {
+            window.__TAURI__.window.getCurrentWindow().unminimize();
+            window.__TAURI__.window.getCurrentWindow().setFocus();
+        }
+    });
+    await browser.pause(1000);
     const input = await $('#sourceText');
     await input.setValue('test');
     const value = await input.getValue();
