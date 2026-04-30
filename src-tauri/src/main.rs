@@ -246,13 +246,26 @@ fn get_update_disabled(update_state: State<UpdateState>) -> bool {
     *update_state.disabled.lock().unwrap()
 }
 
+/// Get current platform
+#[command]
+fn get_platform() -> String {
+    #[cfg(target_os = "macos")]
+    return "macos".to_string();
+    #[cfg(target_os = "windows")]
+    return "windows".to_string();
+    #[cfg(target_os = "linux")]
+    return "linux".to_string();
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    return "unknown".to_string();
+}
+
 // Mobile entry point
 #[cfg_attr(
     any(target_os = "ios", target_os = "android"),
     tauri::mobile_entry_point
 )]
 pub fn run() {
-    tauri::Builder::<Wry>::new()
+    let mut builder = tauri::Builder::<Wry>::new()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -261,7 +274,15 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .manage(UpdateState::default())
+        .manage(UpdateState::default());
+
+    // Register webdriver plugin in debug builds only
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(tauri_plugin_webdriver_automation::init());
+    }
+
+    builder
         .setup(|app| {
             let app_handle = app.handle();
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
@@ -274,7 +295,8 @@ pub fn run() {
             set_always_on_top,
             set_autostart,
             set_update_disabled,
-            get_update_disabled
+            get_update_disabled,
+            get_platform
         ])
         .run(tauri::generate_context!())
         .expect("应用启动失败，请检查依赖和配置");

@@ -181,7 +181,23 @@ function updateMaximizeButton(isMaximized: boolean, buttonSelector?: string) {
 
 async function minimizeWindow() {
   if (appWindow) {
-    await appWindow.minimize();
+    try {
+      const platform = await invoke('get_platform') as string;
+      if (platform === 'macos') {
+        // macOS 上 minimize 可能失效，使用 hide 替代
+        await appWindow.hide();
+      } else {
+        await appWindow.minimize();
+      }
+    } catch (e) {
+      console.error('窗口最小化失败:', e);
+      try {
+        await appWindow.hide();
+      } catch (hideError) {
+        console.error('hide 也失败了:', hideError);
+        showLayuiMsg('最小化窗口失败');
+      }
+    }
   } else {
     showLayuiMsg('窗口控制仅在应用模式中可用');
   }
@@ -332,10 +348,21 @@ export function formatJson() {
     jsonTool.addEventListeners();
     if (currentViewMode === 'split') {
       jsonTool.updateTreeView(jsonObj);
+      $('#split-valid-result').hide();
     }
     showLayuiMsg('格式化成功');
-  } catch (e) {
-    byId('valid-result')?.html('格式错误').removeClass('es-pass').addClass('es-fail');
+  } catch (e: unknown) {
+    const error = e as Error;
+    const errorInfo = jsonTool.parseJsonError(text, error.message);
+    byId('valid-result')?.html(errorInfo).removeClass('es-pass').addClass('es-fail');
+    // 在分屏模式下也显示错误信息
+    if (currentViewMode === 'split') {
+      $('#split-valid-result')
+        .html(errorInfo)
+        .removeClass('es-pass es-empty')
+        .addClass('es-fail')
+        .show();
+    }
     showLayuiMsg('JSON格式错误');
   }
 }
@@ -368,9 +395,55 @@ export async function checkUpdate(isManual = false) {
   try {
     const update = await check();
     if (update) {
-      showLayuiMsg('发现新版本，正在下载...');
-      await update.downloadAndInstall();
-      await relaunch();
+      // 获取当前版本
+      const currentVersion = await getVersion();
+      const latestVersion = update.version || '未知';
+      const releaseNotes = update.body || '暂无更新日志';
+
+      // 显示确认对话框
+      layui.use(['layer'], function() {
+        const layer = layui.layer;
+        layer.open({
+          type: 1,
+          title: '发现新版本',
+          area: ['480px', 'auto'],
+          shade: 0.3,
+          content: `
+            <div style="padding: 20px;">
+              <div style="margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                  <span style="color: #666;">当前版本：</span>
+                  <span style="font-weight: bold; color: #333;">${currentVersion}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                  <span style="color: #666;">最新版本：</span>
+                  <span style="font-weight: bold; color: #1890ff;">${latestVersion}</span>
+                </div>
+              </div>
+              <div style="border-top: 1px solid #eee; padding-top: 15px;">
+                <div style="font-weight: bold; margin-bottom: 10px; color: #333;">更新日志：</div>
+                <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;">${releaseNotes}</div>
+              </div>
+            </div>
+          `,
+          btn: ['立即更新', '稍后再说'],
+          yes: async function(index) {
+            layer.close(index);
+            showLayuiMsg('正在下载更新...');
+            try {
+              await update.downloadAndInstall();
+              await relaunch();
+            } catch (err) {
+              console.error('下载更新失败:', err);
+              showLayuiMsg('下载更新失败');
+            }
+          },
+          btn2: function(index) {
+            layer.close(index);
+            showLayuiMsg('已取消更新');
+          }
+        });
+      });
     } else if (isManual) {
       showLayuiMsg('当前已是最新版本');
     }
@@ -385,14 +458,26 @@ export async function checkUpdate(isManual = false) {
 // ==================== 树形视图控制 ====================
 
 function expandAllTree() {
-  $('.tree-toggle.collapsed').removeClass('collapsed').html('▼');
-  $('.tree-children').show();
+  $('#tree-view .tree-toggle').each(function() {
+    const $this = $(this);
+    const $parent = $this.closest('.tree-node, .tree-node-root');
+    $parent.find('.tree-children').first().removeClass('collapsed');
+    $parent.find('.tree-ellipsis').first().addClass('hidden');
+    $parent.find('.tree-bracket').last().removeClass('hidden');
+    $this.text('▼').attr('data-collapsed', 'false');
+  });
   showLayuiMsg('已展开全部');
 }
 
 function collapseAllTree() {
-  $('.tree-toggle:not(.collapsed)').addClass('collapsed').html('▶');
-  $('.tree-children').hide();
+  $('#tree-view .tree-toggle').each(function() {
+    const $this = $(this);
+    const $parent = $this.closest('.tree-node, .tree-node-root');
+    $parent.find('.tree-children').first().addClass('collapsed');
+    $parent.find('.tree-ellipsis').first().removeClass('hidden');
+    $parent.find('.tree-bracket').last().addClass('hidden');
+    $this.text('▶').attr('data-collapsed', 'true');
+  });
   showLayuiMsg('已折叠全部');
 }
 
@@ -403,9 +488,20 @@ function refreshTreeView() {
     if (sourceText.trim()) {
       const jsonObj = JSON.parse(sourceText);
       jsonTool.updateTreeView(jsonObj);
+      $('#split-valid-result').hide();
+    } else {
+      $('#tree-view').empty();
+      $('#split-valid-result').hide();
     }
-  } catch (e) {
-    console.log('刷新树形视图失败:', e);
+  } catch (e: unknown) {
+    const error = e as Error;
+    const errorInfo = jsonTool.parseJsonError(sourceText, error.message);
+    $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误</div>');
+    $('#split-valid-result')
+      .html(errorInfo)
+      .removeClass('es-pass es-empty')
+      .addClass('es-fail')
+      .show();
   }
 }
 
@@ -670,6 +766,55 @@ function initLayuiForm() {
   });
 }
 
+// ==================== 托盘事件监听 ====================
+
+function initTrayListeners() {
+  if (!isTauri()) return;
+
+  // 监听托盘菜单的"检查更新"事件
+  listen('tray://check-updates', () => {
+    console.log('收到托盘检查更新事件');
+    checkUpdate(true);
+  });
+
+  // 监听托盘菜单的"显示主窗口"事件
+  listen('tray://show', () => {
+    console.log('收到托盘显示窗口事件');
+    if (appWindow) {
+      appWindow.show();
+      appWindow.setFocus();
+    }
+  });
+
+  // 监听托盘菜单的"隐藏主窗口"事件
+  listen('tray://hide', () => {
+    console.log('收到托盘隐藏窗口事件');
+    if (appWindow) {
+      appWindow.hide();
+    }
+  });
+
+  // 监听托盘菜单的"置顶切换"事件
+  listen('tray://toggle-always-on-top', () => {
+    console.log('收到托盘置顶切换事件');
+    toggleTop();
+  });
+
+  // 监听托盘菜单的"自启动切换"事件
+  listen('tray://toggle-autostart', () => {
+    console.log('收到托盘自启动切换事件');
+    toggleAutostart();
+  });
+
+  // 监听托盘菜单的"禁用更新切换"事件
+  listen('tray://toggle-disable-update', (event) => {
+    console.log('收到托盘禁用更新切换事件:', event.payload);
+    isUpdateDisabled = event.payload as boolean;
+    byId('disableUpdate')?.prop('checked', isUpdateDisabled);
+    showLayuiMsg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
+  });
+}
+
 // ==================== 初始化 ====================
 
 async function initCheckboxStates() {
@@ -725,4 +870,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   applySavedViewMode();
   applyTheme(isDarkMode);
   displayVersion();
+  initTrayListeners();
 });
