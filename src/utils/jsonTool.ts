@@ -37,12 +37,39 @@ const escapeHtml = (text: string): string => {
 const getLayui = (): any => (window as any).layui;
 
 const showLayuiMsg = (msg: string, options?: any): void => {
-  const layui = getLayui();
-  if (layui?.layer) {
-    layui.layer.msg(msg, options);
+  // 检测是否在 Tauri 环境（有 CSP 限制）
+  const isTauri = '__TAURI__' in window || '__TAURI_INTERNALS__' in window;
+
+  if (isTauri) {
+    // Tauri 环境直接使用自定义通知（避免 CSP 问题）
+    showCustomNotification(msg);
   } else {
-    console.log('LayUI message:', msg);
+    // 浏览器环境尝试使用 LayUI
+    const layui = getLayui();
+    if (layui?.layer) {
+      try {
+        layui.layer.msg(msg, options);
+      } catch (e) {
+        console.error('LayUI msg failed:', e);
+        showCustomNotification(msg);
+      }
+    } else {
+      showCustomNotification(msg);
+    }
   }
+};
+
+// 自定义通知（不依赖 LayUI，使用 CSS class 避免 CSP 问题）
+const showCustomNotification = (msg: string): void => {
+  const toast = document.createElement('div');
+  toast.className = 'custom-toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 1000);
 };
 
 const getCopyFormat = (): string => $('#copyFormat').val() as string || 'default';
@@ -83,7 +110,7 @@ const renderLatexString = (str: string): string => {
   }
 };
 
-const hasLatex = (str: string): boolean => str.includes('$') || /\{frac\}|\{times\}/.test(str);
+const hasLatex = (str: string): boolean => str.includes('$') || /\\frac|\\times|\{frac\}|\{times\}/.test(str);
 
 // ==================== 路径格式化 ====================
 
@@ -247,11 +274,17 @@ const renderTreeValue = (obj: any, path: string, container: JQuery, depth: numbe
     return;
   }
 
+  // null 必须在 typeof 判断前处理，因为 typeof null === 'object'
+  if (obj === null) {
+    container.append($('<span>').addClass('tree-null tree-value').attr('data-path', path).text('null'));
+    return;
+  }
+
   const type = typeof obj;
-  const isExplain = $('#explain')?.prop('checked') || false;
+  // 从 window 对象读取全局转义状态（分屏和编辑器模式共享）
+  const isExplain = (window as any).isExplainEnabled || false;
 
   const valueRenderers: Record<string, () => void> = {
-    null: () => container.append($('<span>').addClass('tree-null tree-value').attr('data-path', path).text('null')),
     number: () => container.append($('<span>').addClass('tree-number tree-value').attr('data-path', path).text(String(obj))),
     boolean: () => container.append($('<span>').addClass('tree-boolean tree-value').attr('data-path', path).text(String(obj))),
     string: () => {
@@ -502,12 +535,28 @@ export const jsonTool: JsonTool = {
 
   async copyToClipboard(value: any, path?: string): Promise<void> {
     const valueText = String(value ?? '');
+    console.log('copyToClipboard called with:', valueText.substring(0, 100));
+
     try {
+      // 优先尝试 Tauri 剪贴板 API
       await writeClipboardText(valueText);
+      console.log('Tauri clipboard write success');
       showLayuiMsg(`已复制: ${valueText.substring(0, 50)}${valueText.length > 50 ? '...' : ''}`, { time: 1000 });
     } catch (e) {
-      console.error('复制失败:', e);
-      showLayuiMsg(`复制失败: ${(e as Error).message}`, { time: 1000 });
+      console.log('Tauri clipboard failed, trying fallback:', e);
+      // Fallback 到浏览器 Clipboard API
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(valueText);
+          console.log('Browser clipboard write success');
+          showLayuiMsg(`已复制: ${valueText.substring(0, 50)}${valueText.length > 50 ? '...' : ''}`, { time: 1000 });
+        } else {
+          throw new Error('剪贴板 API 不可用');
+        }
+      } catch (fallbackError) {
+        console.error('复制失败:', e, fallbackError);
+        showLayuiMsg(`复制失败: ${(fallbackError as Error).message}`, { time: 1000 });
+      }
     }
   },
 

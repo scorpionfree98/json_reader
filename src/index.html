@@ -84,14 +84,14 @@
 
         /* ==================== JSON 显示区域 ==================== */
         #json-display {
-            margin-top: 20px;
+            margin-top: 10px;
             margin-bottom: 40px;
-            font-family: monospace;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
             white-space: pre-wrap;
             word-wrap: break-word;
             border: 1px solid #e6e6e6;
             padding: 15px;
-            background-color: #2d2d2d;
+            background-color: #fafafa;
             border-radius: 5px;
             flex: 1;
             min-height: 100px;
@@ -100,10 +100,9 @@
             overflow: auto;
             overflow-x: auto;
             overflow-y: auto;
-            color: #00CED1;
-            font-weight: bold;
+            color: #333;
             font-size: 14px;
-            line-height: 1.5em;
+            line-height: 1.6em;
         }
 
         /* JSON 元素样式 */
@@ -123,6 +122,8 @@
             overflow-wrap: break-word;
             word-wrap: break-word;
             word-break: break-all;
+            color: #881391;
+            font-weight: 500;
         }
 
         .json-key::after {
@@ -130,7 +131,7 @@
         }
 
         .json-string {
-            color: #00FA9A;
+            color: #0d7377;
             display: inline;
             max-width: 100%;
             overflow-wrap: break-word;
@@ -140,8 +141,20 @@
         }
 
         .json-number {
-            color: #d3869b;
+            color: #1a73e8;
             display: inline;
+        }
+
+        .json-boolean {
+            color: #e65100;
+            display: inline;
+        }
+
+        .json-null {
+            color: #757575;
+            font-style: italic;
+            display: inline;
+        }
         }
 
         .json-boolean {
@@ -614,6 +627,38 @@
             color: #fff;
         }
 
+        .split-copy-format-select {
+            height: 28px;
+            padding: 0 6px;
+            border: 1px solid #e6e6e6;
+            border-radius: 4px;
+            background-color: #fff;
+            font-size: 12px;
+            color: #333;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .split-copy-format-select:hover {
+            border-color: #1890ff;
+        }
+
+        .split-copy-format-select:focus {
+            border-color: #1890ff;
+        }
+
+        body.dark-mode .split-copy-format-select {
+            background-color: #3d3d3d;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .split-copy-format-select:hover,
+        body.dark-mode .split-copy-format-select:focus {
+            border-color: #1890ff;
+        }
+
         /* ==================== 版本号 ==================== */
         .version-display {
             position: fixed;
@@ -690,6 +735,27 @@
             background-color: #2d2d2d;
             border-color: #444;
             color: #e0e0e0;
+        }
+
+        /* 夜间模式 - JSON 显示区颜色 */
+        body.dark-mode .json-key {
+            color: #d4a5d4;
+        }
+
+        body.dark-mode .json-string {
+            color: #7fdbca;
+        }
+
+        body.dark-mode .json-number {
+            color: #82b1ff;
+        }
+
+        body.dark-mode .json-boolean {
+            color: #ffab91;
+        }
+
+        body.dark-mode .json-null {
+            color: #b0b0b0;
         }
 
         /* 夜间模式 - 树形视图 */
@@ -798,6 +864,168 @@
             border-color: #1890ff;
             color: #fff;
         }
+        /* ==================== 搜索功能 ==================== */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #e6e6e6;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .search-bar.hidden {
+            display: none;
+        }
+
+        .search-bar input {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 12px;
+            outline: none;
+            min-width: 0;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar input:focus {
+            border-color: #1890ff;
+        }
+
+        .search-bar input.regex-error {
+            border-color: #ff4d4f;
+            background-color: #fff2f0;
+        }
+
+        .search-bar .search-btn {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 1px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            border-radius: 3px;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+
+        .search-bar .search-btn:hover {
+            background-color: #e8e8e8;
+            color: #1890ff;
+        }
+
+        .search-bar .search-btn.active {
+            background-color: #e6f7ff;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+
+        .search-bar .search-separator {
+            width: 1px;
+            height: 16px;
+            background-color: #ddd;
+            margin: 0 2px;
+        }
+
+        .search-bar .search-count {
+            font-size: 11px;
+            color: #999;
+            white-space: nowrap;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .search-highlight {
+            background-color: #fff3cd;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        .search-highlight-active {
+            background-color: #ff9632;
+            color: #fff;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+
+        body.dark-mode .search-bar {
+            background-color: #2d2d2d;
+            border-color: #444;
+        }
+
+        body.dark-mode .search-bar input {
+            background-color: #3d3d3d;
+            border-color: #555;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode .search-bar input:focus {
+            border-color: #1890ff;
+        }
+
+        body.dark-mode .search-bar input.regex-error {
+            border-color: #ff4d4f;
+            background-color: #3d2020;
+        }
+
+        body.dark-mode .search-bar .search-btn {
+            color: #999;
+        }
+
+        body.dark-mode .search-bar .search-btn:hover {
+            background-color: #3d3d3d;
+            color: #1890ff;
+        }
+
+        body.dark-mode .search-bar .search-btn.active {
+            background-color: #112a45;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+
+        body.dark-mode .search-bar .search-separator {
+            background-color: #444;
+        }
+
+        body.dark-mode .search-highlight {
+            background-color: #5a4e00;
+            color: #ffd;
+        }
+
+        body.dark-mode .search-highlight-active {
+            background-color: #d97706;
+            color: #fff;
+        }
+
+        /* ==================== 自定义通知 ==================== */
+        .custom-toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            z-index: 999999;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .custom-toast.fade-out {
+            opacity: 0;
+        }
+
     </style>
 </head>
 
@@ -867,6 +1095,12 @@
                         </div>
 
                         <div class="setting-group">
+                            <button id="editorSearchToggle" class="layui-btn layui-btn-sm layui-btn-primary no-drag">
+                                <i class="layui-icon layui-icon-search"></i> 搜索
+                            </button>
+                        </div>
+
+                        <div class="setting-group">
                             <label>复制格式:</label>
                             <div class="layui-input-inline" style="width: 180px; margin: 0;">
                                 <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
@@ -916,6 +1150,22 @@
             <div id="editor-mode" class="mode-container">
                 <div class="editor-mode-content">
                     <div id="valid-result" class="es-empty"></div>
+                    <div class="search-bar hidden" id="editorSearchBar">
+                        <input type="text" id="editorSearchInput" placeholder="搜索 key 或 value..." />
+                        <button class="search-btn" id="editorCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
+                        <button class="search-btn" id="editorUseRegex" title="正则表达式 (Alt+R)">.*</button>
+                        <div class="search-separator"></div>
+                        <span class="search-count" id="editorSearchCount"></span>
+                        <button class="search-btn" id="editorSearchPrev" title="上一个 (Shift+Enter)">
+                            <i class="layui-icon layui-icon-up"></i>
+                        </button>
+                        <button class="search-btn" id="editorSearchNext" title="下一个 (Enter)">
+                            <i class="layui-icon layui-icon-down"></i>
+                        </button>
+                        <button class="search-btn" id="editorSearchClear" title="关闭 (Esc)">
+                            <i class="layui-icon layui-icon-close"></i>
+                        </button>
+                    </div>
                     <div id="json-display"></div>
                 </div>
             </div>
@@ -965,7 +1215,8 @@
                 <div class="panel-header">
                     <i class="layui-icon layui-icon-tree"></i> Tree Viewer
                     <div class="split-toolbar no-drag">
-
+                        <button class="split-btn" id="treeSearchToggle" title="搜索"><i
+                                class="layui-icon layui-icon-search"></i></button>
                         <button class="split-btn" id="splitTopBtn" title="置顶"><i
                                 class="layui-icon layui-icon-top"></i></button>
                         <button class="split-btn" id="splitExplainBtn" title="转义"><i
@@ -974,11 +1225,32 @@
                                 class="layui-icon layui-icon-spread-left"></i></button>
                         <button class="split-btn" id="splitCollapseAll" title="折叠全部"><i
                                 class="layui-icon layui-icon-shrink-right"></i></button>
-                        <button class="split-btn" id="splitCopyFormatBtn" title="复制格式"><i
-                                class="layui-icon layui-icon-senior"></i></button>
+                        <select id="splitCopyFormat" class="split-copy-format-select" title="复制格式">
+                            <option value="default">["key"]</option>
+                            <option value="dot">.key</option>
+                            <option value="jsonpath">$.key</option>
+                            <option value="bracket">['key']</option>
+                            <option value="python">.get</option>
+                        </select>
                     </div>
                 </div>
                 <div id="split-valid-result" class="es-empty" style="display: none; margin: 0 0 10px 0; padding: 8px; border-radius: 4px; font-size: 12px;"></div>
+                <div class="search-bar hidden" id="treeSearchBar">
+                    <input type="text" id="treeSearchInput" placeholder="搜索 key 或 value..." />
+                    <button class="search-btn" id="treeCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
+                    <button class="search-btn" id="treeUseRegex" title="正则表达式 (Alt+R)">.*</button>
+                    <div class="search-separator"></div>
+                    <span class="search-count" id="treeSearchCount"></span>
+                    <button class="search-btn" id="treeSearchPrev" title="上一个 (Shift+Enter)">
+                        <i class="layui-icon layui-icon-up"></i>
+                    </button>
+                    <button class="search-btn" id="treeSearchNext" title="下一个 (Enter)">
+                        <i class="layui-icon layui-icon-down"></i>
+                    </button>
+                    <button class="search-btn" id="treeSearchClear" title="关闭 (Esc)">
+                        <i class="layui-icon layui-icon-close"></i>
+                    </button>
+                </div>
                 <div id="tree-view"></div>
             </div>
         </div>
