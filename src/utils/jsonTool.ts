@@ -290,16 +290,18 @@ const renderTreeValue = (obj: any, path: string, container: JQuery, depth: numbe
     string: () => {
       const strObj = obj as string;
 
+      // 转义模式：显示转义字符（\n \t 等）
+      // 非转义模式：显示真实字符（换行、制表符等）
       const processedStr = isExplain
-        ? strObj.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+        ? strObj.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t').replace(/"/g, '\\"')
         : strObj;
 
-      if (isExplain && hasLatex(processedStr)) {
+      if (!isExplain && hasLatex(strObj)) {
         const $valueSpan = $('<span>').addClass('tree-string tree-value').attr('data-path', path);
-        $valueSpan.html(renderLatexString(processedStr));
+        $valueSpan.html(renderLatexString(strObj));
         container.append($valueSpan);
-      } else if (isExplain) {
-        const displayStr = processedStr.length > 100 ? processedStr.substring(0, 100) + '...' : processedStr;
+      } else if (!isExplain) {
+        const displayStr = strObj.length > 100 ? strObj.substring(0, 100) + '...' : strObj;
         const $span = $('<span>')
           .addClass('tree-string tree-value')
           .attr('data-path', path)
@@ -308,11 +310,11 @@ const renderTreeValue = (obj: any, path: string, container: JQuery, depth: numbe
           .text(`"${displayStr}"`);
         container.append($span);
       } else {
-        const displayStr = strObj.length > 100 ? strObj.substring(0, 100) + '...' : strObj;
+        const displayStr = processedStr.length > 100 ? processedStr.substring(0, 100) + '...' : processedStr;
         const $span = $('<span>')
           .addClass('tree-string tree-value')
           .attr('data-path', path)
-          .attr('title', strObj)
+          .attr('title', processedStr)
           .text(`"${displayStr}"`);
         container.append($span);
       }
