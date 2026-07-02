@@ -131,6 +131,10 @@ describe('hasLatex', () => {
     expect(hasLatex('{frac}')).toBe(true);
     expect(hasLatex('{times}')).toBe(true);
   });
+  it('检测 LaTeX 命令 \\frac 和 \\times', () => {
+    expect(hasLatex('\\frac{1}{2}')).toBe(true);
+    expect(hasLatex('a \\times b')).toBe(true);
+  });
 });
 
 // ==================== renderLatexString tests ====================
