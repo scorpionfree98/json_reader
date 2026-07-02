@@ -7,7 +7,7 @@
     windows_subsystem = "windows"
 )]
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{command, Emitter, Manager, State, Wry};
@@ -17,6 +17,13 @@ use tauri::{command, Emitter, Manager, State, Wry};
 struct TrayMenuState {
     toggle_top_item: Option<Arc<CheckMenuItem<Wry>>>,
     autostart_item: Option<Arc<CheckMenuItem<Wry>>>,
+    disable_update_item: Option<Arc<CheckMenuItem<Wry>>>,
+}
+
+// Update disable state
+#[derive(Default)]
+struct UpdateState {
+    disabled: Mutex<bool>,
 }
 
 /// Build system tray menu and logic
@@ -40,6 +47,14 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
         false,
         None::<&str>,
     )?;
+    let disable_update_i = CheckMenuItem::with_id(
+        app_handle,
+        "disable-update",
+        "禁用自动更新",
+        true,
+        false,
+        None::<&str>,
+    )?;
     let check_update_i =
         MenuItem::with_id(app_handle, "check-updates", "检查更新…", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app_handle, "quit", "退出", true, None::<&str>)?;
@@ -47,28 +62,18 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     // Store menu items in global state
     let toggle_top_arc = Arc::new(toggle_top_i.clone());
     let autostart_arc = Arc::new(autostart_i.clone());
+    let disable_update_arc = Arc::new(disable_update_i.clone());
     app_handle.manage(TrayMenuState {
         toggle_top_item: Some(toggle_top_arc),
         autostart_item: Some(autostart_arc),
+        disable_update_item: Some(disable_update_arc),
     });
-
-    // Assemble menu
-    let menu = Menu::with_items(
-        app_handle,
-        &[
-            &show_i,
-            &hide_i,
-            &toggle_top_i,
-            &autostart_i,
-            &check_update_i,
-            &quit_i,
-        ],
-    )?;
 
     // Initialize "always on top" check state
     if let Some(win) = app_handle.get_webview_window("main") {
-        if let Ok(top_status) = win.is_always_on_top() {
-            let _ = toggle_top_i.set_checked(top_status);
+        match win.is_always_on_top() {
+            Ok(top_status) => { let _ = toggle_top_i.set_checked(top_status); }
+            Err(e) => eprintln!("初始化置顶状态失败: {:?}", e),
         }
     }
 
@@ -76,18 +81,31 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
     {
         use tauri_plugin_autostart::ManagerExt;
-        if let Ok(autostart_status) = app_handle.autolaunch().is_enabled() {
-            let _ = autostart_i.set_checked(autostart_status);
+        match app_handle.autolaunch().is_enabled() {
+            Ok(autostart_status) => { let _ = autostart_i.set_checked(autostart_status); }
+            Err(e) => eprintln!("初始化自启动状态失败: {:?}", e),
         }
     }
 
     // Clone items for menu event handling
     let toggle_top_i_clone = toggle_top_i.clone();
     let autostart_i_clone = autostart_i.clone();
+    let disable_update_i_clone = disable_update_i.clone();
 
     // Build tray and bind menu events
     TrayIconBuilder::new()
-        .menu(&menu)
+        .menu(&Menu::with_items(
+            app_handle,
+            &[
+                &show_i,
+                &hide_i,
+                &toggle_top_i,
+                &autostart_i,
+                &disable_update_i,
+                &check_update_i,
+                &quit_i,
+            ],
+        )?)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "show" => {
                 if let Some(win) = app.get_webview_window("main") {
@@ -132,11 +150,26 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                 }
                 let _ = app.emit("tray://toggle-autostart", ());
             }
+            "disable-update" => {
+                // Get current state from app state
+                let update_state = app.state::<UpdateState>();
+                let current_disabled = *update_state.disabled.lock().unwrap();
+                let new_disabled = !current_disabled;
+                
+                // Update state
+                *update_state.disabled.lock().unwrap() = new_disabled;
+                
+                // Update menu check state
+                let _ = disable_update_i_clone.set_checked(new_disabled);
+                
+                // Emit event to frontend
+                let _ = app.emit("tray://toggle-disable-update", new_disabled);
+            }
             "check-updates" => {
                 let _ = app.emit("tray://check-updates", ());
             }
             "quit" => {
-                std::process::exit(0);
+                app.exit(0);
             }
             _ => {}
         })
@@ -170,7 +203,7 @@ fn set_always_on_top(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
     }
 }
 
-/// Handle frontend "set_autostart" command (desktop only)
+/// 注意：前端已经处理了实际的自启启用/禁用逻辑，这里只同步菜单状态
 #[command]
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 fn set_autostart(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
@@ -190,13 +223,51 @@ fn set_autostart(app: tauri::AppHandle<Wry>, state: State<TrayMenuState>) {
     }
 }
 
+/// Handle frontend "set_update_disabled" command
+#[command]
+fn set_update_disabled(
+    _app: tauri::AppHandle<Wry>,
+    state: State<TrayMenuState>,
+    update_state: State<UpdateState>,
+    disabled: bool,
+) {
+    // Update state
+    *update_state.disabled.lock().unwrap() = disabled;
+
+    // Update tray menu check state
+    if let Some(disable_update_btn) = &state.disable_update_item {
+        let _ = disable_update_btn.set_checked(disabled);
+    }
+
+    println!("更新禁用状态已设置为: {}", disabled);
+}
+
+/// Get update disabled state
+#[command]
+fn get_update_disabled(update_state: State<UpdateState>) -> bool {
+    *update_state.disabled.lock().unwrap()
+}
+
+/// Get current platform
+#[command]
+fn get_platform() -> String {
+    #[cfg(target_os = "macos")]
+    return "macos".to_string();
+    #[cfg(target_os = "windows")]
+    return "windows".to_string();
+    #[cfg(target_os = "linux")]
+    return "linux".to_string();
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    return "unknown".to_string();
+}
+
 // Mobile entry point
 #[cfg_attr(
     any(target_os = "ios", target_os = "android"),
     tauri::mobile_entry_point
 )]
 pub fn run() {
-    tauri::Builder::<Wry>::new()
+    let mut builder = tauri::Builder::<Wry>::new()
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -205,6 +276,15 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .manage(UpdateState::default());
+
+    // Register webdriver plugin in debug builds only
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(tauri_plugin_webdriver_automation::init());
+    }
+
+    builder
         .setup(|app| {
             let app_handle = app.handle();
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
@@ -213,7 +293,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![set_always_on_top, set_autostart])
+        .invoke_handler(tauri::generate_handler![
+            set_always_on_top,
+            set_autostart,
+            set_update_disabled,
+            get_update_disabled,
+            get_platform
+        ])
         .run(tauri::generate_context!())
         .expect("应用启动失败，请检查依赖和配置");
 }
