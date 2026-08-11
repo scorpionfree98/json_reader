@@ -26,9 +26,6 @@ importers:
       '@tauri-apps/plugin-window-state':
         specifier: ~2.4.1
         version: 2.4.1
-      '@types/jquery':
-        specifier: ~3.5.33
-        version: 3.5.33
       jquery:
         specifier: ~3.7.1
         version: 3.7.1
@@ -51,6 +48,9 @@ importers:
       '@types/jest':
         specifier: 29.5.12
         version: 29.5.12
+      '@types/jquery':
+        specifier: ~3.5.33
+        version: 3.5.33
       '@types/katex':
         specifier: ^0.16.8
         version: 0.16.8

@@ -1,4 +1,4 @@
-import { waitForElement, safeClick, setInputValue, getElementHTML } from '../helpers/utils.js';
+import { isElementVisible, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
 
 describe('复制格式功能', () => {
   before(async () => {
@@ -7,12 +7,7 @@ describe('复制格式功能', () => {
 
   describe('编辑器模式复制格式', () => {
     before(async () => {
-      const editorMode = await $('#editor-mode');
-      const isVisible = await editorMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="editor"]');
-        await browser.pause(500);
-      }
+      await switchToEditor();
     });
 
     it('切换 5 种内置格式', async () => {
@@ -44,12 +39,10 @@ describe('复制格式功能', () => {
 
       await browser.pause(300);
 
-      const customContainer = await $('#customFormatContainer');
-      const isVisible = await customContainer.isDisplayed();
-      expect(isVisible).toBe(true);
+      expect(await isElementVisible('#customFormatContainer')).toBe(true);
 
-      await setInputValue('#customKeyFormat', 'key_{0}');
-      await setInputValue('#customIndexFormat', '[{0}]');
+      await setInputValue('#customKeyFormat', '.field_{key}');
+      await setInputValue('#customIndexFormat', '.item_{index}');
 
       const keyFormatValue = await browser.execute(() => {
         return document.querySelector('#customKeyFormat').value;
@@ -59,54 +52,33 @@ describe('复制格式功能', () => {
         return document.querySelector('#customIndexFormat').value;
       });
 
-      expect(keyFormatValue).toBe('key_{0}');
-      expect(indexFormatValue).toBe('[{0}]');
+      expect(keyFormatValue).toBe('.field_{key}');
+      expect(indexFormatValue).toBe('.item_{index}');
     });
   });
 
   describe('分屏模式复制格式', () => {
     before(async () => {
-      const splitMode = await $('#split-mode');
-      const isVisible = await splitMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="split"]');
-        await browser.pause(500);
-      }
+      await switchToSplit();
     });
 
     after(async () => {
-      const editorMode = await $('#editor-mode');
-      const isVisible = await editorMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="editor"]');
-        await browser.pause(500);
-      }
+      await switchToEditor();
     });
 
-    it('分屏模式复制格式弹窗打开', async () => {
-      await safeClick('#splitCopyFormatBtn');
-      await browser.pause(500);
-
-      const layerCount = await browser.execute(() => {
-        return document.querySelectorAll('.layui-layer').length;
+    it('分屏模式复制格式与编辑器同步', async () => {
+      await browser.execute(() => {
+        const select = document.querySelector('#splitCopyFormat');
+        select.value = 'python';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
       });
+      await browser.pause(300);
 
-      expect(layerCount).toBeGreaterThan(0);
-    });
-
-    it('分屏模式复制格式弹窗关闭', async () => {
-      await safeClick('#splitCopyFormatBtn');
-      await browser.pause(500);
-
-      const closeButton = await $('.layui-layer-close');
-      await closeButton.click();
-      await browser.pause(500);
-
-      const layerCount = await browser.execute(() => {
-        return document.querySelectorAll('.layui-layer').length;
-      });
-
-      expect(layerCount).toBe(0);
+      const values = await browser.execute(() => ({
+        split: document.querySelector('#splitCopyFormat').value,
+        editor: document.querySelector('#copyFormat').value,
+      }));
+      expect(values).toEqual({ split: 'python', editor: 'python' });
     });
   });
 });

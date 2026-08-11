@@ -1,7 +1,7 @@
 {
-  "identifier": "com.example.jsonformatter",
+  "identifier": "com.scorpionfree98.jsonformatter",
   "productName": "JSONFormatter",
-  "version": "0.1.20",
+  "version": "0.1.22",
   "build": {
     "beforeDevCommand": "vite",
     "beforeBuildCommand": "vite build",
@@ -11,7 +11,7 @@
   "app": {
     "withGlobalTauri": false,
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: https:; connect-src ipc: http://ipc.localhost https://gitee.com https://github.com",
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src ipc: http://ipc.localhost https://gitee.com https://github.com",
       "capabilities": [
         "default"
       ]
@@ -20,15 +20,15 @@
       {
         "label": "main",
         "title": "JSON 格式化工具",
-        "width": 600,
-        "height": 600,
+        "width": 1100,
+        "height": 760,
         "visible": true,
-        "decorations": true,
+        "decorations": false,
         "resizable": true,
         "acceptFirstMouse": true,
         "center": true,
-        "minWidth": 300,
-        "minHeight": 300
+        "minWidth": 900,
+        "minHeight": 600
       }
     ]
   },
@@ -43,7 +43,7 @@
     "shortDescription": "JSON格式化工具",
     "longDescription": "一个简单易用的JSON格式化工具，支持JSON验证、格式化和美化显示。",
     "windows": {
-      "allowDowngrades": true,
+      "allowDowngrades": false,
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
       },

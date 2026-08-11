@@ -17,6 +17,7 @@ export default defineConfig({
         manualChunks: {
           // 启用代码分割，将第三方库单独打包
           'vendor': ['jquery'],
+          'katex': ['katex'],
         },
         format: 'es',             // 保持 ES 模块格式一致
       }

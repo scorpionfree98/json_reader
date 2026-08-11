@@ -53,7 +53,8 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 60
-    continue-on-error: true
+    # 手动关闭的平台通过 guard 退出；实际参与构建的平台失败必须阻断发布。
+    continue-on-error: ${{ !matrix.condition }}
 
     steps:
       - name: Guard - skip if not needed
@@ -105,9 +106,7 @@ jobs:
           node-version: "20"
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+        uses: pnpm/action-setup@v6
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -121,7 +120,16 @@ jobs:
         run: pnpm --version
 
       - name: Install frontend dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check frontend
+        run: pnpm exec tsc --noEmit
+
+      - name: Run frontend unit tests
+        run: pnpm test:unit --runInBand
+
+      - name: Lint Rust backend
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Check Tauri version
         run: pnpm tauri --version

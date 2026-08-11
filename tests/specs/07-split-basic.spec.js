@@ -1,25 +1,13 @@
-import { waitForElement, safeClick, setInputValue, getElementHTML } from '../helpers/utils.js';
+import { getControlValue, safeClick, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
 
 describe('分屏模式基础功能', () => {
   before(async () => {
     await browser.pause(2000);
-    // 切换到分屏模式
-    const splitMode = await $('#split-mode');
-    const isVisible = await splitMode.isDisplayed();
-    if (!isVisible) {
-      await safeClick('[data-mode="split"]');
-      await browser.pause(500);
-    }
+    await switchToSplit();
   });
 
   after(async () => {
-    // 切回编辑器模式
-    const editorMode = await $('#editor-mode');
-    const isVisible = await editorMode.isDisplayed();
-    if (!isVisible) {
-      await safeClick('[data-mode="editor"]');
-      await browser.pause(500);
-    }
+    await switchToEditor();
   });
 
   beforeEach(async () => {
@@ -29,8 +17,7 @@ describe('分屏模式基础功能', () => {
 
   it('分屏模式输入框可编辑', async () => {
     await setInputValue('#splitSourceText', '{"test": "hello"}');
-    const input = await $('#splitSourceText');
-    const value = await input.getValue();
+    const value = await getControlValue('#splitSourceText');
     expect(value).toContain('test');
   });
 
@@ -41,7 +28,7 @@ describe('分屏模式基础功能', () => {
     const treeView = await $('#tree-view');
     const text = await treeView.getText();
     expect(text).toContain('Alice');
-    expect(text).toContain('tree-key');
+    expect((await $$('#tree-view .tree-key')).length).toBeGreaterThan(0);
   });
 
   it('分屏模式格式化错误 JSON 显示错误信息', async () => {
@@ -50,7 +37,7 @@ describe('分屏模式基础功能', () => {
     await browser.pause(1000);
     const validResult = await $('#split-valid-result');
     const text = await validResult.getText();
-    expect(text).toContain('错误');
+    expect(text).toContain('无效');
   });
 
   it('分屏模式清空按钮清除输入和 TreeView', async () => {
@@ -59,8 +46,7 @@ describe('分屏模式基础功能', () => {
     await browser.pause(500);
     await safeClick('#splitClearBtn');
     await browser.pause(500);
-    const input = await $('#splitSourceText');
-    const value = await input.getValue();
+    const value = await getControlValue('#splitSourceText');
     expect(value).toBe('');
   });
 

@@ -1,9 +1,8 @@
-import { safeClick, elementExists, isChecked } from '../helpers/utils.js';
+import { safeClick, elementExists, getControlValue, isChecked, resetWorkspace, selectControlValue, toggleLayuiCheckbox } from '../helpers/utils.js';
 
 describe('复选框和主题功能', () => {
-  before(async () => {
-    await safeClick('[data-mode="editor"]');
-    await browser.pause(1000);
+  beforeEach(async () => {
+    await resetWorkspace('editor');
   });
 
   it('转义复选框应存在', async () => {
@@ -13,9 +12,16 @@ describe('复选框和主题功能', () => {
 
   it('转义复选框应可切换', async () => {
     const before = await isChecked('#explain');
-    await safeClick('#explain');
+    await toggleLayuiCheckbox('explain');
     const after = await isChecked('#explain');
     expect(after).not.toBe(before);
+  });
+
+  it('JSON Str 复选框应存在并同步到分屏', async () => {
+    expect(await elementExists('#parseJsonString')).toBe(true);
+    await toggleLayuiCheckbox('parseJsonString');
+    expect(await isChecked('#splitParseJsonString')).toBe(true);
+    await toggleLayuiCheckbox('parseJsonString');
   });
 
   it('开机自启复选框应存在', async () => {
@@ -65,10 +71,8 @@ describe('复选框和主题功能', () => {
   });
 
   it('复制格式应可切换', async () => {
-    const select = await $('#copyFormat');
-    await select.selectByAttribute('value', 'jsonpath');
-    await browser.pause(300);
-    const value = await select.getValue();
+    await selectControlValue('#copyFormat', 'jsonpath');
+    const value = await getControlValue('#copyFormat');
     expect(value).toBe('jsonpath');
   });
 

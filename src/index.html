@@ -403,14 +403,14 @@
             font-size: 13px;
             line-height: 1.6;
             max-width: 100%;
-            word-break: break-all;
-            word-wrap: break-word;
+            word-break: normal;
+            overflow-wrap: anywhere;
             margin-bottom: 10px;
         }
 
         /* 树形视图基础样式 */
         .tree-node {
-            margin-left: 20px;
+            margin-left: 0;
             position: relative;
         }
 
@@ -420,14 +420,121 @@
 
         .tree-children {
             display: block;
+            margin-left: 20px;
         }
 
         .tree-children.collapsed {
             display: none;
         }
 
+        .tree-load-more {
+            margin: 6px 0;
+            padding: 5px 10px;
+            border: 1px solid var(--line, #d8d8d8);
+            border-radius: 4px;
+            background: var(--panel-muted, transparent);
+            color: var(--text-muted, #666);
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .tree-load-more:hover,
+        .tree-load-more:focus-visible {
+            border-color: var(--accent, #16baaa);
+            color: var(--accent, #16baaa);
+            outline: none;
+        }
+
         .tree-item {
             padding: 2px 0;
+        }
+
+        .tree-line {
+            min-width: 0;
+            line-height: 1.7;
+        }
+
+        .tree-collection-footer {
+            padding-left: 20px;
+        }
+
+        .tree-toggle-placeholder {
+            display: inline-block;
+            width: 20px;
+        }
+
+        .tree-comma {
+            color: inherit;
+            white-space: nowrap;
+        }
+
+        .image-preview-source {
+            cursor: zoom-in;
+            text-decoration: underline dotted;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px;
+        }
+
+        .image-preview-popover {
+            position: fixed;
+            z-index: 10000;
+            display: none;
+            width: min(380px, calc(100vw - 24px));
+            padding: 9px;
+            overflow: hidden;
+            border: 1px solid var(--line-strong, #bdc5ba);
+            border-radius: 10px;
+            background: var(--panel-bg, #fffefa);
+            box-shadow: 0 18px 48px rgba(20, 32, 25, 0.24);
+            pointer-events: none;
+        }
+
+        .image-preview-popover.visible {
+            display: block;
+            animation: image-preview-in 120ms ease-out;
+        }
+
+        .image-preview-canvas {
+            display: flex;
+            min-height: 100px;
+            max-height: min(320px, calc(100vh - 100px));
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 6px;
+            background-color: #edf0eb;
+            background-image:
+                linear-gradient(45deg, #d8ddd6 25%, transparent 25%),
+                linear-gradient(-45deg, #d8ddd6 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #d8ddd6 75%),
+                linear-gradient(-45deg, transparent 75%, #d8ddd6 75%);
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+            background-size: 16px 16px;
+        }
+
+        .image-preview-canvas img {
+            display: block;
+            max-width: 100%;
+            max-height: min(300px, calc(100vh - 120px));
+            object-fit: contain;
+        }
+
+        .image-preview-meta {
+            padding: 7px 2px 0;
+            color: var(--text-muted, #66726b);
+            font-family: var(--code-font, monospace);
+            font-size: 11px;
+        }
+
+        @keyframes image-preview-in {
+            from {
+                opacity: 0;
+                transform: translateY(3px) scale(0.985);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .tree-bracket {
@@ -500,10 +607,10 @@
             padding: 2px 4px;
             border-radius: 3px;
             transition: background-color 0.2s;
-            display: inline-block;
-            max-width: 100%;
-            word-break: break-all;
-            word-wrap: break-word;
+            display: inline;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
         }
 
         .tree-value:hover {
@@ -1026,6 +1133,398 @@
             opacity: 0;
         }
 
+        /* ==================== 工作台视觉层 ==================== */
+        :root {
+            --app-bg: #f4f5f2;
+            --panel-bg: #fffefa;
+            --panel-muted: #f0f2ed;
+            --line: #d9ddd5;
+            --line-strong: #bdc5ba;
+            --text: #17201c;
+            --text-muted: #66726b;
+            --accent: #0b7a75;
+            --accent-soft: #dcefeb;
+            --danger: #bb3e36;
+            --danger-soft: #f8e4e0;
+            --code-font: 'SFMono-Regular', 'Cascadia Code', 'Liberation Mono', monospace;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 12% 12%, rgba(11, 122, 117, 0.08), transparent 28%),
+                var(--app-bg);
+            color: var(--text);
+            font-family: 'Avenir Next', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+
+        #split-mode {
+            background: var(--app-bg);
+        }
+
+        .split-title {
+            height: 58px;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 254, 250, 0.92);
+        }
+
+        .split-title .layui-elem-field {
+            width: 100%;
+            margin: 0;
+            border: 0;
+        }
+
+        .split-title legend {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+        }
+
+        .split-title legend span {
+            font-size: 17px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+        }
+
+        .split-title legend small {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+
+        .split-view {
+            max-height: none;
+            overflow: hidden;
+            gap: 0;
+            padding: 14px 16px 8px;
+        }
+
+        .split-left,
+        .split-right {
+            padding: 0;
+            background: var(--panel-bg);
+            border: 1px solid var(--line);
+            min-height: 0;
+        }
+
+        .split-left {
+            border-radius: 10px 0 0 10px;
+        }
+
+        .split-right {
+            border-radius: 0 10px 10px 0;
+        }
+
+        .panel-header {
+            min-height: 48px;
+            margin: 0;
+            padding: 8px 10px 8px 16px;
+            border-bottom: 1px solid var(--line);
+            border-radius: 0;
+            background: var(--panel-muted);
+        }
+
+        .panel-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .panel-title i {
+            color: var(--accent);
+        }
+
+        .editor-container,
+        #tree-view {
+            min-height: 0;
+        }
+
+        .editor-container textarea,
+        #splitSourceText,
+        #tree-view {
+            margin: 0;
+            border: 0;
+            border-radius: 0;
+            background: var(--panel-bg);
+            color: var(--text);
+            font-family: var(--code-font);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        #splitSourceText {
+            padding: 18px 20px;
+            outline: none;
+        }
+
+        #splitSourceText:focus {
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        #tree-view {
+            padding: 16px 18px 22px;
+            margin-bottom: 0;
+        }
+
+        #tree-view:empty::before {
+            content: '输入有效 JSON 后，数据结构将在这里展开';
+            display: block;
+            max-width: 260px;
+            margin: 64px auto;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .tree-error-state {
+            padding: 36px 18px;
+            color: var(--danger);
+            text-align: center;
+        }
+
+        #split-valid-result {
+            display: flex !important;
+            align-items: center;
+            gap: 7px;
+            min-height: 31px;
+            margin: 0;
+            padding: 6px 16px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel-bg);
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        #split-valid-result::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #a7afa9;
+        }
+
+        #split-valid-result.status-valid {
+            color: var(--accent);
+        }
+
+        #split-valid-result.status-valid::before {
+            background: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        #split-valid-result.status-invalid {
+            color: var(--danger);
+            background: var(--danger-soft);
+        }
+
+        #split-valid-result.status-invalid::before {
+            background: var(--danger);
+        }
+
+        .split-resizer {
+            width: 8px;
+            background: var(--app-bg);
+        }
+
+        .split-resizer::before {
+            width: 2px;
+            height: 42px;
+            background: var(--line-strong);
+        }
+
+        .split-resizer:hover {
+            background: var(--accent-soft);
+        }
+
+        .split-btn,
+        body.dark-mode .split-btn {
+            width: 30px;
+            height: 30px;
+            border-color: transparent;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-muted);
+        }
+
+        .split-btn:hover,
+        body.dark-mode .split-btn:hover {
+            border-color: var(--line);
+            background: var(--panel-bg);
+            color: var(--accent);
+        }
+
+        .split-btn.active,
+        body.dark-mode .split-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+        }
+
+        .split-version {
+            height: 22px;
+            padding: 2px 18px 4px;
+            color: var(--text-muted);
+            font-family: var(--code-font);
+            background: transparent;
+        }
+
+        .tree-item {
+            padding: 3px 0;
+        }
+
+        .tree-key {
+            color: #7650a0;
+        }
+
+        .tree-string {
+            color: #08795e;
+        }
+
+        .tree-number {
+            color: #c05a23;
+        }
+
+        .tree-boolean {
+            color: #1769aa;
+        }
+
+        .tree-toggle:hover,
+        .tree-key:hover,
+        .tree-value:hover {
+            background: var(--accent-soft);
+        }
+
+        body.dark-mode {
+            --app-bg: #111713;
+            --panel-bg: #18201b;
+            --panel-muted: #202a24;
+            --line: #344039;
+            --line-strong: #536158;
+            --text: #e8eee9;
+            --text-muted: #9eaca3;
+            --accent: #64c7bd;
+            --accent-soft: #233f3a;
+            --danger: #ff8b80;
+            --danger-soft: #3b2522;
+            background: var(--app-bg);
+        }
+
+        body.dark-mode .split-title,
+        body.dark-mode #split-valid-result,
+        body.dark-mode #tree-view,
+        body.dark-mode #splitSourceText,
+        body.dark-mode .split-left,
+        body.dark-mode .split-right {
+            background-color: var(--panel-bg);
+            color: var(--text);
+            border-color: var(--line);
+        }
+
+        body.dark-mode .panel-header {
+            background: var(--panel-muted);
+            border-color: var(--line);
+        }
+
+        body.dark-mode .tree-key {
+            color: #d7a9ef;
+        }
+
+        body.dark-mode .tree-string {
+            color: #7fdbb9;
+        }
+
+        body.dark-mode .tree-bracket,
+        body.dark-mode .tree-comma,
+        body.dark-mode .tree-key::after {
+            color: var(--text);
+        }
+
+        body.dark-mode .image-preview-canvas {
+            background-color: #222b25;
+            background-image:
+                linear-gradient(45deg, #354039 25%, transparent 25%),
+                linear-gradient(-45deg, #354039 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #354039 75%),
+                linear-gradient(-45deg, transparent 75%, #354039 75%);
+        }
+
+        .html-inline-preview {
+            display: block;
+            width: min(560px, 68vw);
+            min-height: 140px;
+            border: 0;
+            border-radius: 7px;
+            background: #fff;
+        }
+
+        .inline-image-preview {
+            display: inline-block;
+            max-width: min(420px, 60vw);
+            max-height: 280px;
+            object-fit: contain;
+            vertical-align: top;
+            border-radius: 7px;
+            background: #fff;
+        }
+
+        .html-render-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 7px;
+            color: var(--ink-muted);
+            white-space: nowrap;
+        }
+
+        @media (max-width: 760px) {
+            .split-title {
+                height: 50px;
+                padding: 0 12px;
+            }
+
+            .split-title legend small,
+            .split-version {
+                display: none;
+            }
+
+            .split-view {
+                flex-direction: column;
+                overflow: auto;
+                padding: 8px;
+            }
+
+            .split-left,
+            .split-right {
+                flex: 0 0 auto !important;
+                min-height: 46vh;
+                border-radius: 8px;
+            }
+
+            .split-resizer {
+                display: none;
+            }
+
+            .split-right {
+                margin-top: 8px;
+            }
+
+            .split-toolbar {
+                overflow-x: auto;
+            }
+        }
     </style>
 </head>
 
@@ -1034,7 +1533,7 @@
         <!-- 标题区域 -->
         <div class="drag-region">
             <fieldset class="layui-elem-field layui-field-title">
-                <legend>JSON格式化工具</legend>
+                <legend>JSON 格式化工具</legend>
             </fieldset>
         </div>
 
@@ -1062,6 +1561,10 @@
                         </div>
 
                         <div class="layui-btn-group no-drag" style="margin-left: 10px;">
+                            <button id="checkUpdate" class="layui-btn layui-btn-primary no-drag" title="检查更新"><i
+                                    class="layui-icon layui-icon-radio"></i> 检查更新</button>
+                            <button id="themeToggle" class="layui-btn layui-btn-primary theme-toggle no-drag"
+                                title="切换主题"><i class="layui-icon layui-icon-light"></i> 白天</button>
                             <button id="minimize" class="layui-btn layui-bg-blue no-drag"><i
                                     class="layui-icon layui-icon-eye-invisible"></i> 最小化</button>
                             <button id="maximizeBtn" class="layui-btn layui-btn-primary no-drag" title="最大化"><i
@@ -1088,6 +1591,9 @@
                         <div class="setting-group">
                             <label>选项:</label>
                             <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
+                            <input type="checkbox" lay-filter="parseJsonString" id="parseJsonString"
+                                title="解析 JSON Str" class="no-drag">
+                            <input type="checkbox" lay-filter="renderHtml" id="renderHtml" title="富内容渲染" class="no-drag">
                             <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
                             <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
                             <input type="checkbox" lay-filter="disableUpdate" id="disableUpdate" title="禁用更新"
@@ -1112,18 +1618,6 @@
                                     <option value="custom">自定义</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div class="setting-group">
-                            <button id="checkUpdate" class="layui-btn layui-btn-sm layui-btn-primary no-drag">
-                                <i class="layui-icon layui-icon-radio"></i> 检查更新
-                            </button>
-                        </div>
-
-                        <div class="setting-group">
-                            <button id="themeToggle" class="theme-toggle no-drag" title="切换主题">
-                                <i class="layui-icon layui-icon-light"></i> 白天
-                            </button>
                         </div>
                     </div>
 
@@ -1179,13 +1673,13 @@
         <!-- 标题区域 -->
         <div class="drag-region split-title">
             <fieldset class="layui-elem-field layui-field-title">
-                <legend>JSON格式化工具</legend>
+                <legend><span>JSON FORMATTER</span><small>验证、格式化并浏览复杂数据</small></legend>
             </fieldset>
         </div>
         <div class="split-view" id="splitViewContainer">
             <div class="split-left" id="splitLeftPanel">
                 <div class="panel-header">
-                    <i class="layui-icon layui-icon-form"></i> JSON Editor
+                    <span class="panel-title"><i class="layui-icon layui-icon-form"></i> JSON 编辑器</span>
                     <div class="split-toolbar no-drag">
 
                         <button class="split-btn view-mode-btn" data-mode="editor" title="切换到编辑器模式"><i
@@ -1196,6 +1690,12 @@
                                 class="layui-icon layui-icon-read"></i></button>
                         <button class="split-btn" id="splitClearBtn" title="清空"><i
                                 class="layui-icon layui-icon-delete"></i></button>
+                        <label class="html-render-toggle" title="渲染 HTML 图片和表格"><input type="checkbox"
+                                id="splitRenderHtml"> 富内容</label>
+                        <label class="html-render-toggle" title="自动解析最外层 JSON 字符串"><input type="checkbox"
+                                id="splitParseJsonString"> JSON Str</label>
+                        <button class="split-btn" id="splitCheckUpdate" title="检查更新"><i
+                                class="layui-icon layui-icon-radio"></i></button>
                         <button class="split-btn" id="splitThemeToggle" title="切换主题"><i
                                 class="layui-icon layui-icon-moon"></i></button>
                         <button class="split-btn" id="splitMinimize" title="最小化"><i
@@ -1213,7 +1713,7 @@
             <div class="split-resizer" id="splitResizer"></div>
             <div class="split-right" id="splitRightPanel">
                 <div class="panel-header">
-                    <i class="layui-icon layui-icon-tree"></i> Tree Viewer
+                    <span class="panel-title"><i class="layui-icon layui-icon-tree"></i> 树形视图</span>
                     <div class="split-toolbar no-drag">
                         <button class="split-btn" id="treeSearchToggle" title="搜索"><i
                                 class="layui-icon layui-icon-search"></i></button>
@@ -1234,7 +1734,7 @@
                         </select>
                     </div>
                 </div>
-                <div id="split-valid-result" class="es-empty" style="display: none; margin: 0 0 10px 0; padding: 8px; border-radius: 4px; font-size: 12px;"></div>
+                <div id="split-valid-result" class="status-empty" aria-live="polite">等待输入 JSON</div>
                 <div class="search-bar hidden" id="treeSearchBar">
                     <input type="text" id="treeSearchInput" placeholder="搜索 key 或 value..." />
                     <button class="search-btn" id="treeCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>

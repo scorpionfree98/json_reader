@@ -1,23 +1,13 @@
-import { safeClick, setInputValue } from '../helpers/utils.js';
+import { safeClick, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
 
 describe('分屏模式控件', () => {
   before(async () => {
     await browser.pause(2000);
-    const splitMode = await $('#split-mode');
-    const isVisible = await splitMode.isDisplayed();
-    if (!isVisible) {
-      await safeClick('[data-mode="split"]');
-      await browser.pause(500);
-    }
+    await switchToSplit();
   });
 
   after(async () => {
-    const editorMode = await $('#editor-mode');
-    const isVisible = await editorMode.isDisplayed();
-    if (!isVisible) {
-      await safeClick('[data-mode="editor"]');
-      await browser.pause(500);
-    }
+    await switchToEditor();
   });
 
   it('分屏模式置顶按钮切换', async () => {

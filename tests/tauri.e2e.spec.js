@@ -1,0 +1,12 @@
+import './specs/01-basic.spec.js';
+import './specs/02-json-errors.spec.js';
+import './specs/03-window-ops.spec.js';
+import './specs/04-view-modes.spec.js';
+import './specs/05-treeview.spec.js';
+import './specs/06-checkboxes-theme.spec.js';
+import './specs/07-content-rendering.spec.js';
+import './specs/07-split-basic.spec.js';
+import './specs/08-split-controls.spec.js';
+import './specs/09-clipboard.spec.js';
+import './specs/10-large-json.spec.js';
+import './specs/11-copy-format.spec.js';

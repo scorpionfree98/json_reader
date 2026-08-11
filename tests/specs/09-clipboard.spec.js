@@ -1,4 +1,4 @@
-import { safeClick, setInputValue } from '../helpers/utils.js';
+import { safeClick, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
 
 describe('剪贴板功能', () => {
   before(async () => {
@@ -7,12 +7,7 @@ describe('剪贴板功能', () => {
 
   describe('编辑器模式剪贴板', () => {
     before(async () => {
-      const editorMode = await $('#editor-mode');
-      const isVisible = await editorMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="editor"]');
-        await browser.pause(500);
-      }
+      await switchToEditor();
     });
 
     beforeEach(async () => {
@@ -26,7 +21,7 @@ describe('剪贴板功能', () => {
       await safeClick('#formatBtn');
       await browser.pause(1000);
 
-      const treeKeys = await $$('.tree-key');
+      const treeKeys = await $$('#json-display .json-key');
       expect(treeKeys.length).toBeGreaterThan(0);
 
       await treeKeys[0].doubleClick();
@@ -39,7 +34,7 @@ describe('剪贴板功能', () => {
       await safeClick('#formatBtn');
       await browser.pause(1000);
 
-      const treeValues = await $$('.tree-value');
+      const treeValues = await $$('#json-display .json-string');
       expect(treeValues.length).toBeGreaterThan(0);
 
       await treeValues[0].doubleClick();
@@ -49,21 +44,11 @@ describe('剪贴板功能', () => {
 
   describe('分屏模式剪贴板', () => {
     before(async () => {
-      const splitMode = await $('#split-mode');
-      const isVisible = await splitMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="split"]');
-        await browser.pause(500);
-      }
+      await switchToSplit();
     });
 
     after(async () => {
-      const editorMode = await $('#editor-mode');
-      const isVisible = await editorMode.isDisplayed();
-      if (!isVisible) {
-        await safeClick('[data-mode="editor"]');
-        await browser.pause(500);
-      }
+      await switchToEditor();
     });
 
     beforeEach(async () => {

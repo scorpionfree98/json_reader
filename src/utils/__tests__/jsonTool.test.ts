@@ -88,7 +88,7 @@ describe('formatKeyPath', () => {
   });
 
   test('jsonpath format prepends $ and uses dot notation', () => {
-    expect(jsonTool.formatKeyPath('["users"][0]["name"]', 'jsonpath')).toBe('$users[0].name');
+    expect(jsonTool.formatKeyPath('["users"][0]["name"]', 'jsonpath')).toBe('$.users[0].name');
   });
 
   test('bracket format converts double quotes to single quotes', () => {

@@ -1,10 +1,8 @@
 /// <reference types="vite/client" />
 // Entry for Tauri v2 frontend
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { listen } from '@tauri-apps/api/event';
 import { getVersion } from '@tauri-apps/api/app';
-import { saveWindowState, restoreStateCurrent, StateFlags } from '@tauri-apps/plugin-window-state';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import {
@@ -15,6 +13,8 @@ import {
 import { readText as readClipboardText, writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
+import { initSplitResizer } from './utils/splitResizer';
+import { createWindowController } from './utils/windowController';
 
 // 导入 LayUI CSS（npm 安装）
 import 'layui/dist/css/layui.css';
@@ -38,31 +38,31 @@ const byId = (id: string) => $(`#${id}`);
 const byClass = (cls: string) => $(`.${cls}`);
 const getLayui = (): any => (window as any).layui;
 
-// HTML 转义函数（防止 XSS）
-const escapeHtml = (text: string): string => {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+// HTML 转义，防止 XSS
+const escapeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 };
 
-// 应用窗口对象（延迟初始化，确保在 Tauri 环境中正确获取）
-let appWindow: ReturnType<typeof getCurrentWebviewWindow> | null = null;
-let isTauriEnv = false;
-
-// 初始化 Tauri 环境
-try {
-  appWindow = getCurrentWebviewWindow();
-  isTauriEnv = true;
-  console.log('Tauri 环境检测成功');
-} catch (e) {
-  console.log('非 Tauri 环境，使用浏览器模式');
-  isTauriEnv = false;
-  appWindow = null;
+// 防抖函数
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
-// 检测是否在 Tauri 环境中运行
-const isTauri = () => isTauriEnv;
+// 输入大小限制（5MB）
+const MAX_INPUT_SIZE = 5 * 1024 * 1024;
 
+const windowController = createWindowController(showLayuiMsg);
+const { appWindow } = windowController;
+const isTauri = () => windowController.isTauri;
 // 状态管理
 let isExplainEnabled = false;
 // 暴露到 window 以便 jsonTool 访问
@@ -72,15 +72,33 @@ let isExplainEnabled = false;
 type ViewMode = 'editor' | 'split';
 const VIEW_MODE_KEY = 'json_formatter_view_mode';
 let currentViewMode: ViewMode = loadViewMode();
+let sourceContent = '';
 
 // 禁用更新状态
-let isUpdateDisabled = false;
+const UPDATE_DISABLED_KEY = 'json_formatter_update_disabled';
+let isUpdateDisabled = loadBooleanSetting(UPDATE_DISABLED_KEY);
 
 // 主题状态
 const THEME_KEY = 'json_formatter_theme';
 let isDarkMode = loadTheme();
 
 // ==================== 本地存储工具函数 ====================
+
+function loadBooleanSetting(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveBooleanSetting(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch (e) {
+    console.log(`保存设置 ${key} 失败:`, e);
+  }
+}
 
 function loadViewMode(): ViewMode {
   try {
@@ -148,106 +166,25 @@ function applyTheme(isDark: boolean) {
   }
 }
 
-// ==================== 窗口控制函数 ====================
-
-async function toggleWindowMaximize(buttonSelector?: string) {
-  if (!appWindow) {
-    showLayuiMsg('窗口控制仅在应用模式中可用');
-    return;
-  }
-  try {
-    const isMaximized = await appWindow.isMaximized();
-    if (isMaximized) {
-      await appWindow.unmaximize();
-    } else {
-      await appWindow.maximize();
-    }
-    // 更新按钮状态
-    updateMaximizeButton(await appWindow.isMaximized(), buttonSelector);
-  } catch (error) {
-    console.error('最大化/还原失败:', error);
-    showLayuiMsg('操作失败');
-  }
-}
-
-function updateMaximizeButton(isMaximized: boolean, buttonSelector?: string) {
-  const selectors = buttonSelector ? [buttonSelector] : ['#maximizeBtn', '#splitMaximize'];
-  const icon = isMaximized ? 'layui-icon-screen-restore' : 'layui-icon-screen-full';
-  const text = isMaximized ? '还原' : '最大化';
-  
-  selectors.forEach(selector => {
-    const $btn = $(selector);
-    if ($btn.length) {
-      if (selector === '#maximizeBtn') {
-        $btn.html(`<i class="layui-icon ${icon}"></i> ${text}`);
-      } else {
-        $btn.html(`<i class="layui-icon ${icon}"></i>`);
-        $btn.attr('title', text);
-      }
-    }
-  });
-}
-
-async function minimizeWindow() {
-  if (appWindow) {
-    try {
-      await appWindow.minimize();
-    } catch (e) {
-      console.error('窗口最小化失败:', e);
-      showLayuiMsg('最小化窗口失败');
-    }
-  } else {
-    showLayuiMsg('窗口控制仅在应用模式中可用');
-  }
-}
-
-async function closeWindow() {
-  if (appWindow) {
-    await appWindow.close();
-  } else {
-    showLayuiMsg('窗口控制仅在应用模式中可用');
-  }
-}
-
 // ==================== 同步函数 ====================
 
+function setSourceContent(value: string) {
+  sourceContent = value;
+  $('#sourceText, #splitSourceText').val(value);
+}
+
 function syncContentToMode(mode: ViewMode) {
+  setSourceContent(sourceContent);
   if (mode === 'split') {
-    // 切换到分屏模式
-    const sourceText = $('#sourceText').val() as string;
-    const splitText = $('#splitSourceText').val() as string;
-    // 优先使用已有内容，如果分屏输入框为空则从编辑器同步
-    const text = splitText.trim() ? splitText : sourceText;
-    if (!splitText.trim() && sourceText.trim()) {
-      $('#splitSourceText').val(sourceText);
-    }
-
-    // 保留并复制输入框内容（格式化后的 JSON）
-    if (sourceText && sourceText.trim()) {
-      copyOutputToClipboard(sourceText);
-    }
-
     try {
-      if (text.trim()) {
-        const jsonObj = JSON.parse(text);
+      if (sourceContent.trim()) {
+        const jsonObj = parseJsonInput(sourceContent);
         jsonTool.updateTreeView(jsonObj);
       } else {
         $('#tree-view').empty();
       }
     } catch (e) {
       $('#tree-view').empty();
-    }
-  } else {
-    // 切换到编辑器模式
-    const splitText = $('#splitSourceText').val() as string;
-    if (splitText.trim()) {
-      $('#sourceText').val(splitText);
-    }
-
-    // 保留并复制输入框内容（格式化后的 JSON）
-    const sourceText = $('#sourceText').val() as string;
-    if (sourceText && sourceText.trim()) {
-      copyOutputToClipboard(sourceText);
     }
   }
 }
@@ -262,10 +199,9 @@ function syncSettingsToSplitMode(mode: ViewMode) {
   }
 }
 
-function syncCheckboxState(sourceId: string, targetId: string) {
-  const checked = $(sourceId).prop('checked');
-  $(targetId).prop('checked', checked);
-  return checked;
+function syncCopyFormat(value: string) {
+  $('#customFormatContainer').toggleClass('hidden', value !== 'custom');
+  if (value !== 'custom') $('#splitCopyFormat').val(value);
 }
 
 // ==================== 视图模式函数 ====================
@@ -289,10 +225,7 @@ function switchViewMode(mode: ViewMode) {
 }
 
 function applySavedViewMode() {
-  const savedMode = loadViewMode();
-  if (savedMode === 'split') {
-    setTimeout(() => switchViewMode('split'), 100);
-  }
+  switchViewMode(loadViewMode());
 }
 
 // ==================== 功能函数 ====================
@@ -380,58 +313,100 @@ export async function toggleAutostart() {
 }
 
 export function clearInputContent() {
-  $('#sourceText, #splitSourceText').val('');
+  setSourceContent('');
   $('#tree-view').empty();
-  byId('valid-result')?.html('').addClass('es-empty');
+  $('#json-display').empty();
+  setValidationState('empty', '等待输入 JSON');
   showLayuiMsg('已清空内容');
 }
 
+function setValidationState(state: 'empty' | 'valid' | 'invalid', message: string) {
+  const isValid = state === 'valid';
+  const isInvalid = state === 'invalid';
+
+  $('#valid-result')
+    .text(state === 'empty' ? '' : isValid ? '格式正确' : message)
+    .toggleClass('es-empty', state === 'empty')
+    .toggleClass('es-pass', isValid)
+    .toggleClass('es-fail', isInvalid);
+
+  $('#split-valid-result')
+    .text(message)
+    .removeClass('es-empty es-pass es-fail status-empty status-valid status-invalid')
+    .addClass(`status-${state}`)
+    .toggleClass('es-pass', isValid)
+    .toggleClass('es-fail', isInvalid)
+    .show();
+}
+
 export function formatJson() {
-  const text = currentViewMode === 'split'
-    ? ($('#splitSourceText').val() as string)
-    : ($('#sourceText').val() as string);
+  const text = sourceContent;
   if (!text.trim()) {
     showLayuiMsg('请输入JSON字符串');
     return;
   }
+  if (text.length > MAX_INPUT_SIZE) {
+    showLayuiMsg('输入内容过大（超过5MB），请缩减后重试');
+    return;
+  }
   try {
-    const jsonObj = JSON.parse(text);
-    const formatted = JSON.stringify(jsonObj, null, 2);
-    $('#sourceText, #splitSourceText').val(formatted);
-    byId('valid-result')?.html('格式正确').removeClass('es-fail es-empty').addClass('es-pass');
-    // 更新编辑器模式的显示
-    const $rendered = jsonTool.renderJson(jsonObj, '');
-    $('#json-display').empty().append($rendered);
-    jsonTool.addEventListeners();
-    if (currentViewMode === 'split') {
-      jsonTool.updateTreeView(jsonObj);
-      $('#split-valid-result').hide();
-    }
+    const jsonObj = parseJsonInput(text);
+    renderParsedJson(jsonObj);
     showLayuiMsg('格式化成功');
   } catch (e: unknown) {
     const error = e as Error;
     const errorInfo = jsonTool.parseJsonError(text, error.message);
     byId('valid-result')?.html(errorInfo).removeClass('es-pass es-empty').addClass('es-fail');
+    $('#json-display').empty();
     // 在分屏模式下也显示错误信息
     if (currentViewMode === 'split') {
-      $('#split-valid-result')
-        .html(errorInfo)
-        .removeClass('es-pass es-empty')
-        .addClass('es-fail')
-        .show();
+      $('#tree-view').html('<div class="tree-error-state">JSON 格式错误</div>');
+      setValidationState('invalid', 'JSON 无效');
     }
     showLayuiMsg('JSON格式错误');
   }
 }
 
+function isJsonStringParsingEnabled(): boolean {
+  return Boolean($('#parseJsonString').prop('checked') || $('#splitParseJsonString').prop('checked'));
+}
+
+function parseJsonInput(text: string): unknown {
+  const parsed = JSON.parse(text);
+  if (!isJsonStringParsingEnabled() || typeof parsed !== 'string') return parsed;
+
+  try {
+    return JSON.parse(parsed);
+  } catch {
+    throw new SyntaxError('JSON Str 的字符串内容不是有效 JSON');
+  }
+}
+
+function renderParsedJson(jsonObj: unknown) {
+  const formatted = JSON.stringify(jsonObj, null, 2);
+  setSourceContent(formatted);
+  setValidationState('valid', 'JSON 有效');
+
+  if (currentViewMode === 'split') {
+    jsonTool.updateTreeView(jsonObj);
+    return;
+  }
+
+  const $rendered = jsonTool.renderJson(jsonObj, '');
+  $('#json-display').empty().append($rendered);
+  jsonTool.addEventListeners();
+}
+
 export async function tryPasteFromClipboard() {
   try {
-    const text = await readClipboardText();
+    const text = isTauri()
+      ? await readClipboardText()
+      : await navigator.clipboard.readText();
     if (!text) {
       showLayuiMsg('剪贴板为空');
       return;
     }
-    $('#sourceText, #splitSourceText').val(text);
+    setSourceContent(text);
     formatJson();
     showLayuiMsg('已从剪贴板读取');
   } catch (err) {
@@ -525,7 +500,7 @@ function expandAllTree() {
     const $parent = $this.closest('.tree-node, .tree-node-root');
     $parent.find('.tree-children').first().removeClass('collapsed');
     $parent.find('.tree-ellipsis').first().addClass('hidden');
-    $parent.find('.tree-bracket').last().removeClass('hidden');
+    $parent.children('.tree-collection-footer').first().removeClass('hidden');
     $this.text('▼').attr('data-collapsed', 'false');
   });
   showLayuiMsg('已展开全部');
@@ -537,7 +512,7 @@ function collapseAllTree() {
     const $parent = $this.closest('.tree-node, .tree-node-root');
     $parent.find('.tree-children').first().addClass('collapsed');
     $parent.find('.tree-ellipsis').first().removeClass('hidden');
-    $parent.find('.tree-bracket').last().addClass('hidden');
+    $parent.children('.tree-collection-footer').first().addClass('hidden');
     $this.text('▶').attr('data-collapsed', 'true');
   });
   showLayuiMsg('已折叠全部');
@@ -545,25 +520,18 @@ function collapseAllTree() {
 
 function refreshTreeView() {
   if (currentViewMode !== 'split') return;
-  const sourceText = ($('#splitSourceText').val() as string) || ($('#sourceText').val() as string);
   try {
-    if (sourceText.trim()) {
-      const jsonObj = JSON.parse(sourceText);
+    if (sourceContent.trim()) {
+      const jsonObj = parseJsonInput(sourceContent);
       jsonTool.updateTreeView(jsonObj);
-      $('#split-valid-result').hide();
+      setValidationState('valid', 'JSON 有效');
     } else {
       $('#tree-view').empty();
-      $('#split-valid-result').hide();
+      setValidationState('empty', '等待输入 JSON');
     }
   } catch (e: unknown) {
-    const error = e as Error;
-    const errorInfo = jsonTool.parseJsonError(sourceText, error.message);
     $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误</div>');
-    $('#split-valid-result')
-      .html(errorInfo)
-      .removeClass('es-pass es-empty')
-      .addClass('es-fail')
-      .show();
+    setValidationState('invalid', 'JSON 无效');
   }
 }
 
@@ -913,25 +881,41 @@ function bindViewModeEvents() {
   });
 
   // 主工具栏最大化按钮
-  $('#maximizeBtn').off('click').on('click', () => toggleWindowMaximize('#maximizeBtn'));
+  $('#maximizeBtn').off('click').on('click', () => windowController.toggleMaximize('#maximizeBtn'));
 
-  // 分屏模式编辑器实时同步
-  $('#splitSourceText').off('input').on('input', function() {
-    const text = $(this).val() as string;
-    $('#sourceText').val(text);
+  // 分屏模式编辑器实时同步（带防抖）
+  const debouncedTreeUpdate = debounce((text: string) => {
+    if (text !== sourceContent) return;
     try {
       if (text.trim()) {
-        const jsonObj = JSON.parse(text);
+        if (text.length > MAX_INPUT_SIZE) {
+          $('#tree-view').html('<div style="color: #999; padding: 20px;">输入内容过大（超过5MB），请缩减后重试</div>');
+          setValidationState('invalid', '输入超过 5MB');
+          return;
+        }
+        const jsonObj = parseJsonInput(text);
         jsonTool.updateTreeView(jsonObj);
-        $('#valid-result').html('格式正确').removeClass('es-fail es-empty').addClass('es-pass');
+        setValidationState('valid', 'JSON 有效');
       } else {
         $('#tree-view').empty();
-        $('#valid-result').html('').addClass('es-empty').removeClass('es-fail es-pass');
+        setValidationState('empty', '等待输入 JSON');
       }
     } catch (e) {
       $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误</div>');
-      $('#valid-result').html('格式错误').addClass('es-fail').removeClass('es-empty es-pass');
+      setValidationState('invalid', 'JSON 无效');
     }
+  }, 200);
+
+  $('#splitSourceText').off('input').on('input', function() {
+    const text = $(this).val() as string;
+    sourceContent = text;
+    $('#sourceText').val(text);
+    debouncedTreeUpdate(text);
+  });
+
+  $('#sourceText').off('input.contentSync').on('input.contentSync', function() {
+    sourceContent = $(this).val() as string;
+    $('#splitSourceText').val(sourceContent);
   });
 
   // 主题切换按钮
@@ -940,14 +924,17 @@ function bindViewModeEvents() {
 
 function bindButtonEvents() {
   // 窗口控制按钮
-  byId('minimize')?.off('click').on('click', minimizeWindow);
-  byId('close')?.off('click').on('click', closeWindow);
+  byId('minimize')?.off('click').on('click', windowController.minimize);
+  byId('close')?.off('click').on('click', windowController.close);
 
   // 功能按钮
   byId('pasteBtn')?.off('click').on('click', tryPasteFromClipboard);
   byId('clearBtn')?.off('click').on('click', clearInputContent);
   byId('formatBtn')?.off('click').on('click', formatJson);
   byId('checkUpdate')?.off('click').on('click', () => checkUpdate(true));
+  $('#copyFormat').off('change.copyFormat').on('change.copyFormat', function() {
+    syncCopyFormat($(this).val() as string);
+  });
 
   // 拖拽区域
   if (appWindow) {
@@ -965,6 +952,21 @@ function bindSplitToolbarEvents() {
   $('#splitFormatBtn').off('click').on('click', formatJson);
   $('#splitPasteBtn').off('click').on('click', tryPasteFromClipboard);
   $('#splitClearBtn').off('click').on('click', clearInputContent);
+  $('#splitRenderHtml').off('change').on('change', function() {
+    const enabled = $(this).prop('checked');
+    byId('renderHtml')?.prop('checked', enabled);
+    layui.form.render('checkbox');
+    formatJson();
+    refreshTreeView();
+  });
+  $('#splitParseJsonString').off('change').on('change', function() {
+    const enabled = $(this).prop('checked');
+    byId('parseJsonString')?.prop('checked', enabled);
+    layui.form.render('checkbox');
+    formatJson();
+    refreshTreeView();
+  });
+  $('#splitCheckUpdate').off('click').on('click', () => checkUpdate(true));
   $('#splitExpandAll').off('click').on('click', expandAllTree);
   $('#splitCollapseAll').off('click').on('click', collapseAllTree);
 
@@ -1001,72 +1003,16 @@ function bindSplitToolbarEvents() {
     $('#copyFormat').val(format).trigger('change');
   });
 
-  // 折叠/展开全部
-  $('#splitExpandAll').off('click').on('click', () => {
-    $('#tree-view .tree-children').removeClass('collapsed');
-    $('#tree-view .tree-ellipsis').addClass('hidden');
-    $('#tree-view .tree-bracket:last-child').removeClass('hidden');
-    $('#tree-view .tree-toggle').text('▼').attr('data-collapsed', 'false');
-  });
-
-  $('#splitCollapseAll').off('click').on('click', () => {
-    $('#tree-view .tree-children').addClass('collapsed');
-    $('#tree-view .tree-ellipsis').removeClass('hidden');
-    $('#tree-view .tree-bracket:last-child').addClass('hidden');
-    $('#tree-view .tree-toggle').text('▶').attr('data-collapsed', 'true');
-  });
-
   // 主题切换
   $('#splitThemeToggle').off('click').on('click', toggleTheme);
 
   // 窗口控制按钮
-  $('#splitMinimize').off('click').on('click', minimizeWindow);
-  $('#splitMaximize').off('click').on('click', () => toggleWindowMaximize('#splitMaximize'));
-  $('#splitClose').off('click').on('click', closeWindow);
+  $('#splitMinimize').off('click').on('click', windowController.minimize);
+  $('#splitMaximize').off('click').on('click', () => windowController.toggleMaximize('#splitMaximize'));
+  $('#splitClose').off('click').on('click', windowController.close);
 
   // 初始化可拖动分割线
   initSplitResizer();
-}
-
-function initSplitResizer() {
-  const resizer = document.getElementById('splitResizer');
-  const leftPanel = document.getElementById('splitLeftPanel');
-  const rightPanel = document.getElementById('splitRightPanel');
-  const container = document.getElementById('splitViewContainer');
-
-  if (!resizer || !leftPanel || !rightPanel || !container) return;
-
-  let isResizing = false;
-  let startX = 0;
-  let startLeftWidth = 0;
-
-  resizer.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    startX = e.clientX;
-    startLeftWidth = leftPanel.getBoundingClientRect().width;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
-    const containerWidth = container.getBoundingClientRect().width;
-    const deltaX = e.clientX - startX;
-    const newLeftWidth = ((startLeftWidth + deltaX) / containerWidth) * 100;
-    if (newLeftWidth >= 20 && newLeftWidth <= 80) {
-      leftPanel.style.flex = `0 0 ${newLeftWidth}%`;
-      rightPanel.style.flex = `0 0 ${100 - newLeftWidth}%`;
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (isResizing) {
-      isResizing = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-  });
 }
 
 function bindCheckboxEvents() {
@@ -1099,6 +1045,20 @@ function initLayuiForm() {
       showLayuiMsg(`转义状态已${isExplainEnabled ? '启用' : '禁用'}`);
     });
 
+    form.on('checkbox(renderHtml)', function () {
+      const enabled = $(this).prop('checked');
+      byId('splitRenderHtml')?.prop('checked', enabled);
+      formatJson();
+      refreshTreeView();
+    });
+
+    form.on('checkbox(parseJsonString)', function () {
+      const enabled = $(this).prop('checked');
+      byId('splitParseJsonString')?.prop('checked', enabled);
+      formatJson();
+      refreshTreeView();
+    });
+
     form.on('checkbox(topCheck)', function () {
       toggleTop();
     });
@@ -1112,6 +1072,7 @@ function initLayuiForm() {
       try {
         await invoke('set_update_disabled', { disabled: newStatus });
         isUpdateDisabled = newStatus;
+        saveBooleanSetting(UPDATE_DISABLED_KEY, newStatus);
         showLayuiMsg(`自动更新已${newStatus ? '禁用' : '启用'}`);
       } catch (error) {
         console.error('设置更新状态失败:', error);
@@ -1122,7 +1083,7 @@ function initLayuiForm() {
     });
 
     form.on('select(copyFormat)', function (data) {
-      $('#customFormatContainer').toggle(data.value === 'custom');
+      syncCopyFormat(data.value);
     });
   });
 }
@@ -1156,21 +1117,24 @@ function initTrayListeners() {
   });
 
   // 监听托盘菜单的"置顶切换"事件
-  listen('tray://toggle-always-on-top', () => {
-    console.log('收到托盘置顶切换事件');
-    toggleTop();
+  listen<boolean>('tray://toggle-always-on-top', (event) => {
+    const isTop = event.payload;
+    byId('topCheck')?.prop('checked', isTop);
+    $('#splitTopBtn').toggleClass('active', isTop);
+    layui.form.render('checkbox');
   });
 
   // 监听托盘菜单的"自启动切换"事件
-  listen('tray://toggle-autostart', () => {
-    console.log('收到托盘自启动切换事件');
-    toggleAutostart();
+  listen<boolean>('tray://toggle-autostart', (event) => {
+    byId('autoStart')?.prop('checked', event.payload);
+    layui.form.render('checkbox');
   });
 
   // 监听托盘菜单的"禁用更新切换"事件
   listen('tray://toggle-disable-update', (event) => {
     console.log('收到托盘禁用更新切换事件:', event.payload);
     isUpdateDisabled = event.payload as boolean;
+    saveBooleanSetting(UPDATE_DISABLED_KEY, isUpdateDisabled);
     byId('disableUpdate')?.prop('checked', isUpdateDisabled);
     showLayuiMsg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
   });
@@ -1188,7 +1152,7 @@ async function initCheckboxStates() {
     if (isTauri()) {
       byId('autoStart')?.prop('checked', await isAutostartEnabled());
       try {
-        isUpdateDisabled = await invoke('get_update_disabled') as boolean;
+        await invoke('set_update_disabled', { disabled: isUpdateDisabled });
         byId('disableUpdate')?.prop('checked', isUpdateDisabled);
       } catch (e) {
         console.log('获取禁用更新状态失败:', e);
@@ -1204,6 +1168,11 @@ async function initCheckboxStates() {
 }
 
 async function displayVersion() {
+  if (!isTauri()) {
+    byId('version')?.text('Web');
+    byId('splitVersionText')?.text('Web');
+    return;
+  }
   try {
     const version = await getVersion();
     byId('version')?.text(version);
@@ -1213,20 +1182,16 @@ async function displayVersion() {
   }
 }
 
-// 窗口关闭时保存状态
-window.addEventListener('beforeunload', () => {
-  if (!isTauri()) return;
-  try {
-    saveWindowState(StateFlags.ALL);
-  } catch { /* 忽略保存失败的情况 */ }
-});
-
 // DOM 加载完成后初始化
 document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    await restoreStateCurrent(StateFlags.ALL);
-  } catch (e) {
-    console.warn('恢复窗口状态失败:', e);
+  document.body.classList.toggle('browser-mode', !isTauri());
+
+  if (isTauri()) {
+    try {
+      await appWindow?.setDecorations(false);
+    } catch (e) {
+      console.warn('恢复窗口状态失败:', e);
+    }
   }
 
   await initCheckboxStates();
@@ -1236,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindSearchEvents();
   applySavedViewMode();
   applyTheme(isDarkMode);
+  setValidationState('empty', '等待输入 JSON');
   displayVersion();
   initTrayListeners();
 });

@@ -1,14 +1,9 @@
-import { waitForElement, safeClick, setInputValue, getElementHTML } from '../helpers/utils.js';
+import { safeClick, setInputValue, getElementHTML, switchToEditor } from '../helpers/utils.js';
 
 describe('大 JSON 和边界情况', () => {
   before(async () => {
     await browser.pause(2000);
-    const editorMode = await $('#editor-mode');
-    const isVisible = await editorMode.isDisplayed();
-    if (!isVisible) {
-      await safeClick('[data-mode="editor"]');
-      await browser.pause(500);
-    }
+    await switchToEditor();
   });
 
   beforeEach(async () => {
@@ -24,10 +19,7 @@ describe('大 JSON 和边界情况', () => {
     }
     const largeJson = `{${keys.join(',')}}`;
 
-    // 使用 browser.execute 在浏览器上下文中设置值
-    await browser.execute((jsonStr) => {
-      document.querySelector('#sourceText').value = jsonStr;
-    }, largeJson);
+    await setInputValue('#sourceText', largeJson);
 
     await safeClick('#formatBtn');
     await browser.pause(3000);
@@ -43,9 +35,7 @@ describe('大 JSON 和边界情况', () => {
       nestedJson = `{"level":${nestedJson}}`;
     }
 
-    await browser.execute((jsonStr) => {
-      document.querySelector('#sourceText').value = jsonStr;
-    }, nestedJson);
+    await setInputValue('#sourceText', nestedJson);
 
     await safeClick('#formatBtn');
     await browser.pause(2000);
@@ -61,15 +51,13 @@ describe('大 JSON 和边界情况', () => {
       nestedJson = `{"level":${nestedJson}}`;
     }
 
-    await browser.execute((jsonStr) => {
-      document.querySelector('#sourceText').value = jsonStr;
-    }, nestedJson);
+    await setInputValue('#sourceText', nestedJson);
 
     await safeClick('#formatBtn');
     await browser.pause(2000);
 
-    const treeViewHtml = await getElementHTML('#tree-view');
-    expect(treeViewHtml).toContain('max depth reached');
+    const outputHtml = await getElementHTML('#json-display');
+    expect(outputHtml).toContain('max depth reached');
   });
 
   it('空 JSON {} 正常处理', async () => {
@@ -99,8 +87,8 @@ describe('大 JSON 和边界情况', () => {
     const result = await getElementHTML('#valid-result');
     expect(result).toContain('格式正确');
 
-    const treeViewHtml = await getElementHTML('#tree-view');
-    expect(treeViewHtml).toContain('你好世界');
+    const outputHtml = await getElementHTML('#json-display');
+    expect(outputHtml).toContain('你好世界');
   });
 
   it('转义字符正确处理', async () => {

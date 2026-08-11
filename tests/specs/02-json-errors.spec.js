@@ -1,26 +1,13 @@
-import { safeClick, setInputValue, getElementHTML } from '../helpers/utils.js';
+import { formatInEditor, getElementHTML, resetWorkspace } from '../helpers/utils.js';
+import { invalidCases } from '../fixtures/json-cases.js';
 
 describe('JSON 错误定位功能 (TODO #3)', () => {
-  before(async () => {
-    await browser.pause(1000);
+  beforeEach(async () => {
+    await resetWorkspace('editor');
+    await formatInEditor(invalidCases.missingComma.input);
   });
 
-  const badJson = `{
-  "user": {
-    "name": "Alice",
-    "age": 30
-  },
-  "settings": {
-    "theme": "dark",
-    "notifications": true
-    "language": "zh-CN"
-  }
-}`;
-
   it('输入错误 JSON 后应显示错误信息', async () => {
-    await setInputValue('#sourceText', badJson);
-    await safeClick('#formatBtn');
-    await browser.pause(1000);
     const result = await getElementHTML('#valid-result');
     expect(result).not.toContain('格式正确');
   });
@@ -46,19 +33,13 @@ describe('JSON 错误定位功能 (TODO #3)', () => {
   });
 
   it('缺少逗号的错误应定位到正确行', async () => {
-    const missingComma = `{"a": 1\n"b": 2}`;
-    await setInputValue('#sourceText', missingComma);
-    await safeClick('#formatBtn');
-    await browser.pause(1000);
+    await formatInEditor(invalidCases.missingComma.input);
     const result = await getElementHTML('#valid-result');
     expect(result).toContain('行');
   });
 
   it('多余逗号的错误应报错', async () => {
-    const trailingComma = '{"a": 1, "b": 2,}';
-    await setInputValue('#sourceText', trailingComma);
-    await safeClick('#formatBtn');
-    await browser.pause(1000);
+    await formatInEditor(invalidCases.trailingComma.input);
     const result = await getElementHTML('#valid-result');
     expect(result).not.toContain('格式正确');
   });

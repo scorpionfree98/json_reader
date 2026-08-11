@@ -1,19 +1,13 @@
-import { safeClick, setInputValue } from '../helpers/utils.js';
+import { formatInSplit, isElementVisible, resetWorkspace, safeClick, waitForText } from '../helpers/utils.js';
+import { serializeCase, validCases } from '../fixtures/json-cases.js';
 
 describe('TreeView 功能 (TODO #1)', () => {
-  before(async () => {
-    await browser.pause(1000);
-    const splitBtn = await $('[data-mode="split"]');
-    if (await splitBtn.isDisplayed()) {
-      await safeClick('[data-mode="split"]');
-      await browser.pause(1000);
-    }
+  beforeEach(async () => {
+    await resetWorkspace('split');
   });
 
   it('切换到分屏模式后 TreeView 应可见', async () => {
-    const treeView = await $('#tree-view');
-    const isDisplayed = await treeView.isDisplayed();
-    expect(isDisplayed).toBe(true);
+    expect(await isElementVisible('#tree-view')).toBe(true);
   });
 
   it('输入嵌套 JSON 后应渲染 TreeView', async () => {
@@ -27,14 +21,58 @@ describe('TreeView 功能 (TODO #1)', () => {
       }
     }, null, 2);
 
-    await setInputValue('#splitSourceText', nestedJson);
-    await safeClick('#splitFormatBtn');
-    await browser.pause(1000);
+    await formatInSplit(nestedJson);
+    await waitForText('#tree-view', 'deep');
 
     const treeView = await $('#tree-view');
     const text = await treeView.getText();
     expect(text).toContain('level1');
     expect(text).toContain('deep');
+  });
+
+  it('单独折叠内层节点不应影响根节点', async () => {
+    await formatInSplit(JSON.stringify({
+      level1: { level2: { level3: { value: 'deep' } } }
+    }));
+    await waitForText('#tree-view', 'deep');
+
+    const collapsedState = await browser.execute(() => {
+      const key = Array.from(document.querySelectorAll('#tree-view .tree-key'))
+        .find(element => element.textContent === '"level2"');
+      const node = key.closest('.tree-node');
+      const toggle = node.querySelector(':scope > .tree-collection-header .tree-toggle');
+      toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return {
+        nestedCollapsed: toggle.dataset.collapsed,
+        nestedChildrenCollapsed: node.querySelector(':scope > .tree-children').classList.contains('collapsed'),
+        nestedFooterHidden: node.querySelector(':scope > .tree-collection-footer').classList.contains('hidden'),
+        rootCollapsed: document.querySelector('#tree-view .tree-node-root > .tree-collection-header .tree-toggle').dataset.collapsed
+      };
+    });
+    expect(collapsedState).toEqual({
+      nestedCollapsed: 'true',
+      nestedChildrenCollapsed: true,
+      nestedFooterHidden: true,
+      rootCollapsed: 'false'
+    });
+
+    const expandedState = await browser.execute(() => {
+      const key = Array.from(document.querySelectorAll('#tree-view .tree-key'))
+        .find(element => element.textContent === '"level2"');
+      const node = key.closest('.tree-node');
+      const toggle = node.querySelector(':scope > .tree-collection-header .tree-toggle');
+      toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return {
+        nestedCollapsed: toggle.dataset.collapsed,
+        nestedChildrenCollapsed: node.querySelector(':scope > .tree-children').classList.contains('collapsed'),
+        nestedFooterHidden: node.querySelector(':scope > .tree-collection-footer').classList.contains('hidden')
+      };
+    });
+    expect(expandedState).toEqual({
+      nestedCollapsed: 'false',
+      nestedChildrenCollapsed: false,
+      nestedFooterHidden: false
+    });
   });
 
   it('勾选转义后换行符应正确渲染', async () => {
@@ -43,19 +81,10 @@ describe('TreeView 功能 (TODO #1)', () => {
       description: '多行\\n文本'
     }, null, 2);
 
-    await safeClick('[data-mode="editor"]');
-    await browser.pause(500);
-    const explainCheckbox = await $('#explain');
-    if (!(await explainCheckbox.isSelected())) {
-      await safeClick('#explain');
-      await browser.pause(500);
-    }
-
-    await safeClick('[data-mode="split"]');
-    await browser.pause(1000);
-    await setInputValue('#splitSourceText', jsonWithNewlines);
-    await safeClick('#splitFormatBtn');
-    await browser.pause(1000);
+    const explainBtn = await $('#splitExplainBtn');
+    if (!(await explainBtn.getAttribute('class')).includes('active')) await safeClick('#splitExplainBtn');
+    await formatInSplit(jsonWithNewlines);
+    await waitForText('#tree-view', '第三行');
 
     const treeStrings = await $$('#tree-view .tree-string');
     expect(treeStrings.length).toBeGreaterThan(0);
@@ -73,6 +102,10 @@ describe('TreeView 功能 (TODO #1)', () => {
   });
 
   it('TreeView 应显示换行后的文本内容', async () => {
+    await formatInSplit(serializeCase(validCases.escapedContent));
+    const explainBtn = await $('#splitExplainBtn');
+    if (!(await explainBtn.getAttribute('class')).includes('active')) await safeClick('#splitExplainBtn');
+    await formatInSplit(serializeCase(validCases.escapedContent));
     const treeView = await $('#tree-view');
     const text = await treeView.getText();
     expect(text).toContain('第一行');

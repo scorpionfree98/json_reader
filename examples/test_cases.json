@@ -17,7 +17,7 @@
       "description": "测试包含各种数据类型的JSON格式化"
     },
     "5. 包含特殊字符": {
-      "input": "{\"message\": \"Hello\\nWorld!\\tThis is a test with special characters: \\"quotes\\", \\u00A9 copyright symbol}",
+      "input": "{\"message\": \"Hello\\nWorld!\\tThis is a test with special characters: \\\"quotes\\\", \\u00A9 copyright symbol\"}",
       "description": "测试包含转义字符和特殊字符的JSON处理"
     },
     "6. 压缩的JSON": {

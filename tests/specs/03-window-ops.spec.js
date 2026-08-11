@@ -1,8 +1,8 @@
-import { safeClick, elementExists } from '../helpers/utils.js';
+import { safeClick, elementExists, getControlValue, setInputValue, switchToEditor, toggleLayuiCheckbox, waitForElement } from '../helpers/utils.js';
 
 describe('窗口操作 (TODO #2)', () => {
   before(async () => {
-    await browser.pause(1000);
+    await switchToEditor();
   });
 
   it('最小化按钮应存在', async () => {
@@ -22,22 +22,14 @@ describe('窗口操作 (TODO #2)', () => {
 
   it('点击最小化按钮不应崩溃', async () => {
     await safeClick('#minimize');
-    await browser.pause(1000);
-    // 窗口应该被隐藏或最小化，但测试进程应继续运行
+    await browser.maximizeWindow();
+    await waitForElement('#sourceText');
   });
 
   it('窗口恢复后应可交互', async () => {
-    // 恢复窗口(通过 Tauri API 恢复最小化的窗口)
-    await browser.execute(() => {
-        if (window.__TAURI__) {
-            window.__TAURI__.window.getCurrentWindow().unminimize();
-            window.__TAURI__.window.getCurrentWindow().setFocus();
-        }
-    });
-    await browser.pause(1000);
-    const input = await $('#sourceText');
-    await input.setValue('test');
-    const value = await input.getValue();
+    // 尝试与窗口交互以验证它仍然响应
+    await setInputValue('#sourceText', 'test');
+    const value = await getControlValue('#sourceText');
     expect(value).toContain('test');
   });
 
@@ -59,12 +51,10 @@ describe('窗口操作 (TODO #2)', () => {
   it('置顶复选框应可切换', async () => {
     const checkbox = await $('#topCheck');
     const initialState = await checkbox.isSelected();
-    await safeClick('#topCheck');
-    await browser.pause(500);
+    await toggleLayuiCheckbox('topCheck');
     const newState = await checkbox.isSelected();
     expect(newState).not.toBe(initialState);
     // 切换回原状态
-    await safeClick('#topCheck');
-    await browser.pause(500);
+    await toggleLayuiCheckbox('topCheck');
   });
 });

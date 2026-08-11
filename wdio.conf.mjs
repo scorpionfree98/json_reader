@@ -1,5 +1,14 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
+const binaryName = process.platform === 'win32'
+    ? 'json_formatter_tauri.exe'
+    : 'json_formatter_tauri';
+
 export const config = {
     // WebDriver server port
+    hostname: '127.0.0.1',
     port: 4444,
 
     // Test runner configuration
@@ -7,7 +16,7 @@ export const config = {
 
     // Specs to run
     specs: [
-        './tests/specs/*.spec.js'
+        './tests/tauri.e2e.spec.js'
     ],
 
     // Maximum instances to run
@@ -20,9 +29,7 @@ export const config = {
             // macOS: './src-tauri/target/debug/json_formatter_tauri'
             // Windows: './src-tauri/target/debug/json_formatter_tauri.exe'
             // Linux: './src-tauri/target/debug/json_formatter_tauri'
-            binary: process.platform === 'win32'
-                ? './src-tauri/target/debug/json_formatter_tauri.exe'
-                : './src-tauri/target/debug/json_formatter_tauri',
+            binary: resolve(projectRoot, 'src-tauri', 'target', 'debug', binaryName),
         }
     }],
 
@@ -32,15 +39,16 @@ export const config = {
     // Mocha options
     mochaOpts: {
         ui: 'bdd',
-        timeout: 60000
+        timeout: 60000,
+        grep: process.env.WDIO_GREP || undefined
     },
 
     // Logging
-    logLevel: 'info',
+    logLevel: 'warn',
 
     // Base URL for your dev server
     // Make sure your Vite dev server is running on this port
-    baseUrl: 'http://localhost:5173',
+    baseUrl: 'http://127.0.0.1:5173',
 
     // Wait for timeout
     waitforTimeout: 10000,
@@ -56,8 +64,16 @@ export const config = {
     reporters: ['spec'],
 
     // Hooks
-    before: function (capabilities, specs) {
-        // Setup code before tests
+    before: async function () {
+        await browser.execute(() => {
+            localStorage.removeItem('json_formatter_view_mode');
+            localStorage.removeItem('json_formatter_theme');
+        });
+        await browser.refresh();
+        await browser.waitUntil(
+            () => browser.execute(() => Boolean(document.querySelector('#sourceText'))),
+            { timeout: 10000, timeoutMsg: '应用主输入框未加载' }
+        );
     },
 
     after: function (result, capabilities, specs) {

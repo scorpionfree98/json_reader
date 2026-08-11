@@ -72,7 +72,9 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     // Initialize "always on top" check state
     if let Some(win) = app_handle.get_webview_window("main") {
         match win.is_always_on_top() {
-            Ok(top_status) => { let _ = toggle_top_i.set_checked(top_status); }
+            Ok(top_status) => {
+                let _ = toggle_top_i.set_checked(top_status);
+            }
             Err(e) => eprintln!("初始化置顶状态失败: {:?}", e),
         }
     }
@@ -82,7 +84,9 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     {
         use tauri_plugin_autostart::ManagerExt;
         match app_handle.autolaunch().is_enabled() {
-            Ok(autostart_status) => { let _ = autostart_i.set_checked(autostart_status); }
+            Ok(autostart_status) => {
+                let _ = autostart_i.set_checked(autostart_status);
+            }
             Err(e) => eprintln!("初始化自启动状态失败: {:?}", e),
         }
     }
@@ -93,7 +97,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
     let disable_update_i_clone = disable_update_i.clone();
 
     // Build tray and bind menu events
-    TrayIconBuilder::new()
+    let mut tray_builder = TrayIconBuilder::new()
         .menu(&Menu::with_items(
             app_handle,
             &[
@@ -126,7 +130,7 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                         let new_status = !current_status;
                         let _ = win.set_always_on_top(new_status);
                         let _ = toggle_top_i_clone.set_checked(new_status);
-                        let _ = app.emit("tray://toggle-always-on-top", ());
+                        let _ = app.emit("tray://toggle-always-on-top", new_status);
                     }
                 }
             }
@@ -146,22 +150,28 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
 
                         // Update check state using Arc'd app handle
                         let _ = autostart_i_clone.set_checked(new_status);
+                        let _ = app.emit("tray://toggle-autostart", new_status);
                     }
                 }
-                let _ = app.emit("tray://toggle-autostart", ());
             }
             "disable-update" => {
                 // Get current state from app state
                 let update_state = app.state::<UpdateState>();
-                let current_disabled = *update_state.disabled.lock().unwrap();
+                let current_disabled = match update_state.disabled.lock() {
+                    Ok(guard) => *guard,
+                    Err(poisoned) => *poisoned.into_inner(),
+                };
                 let new_disabled = !current_disabled;
-                
+
                 // Update state
-                *update_state.disabled.lock().unwrap() = new_disabled;
-                
+                match update_state.disabled.lock() {
+                    Ok(mut guard) => *guard = new_disabled,
+                    Err(poisoned) => *poisoned.into_inner() = new_disabled,
+                };
+
                 // Update menu check state
                 let _ = disable_update_i_clone.set_checked(new_disabled);
-                
+
                 // Emit event to frontend
                 let _ = app.emit("tray://toggle-disable-update", new_disabled);
             }
@@ -172,9 +182,11 @@ fn build_tray(app_handle: &tauri::AppHandle<Wry>) -> anyhow::Result<()> {
                 app.exit(0);
             }
             _ => {}
-        })
-        .icon(app_handle.default_window_icon().unwrap().clone())
-        .build(app_handle)?;
+        });
+    if let Some(icon) = app_handle.default_window_icon() {
+        tray_builder = tray_builder.icon(icon.clone());
+    }
+    tray_builder.build(app_handle)?;
 
     Ok(())
 }
@@ -232,7 +244,10 @@ fn set_update_disabled(
     disabled: bool,
 ) {
     // Update state
-    *update_state.disabled.lock().unwrap() = disabled;
+    match update_state.disabled.lock() {
+        Ok(mut guard) => *guard = disabled,
+        Err(poisoned) => *poisoned.into_inner() = disabled,
+    };
 
     // Update tray menu check state
     if let Some(disable_update_btn) = &state.disable_update_item {
@@ -240,12 +255,6 @@ fn set_update_disabled(
     }
 
     println!("更新禁用状态已设置为: {}", disabled);
-}
-
-/// Get update disabled state
-#[command]
-fn get_update_disabled(update_state: State<UpdateState>) -> bool {
-    *update_state.disabled.lock().unwrap()
 }
 
 /// Get current platform
@@ -267,8 +276,16 @@ fn get_platform() -> String {
     tauri::mobile_entry_point
 )]
 pub fn run() {
-    let mut builder = tauri::Builder::<Wry>::new()
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+    let builder = tauri::Builder::<Wry>::new()
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -278,18 +295,16 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(UpdateState::default());
 
-    // Register webdriver plugin in debug builds only
-    #[cfg(debug_assertions)]
-    {
-        builder = builder.plugin(tauri_plugin_webdriver_automation::init());
-    }
+    // Register webdriver plugin only when feature is enabled.
+    #[cfg(feature = "webdriver")]
+    let builder = builder.plugin(tauri_plugin_webdriver_automation::init());
 
     builder
         .setup(|app| {
             let app_handle = app.handle();
             #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
             {
-                build_tray(&app_handle).expect("创建系统托盘失败，请检查环境配置");
+                build_tray(app_handle).expect("创建系统托盘失败，请检查环境配置");
             }
             Ok(())
         })
@@ -297,7 +312,6 @@ pub fn run() {
             set_always_on_top,
             set_autostart,
             set_update_disabled,
-            get_update_disabled,
             get_platform
         ])
         .run(tauri::generate_context!())
