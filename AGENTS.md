@@ -35,10 +35,11 @@ Push a `v*` tag to trigger the GitHub Actions CI/CD pipeline, which builds for m
 **Tauri v2 split**: Rust backend (`src-tauri/`) handles OS-level concerns (tray menu, window management, autostart, updater). TypeScript frontend (`src/`) handles all JSON processing and UI.
 
 **Frontend** (Vite + jQuery + LayUI):
-- `src/main.ts` — App entry point: source state, view switching, settings, update checks, tray listeners, and event wiring
+- `src/main.ts` — App entry point: controller composition, theme, clipboard, and global event wiring
 - `src/utils/jsonTool.ts` — Highlighted JSON renderer and compatibility facade for shared JSON utilities
 - `src/utils/treeRenderer.ts` — Batched tree rendering, nested expand/collapse behavior, and delegated copy events
 - `src/utils/contentPreview.ts` — Sandboxed HTML rendering and Base64 image detection/popover previews
+- `src/utils/searchController.ts` — Shared editor/tree search state, highlighting, navigation, and event lifecycle
 - `src/utils/jsonPath.ts` — Path token parsing and output formats (JSONPath, Python, bracket, and custom)
 - `src/utils/jsonError.ts` — JSON error position scanning and escaped context output
 - `src/utils/latexRenderer.ts` — KaTeX-based string rendering

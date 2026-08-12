@@ -85,11 +85,12 @@ pnpm test:all         # 单元、类型、构建、浏览器 UI 和 Tauri E2E
 ```
 json_reader/
 ├── src/                        # 前端源码(Vite 根目录)
-│   ├── main.ts                 # 应用入口:窗口控制、主题、视图模式、剪贴板、更新、托盘事件
+│   ├── main.ts                 # 应用入口:组合控制器、主题、剪贴板和全局事件
 │   ├── utils/
 │   │   ├── jsonParser.ts       # JSON 解析、大小限制和深度保护
 │   │   ├── workbenchController.ts # 单一输入源和解析缓存
 │   │   ├── treeRenderer.ts     # 树形视图、分批渲染和复制事件
+│   │   ├── searchController.ts # 编辑器/树视图搜索与事件生命周期
 │   │   ├── contentPreview.ts   # 沙箱 HTML 和图片预览
 │   │   └── jsonTool.ts         # 高亮渲染和兼容入口
 │   ├── lib/
@@ -180,7 +181,18 @@ json_reader/
 - 通过 `listen()` 接收后端发出的托盘菜单事件
 - 处理显示/隐藏、置顶、自启动等状态同步
 
-### 5.3 main.rs — Rust 后端
+### 5.3 searchController.ts — 双视图搜索
+
+位置:`src/utils/searchController.ts`
+
+**主要职责:**
+
+- 统一编辑器和树形视图的搜索状态、按钮配置与事件绑定
+- 支持普通文本、大小写敏感和正则表达式搜索
+- 管理前后匹配导航、`Ctrl/Cmd+F`、防抖定时器和销毁清理
+- 激活树形匹配时展开折叠祖先并恢复集合尾部结构
+
+### 5.4 main.rs — Rust 后端
 
 位置:`src-tauri/src/main.rs`
 

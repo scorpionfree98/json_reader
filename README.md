@@ -203,6 +203,7 @@ json_reader/
 │   ├── utils/
 │   │   ├── jsonTool.ts      # 高亮 JSON 渲染与兼容入口
 │   │   ├── treeRenderer.ts  # 分批树渲染与节点交互
+│   │   ├── searchController.ts # 双视图搜索状态与事件生命周期
 │   │   ├── contentPreview.ts # HTML/Base64 富内容预览
 │   │   ├── jsonPath.ts      # 路径解析和复制格式
 │   │   ├── jsonError.ts     # JSON 错误定位与上下文

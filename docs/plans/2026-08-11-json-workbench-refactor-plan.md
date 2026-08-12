@@ -12,9 +12,9 @@
 
 ## Current Baseline
 
-- Tauri E2E：113 项、Playwright 47 项、浏览器自测 35 项全部通过；前端单元测试 176 项全部通过，语句覆盖率 97.34%、分支覆盖率 92.53%。
+- Tauri E2E：113 项、Playwright 48 项、浏览器自测 35 项全部通过；前端单元测试 187 项全部通过，语句覆盖率 97.35%、分支覆盖率 91.38%。
 - `jsonTool.ts` 已拆出树渲染、图片/HTML 预览、路径格式、错误定位和 LaTeX 模块。
-- `main.ts` 已拆出解析、工作台状态、设置、更新和托盘监听，仍混合搜索、主题和事件绑定。
+- `main.ts` 已拆出解析、工作台状态、设置、更新、托盘监听和双视图搜索，当前保留主题、剪贴板及全局事件编排。
 - 分屏支持 `JSON Str` 和“富内容”两个复选框，但命名需要明确：
   - `JSON Str` 只在最外层 JSON 值是字符串时，再解析一次字符串内部的 JSON。
   - “富内容”只预览字符串值中的 Base64 图片和沙箱 HTML（如图片、表格），不会递归解析 JSON 字段，也不会执行脚本。
@@ -28,6 +28,7 @@
 5. ~~更新流程和存储逻辑直接混在入口文件。~~ 已拆为 `UpdateService` 与 `SettingsStore`；窗口关闭和拖动错误也已收口。
 6. ~~富内容 iframe 缺少完整的恶意内容和大小边界验证。~~ 已增加空 sandbox、严格 CSP、危险内容、无效图片和大小限制测试。
 7. ~~Jest 将 E2E 负责的 UI 模块计入单元覆盖率，导致覆盖率门槛失真。~~ 已按纯逻辑与 Tauri E2E 分层统计，并补齐错误扫描器测试。
+8. 树形搜索当前只覆盖已经加载到 DOM 的节点；若要搜索超大树中尚未加载的分支，需要新增基于原始 JSON 的路径索引，不能通过强制展开全部规避。
 
 ## Visual Compatibility Gate
 
@@ -286,7 +287,7 @@ Suggested commit: `test: harden rich content and large json boundaries`
 - JSON 输入最大 5MB，解析深度最大 100 层；树形视图展示深度最大 50 层。
 - 会被 JavaScript 静默改写的数字会明确报错；编辑器超过 10,000 个节点时引导切换到分屏按需加载。
 - 树形首屏使用全局 500 项预算，平面集合保持每批 500 项，未加载的大型分支不会被“展开全部”强制实例化。
-- 176 项 Jest 单元测试、47 项 Playwright、113 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
+- 187 项 Jest 单元测试、48 项 Playwright、113 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
 
 ## Required Gate After Every Task
 

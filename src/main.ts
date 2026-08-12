@@ -15,6 +15,7 @@ import $ from 'jquery';
 import { AsyncActionQueue } from './utils/asyncActionQueue';
 import { DEFAULT_MAX_EDITOR_RENDER_NODES, exceedsJsonNodeLimit } from './utils/jsonComplexity';
 import jsonTool from './utils/jsonTool';
+import { SearchController } from './utils/searchController';
 import { SettingsStore } from './utils/settingsStore';
 import { initSplitResizer } from './utils/splitResizer';
 import { TrayController, type TrayListen } from './utils/trayController';
@@ -63,6 +64,7 @@ const workbench = new WorkbenchController({ mode: settings.getViewMode() });
 const topActionQueue = new AsyncActionQueue();
 const autostartActionQueue = new AsyncActionQueue();
 const updateDisabledActionQueue = new AsyncActionQueue();
+const searchController = new SearchController();
 
 // 禁用更新状态
 let isUpdateDisabled = settings.getUpdateDisabled();
@@ -248,8 +250,8 @@ export function clearInputContent() {
 }
 
 function clearRenderedOutput() {
-  clearSearch('editor');
-  clearSearch('tree');
+  searchController.clear('editor');
+  searchController.clear('tree');
   $('#tree-view, #json-display').empty();
 }
 
@@ -342,8 +344,8 @@ export function formatJson() {
 
 function renderParsedJson(jsonObj: unknown, formatted = JSON.stringify(jsonObj, null, 2)) {
   workbench.commitFormattedResult(jsonObj, formatted);
-  clearSearch('editor');
-  clearSearch('tree');
+  searchController.clear('editor');
+  searchController.clear('tree');
   $('#sourceText, #splitSourceText').val(formatted);
   setValidationState('valid', 'JSON 有效');
 
@@ -512,6 +514,7 @@ function collapseAllTree() {
 
 function refreshTreeView() {
   if (workbench.mode !== 'split') return;
+  searchController.clear('tree');
   const result = workbench.parse();
   if (result.ok === true) {
     jsonTool.updateTreeView(result.value, workbench.renderOptions);
@@ -532,339 +535,6 @@ function refreshTreeView() {
     $('#tree-view').html(`<div style="color: #999; padding: 20px;">${message}</div>`);
     setValidationState('invalid', result.kind === 'too-large' ? '输入超过 5MB' : message);
   }
-}
-
-// ==================== 搜索功能 ====================
-
-interface SearchState {
-  matches: Element[];
-  currentIndex: number;
-  query: string;
-  caseSensitive: boolean;
-  useRegex: boolean;
-}
-
-const searchState: { editor: SearchState; tree: SearchState } = {
-  editor: { matches: [], currentIndex: -1, query: '', caseSensitive: false, useRegex: false },
-  tree: { matches: [], currentIndex: -1, query: '', caseSensitive: false, useRegex: false }
-};
-
-function toggleSearchBar(stateKey: 'editor' | 'tree', show?: boolean) {
-  const barId = stateKey === 'editor' ? 'editorSearchBar' : 'treeSearchBar';
-  const inputId = stateKey === 'editor' ? 'editorSearchInput' : 'treeSearchInput';
-  const $bar = $(`#${barId}`);
-
-  if (show === undefined) {
-    // Toggle
-    $bar.toggleClass('hidden');
-  } else {
-    $bar.toggleClass('hidden', !show);
-  }
-
-  if (!$bar.hasClass('hidden')) {
-    // Focus input when shown
-    setTimeout(() => $(`#${inputId}`).focus(), 100);
-  } else {
-    // Clear search when hidden
-    clearSearch(stateKey);
-  }
-}
-
-function performSearch(containerId: string, inputId: string, countId: string, stateKey: 'editor' | 'tree') {
-  const query = ($(`#${inputId}`).val() as string || '').trim();
-  const $container = $(`#${containerId}`);
-  const $input = $(`#${inputId}`);
-  const state = searchState[stateKey];
-
-  // 清除之前的高亮
-  $container.find('.search-highlight, .search-highlight-active').each(function() {
-    const $this = $(this);
-    $this.replaceWith($this.text());
-  });
-
-  state.matches = [];
-  state.currentIndex = -1;
-  state.query = query;
-
-  if (!query) {
-    $(`#${countId}`).text('');
-    $input.removeClass('regex-error');
-    return;
-  }
-
-  // 验证正则表达式
-  let searchPattern: RegExp | null = null;
-  if (state.useRegex) {
-    try {
-      const flags = state.caseSensitive ? 'g' : 'gi';
-      searchPattern = new RegExp(query, flags);
-      $input.removeClass('regex-error');
-    } catch (e) {
-      $input.addClass('regex-error');
-      $(`#${countId}`).text('正则无效');
-      return;
-    }
-  } else {
-    $input.removeClass('regex-error');
-  }
-
-  // 在 key 和 value 元素中搜索
-  const selectors = containerId === 'json-display'
-    ? '.json-key, .json-string, .json-number, .json-boolean, .json-null'
-    : '.tree-key, .tree-value';
-
-  $container.find(selectors).each(function() {
-    const el = this as HTMLElement;
-    // 跳过已包含 latex 渲染的元素
-    if (el.querySelector('.katex')) return;
-
-    const textContent = el.textContent || '';
-    const hasMatch = state.useRegex
-      ? searchPattern!.test(textContent)
-      : state.caseSensitive
-        ? textContent.includes(query)
-        : textContent.toLowerCase().includes(query.toLowerCase());
-
-    if (hasMatch) {
-      highlightTextInElement(el, query, state.caseSensitive, searchPattern);
-    }
-  });
-
-  // 收集所有高亮元素
-  state.matches = Array.from($container.find('.search-highlight').toArray());
-
-  if (state.matches.length > 0) {
-    state.currentIndex = 0;
-    activateMatch(stateKey);
-    $(`#${countId}`).text(`1/${state.matches.length}`);
-  } else {
-    $(`#${countId}`).text('0 结果');
-  }
-}
-
-function highlightTextInElement(el: HTMLElement, query: string, caseSensitive: boolean, regex: RegExp | null) {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-  const textNodes: Text[] = [];
-  let node: Text | null;
-  while ((node = walker.nextNode() as Text | null)) {
-    textNodes.push(node);
-  }
-
-  for (const textNode of textNodes) {
-    const text = textNode.nodeValue || '';
-    const parent = textNode.parentNode!;
-    const fragments: (Text | HTMLElement)[] = [];
-
-    if (regex) {
-      // 正则匹配
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-      regex.lastIndex = 0; // Reset regex
-
-      while ((match = regex.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-          fragments.push(document.createTextNode(text.substring(lastIndex, match.index)));
-        }
-
-        const span = document.createElement('span');
-        span.className = 'search-highlight';
-        span.textContent = match[0];
-        fragments.push(span);
-
-        lastIndex = match.index + match[0].length;
-
-        // Prevent infinite loop for zero-width matches
-        if (match[0].length === 0) regex.lastIndex++;
-      }
-
-      if (lastIndex < text.length) {
-        fragments.push(document.createTextNode(text.substring(lastIndex)));
-      }
-    } else {
-      // 普通文本匹配 - 找所有匹配
-      const searchText = caseSensitive ? text : text.toLowerCase();
-      const searchQuery = caseSensitive ? query : query.toLowerCase();
-      let lastIndex = 0;
-      let idx = searchText.indexOf(searchQuery, lastIndex);
-
-      while (idx !== -1) {
-        if (idx > lastIndex) {
-          fragments.push(document.createTextNode(text.substring(lastIndex, idx)));
-        }
-
-        const match = text.substring(idx, idx + query.length);
-        const span = document.createElement('span');
-        span.className = 'search-highlight';
-        span.textContent = match;
-        fragments.push(span);
-
-        lastIndex = idx + query.length;
-        idx = searchText.indexOf(searchQuery, lastIndex);
-      }
-
-      if (lastIndex < text.length) {
-        fragments.push(document.createTextNode(text.substring(lastIndex)));
-      }
-    }
-
-    if (fragments.length > 0) {
-      fragments.forEach(frag => parent.insertBefore(frag, textNode));
-      parent.removeChild(textNode);
-    }
-  }
-}
-
-function activateMatch(stateKey: 'editor' | 'tree') {
-  const state = searchState[stateKey];
-
-  // 清除之前的活跃高亮
-  const containerId = stateKey === 'editor' ? 'json-display' : 'tree-view';
-  $(`#${containerId} .search-highlight-active`).removeClass('search-highlight-active').addClass('search-highlight');
-
-  if (state.matches.length === 0 || state.currentIndex < 0) return;
-
-  const el = state.matches[state.currentIndex];
-  if (el) {
-    el.classList.remove('search-highlight');
-    el.classList.add('search-highlight-active');
-
-    // 展开父节点（如果在折叠的树中）
-    const $parents = $(el).parents('.tree-children.collapsed');
-    $parents.each(function() {
-      $(this).removeClass('collapsed');
-      const $node = $(this).closest('.tree-node, .tree-node-root');
-      $node.find('.tree-ellipsis').first().addClass('hidden');
-      $node.find('.tree-bracket').last().removeClass('hidden');
-      $node.find('.tree-toggle').first().text('▼').attr('data-collapsed', 'false');
-    });
-
-    // 滚动到可见区域
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }
-}
-
-function navigateSearch(stateKey: 'editor' | 'tree', direction: 'next' | 'prev') {
-  const state = searchState[stateKey];
-  if (state.matches.length === 0) return;
-
-  if (direction === 'next') {
-    state.currentIndex = (state.currentIndex + 1) % state.matches.length;
-  } else {
-    state.currentIndex = (state.currentIndex - 1 + state.matches.length) % state.matches.length;
-  }
-
-  activateMatch(stateKey);
-  const countId = stateKey === 'editor' ? 'editorSearchCount' : 'treeSearchCount';
-  $(`#${countId}`).text(`${state.currentIndex + 1}/${state.matches.length}`);
-}
-
-function clearSearch(stateKey: 'editor' | 'tree') {
-  const inputId = stateKey === 'editor' ? 'editorSearchInput' : 'treeSearchInput';
-  const countId = stateKey === 'editor' ? 'editorSearchCount' : 'treeSearchCount';
-  const containerId = stateKey === 'editor' ? 'json-display' : 'tree-view';
-
-  $(`#${inputId}`).val('').removeClass('regex-error');
-  $(`#${countId}`).text('');
-  searchState[stateKey].matches = [];
-  searchState[stateKey].currentIndex = -1;
-  searchState[stateKey].query = '';
-
-  // 清除高亮
-  $(`#${containerId}`).find('.search-highlight, .search-highlight-active').each(function() {
-    const $this = $(this);
-    $this.replaceWith($this.text());
-  });
-}
-
-function bindSearchEvents() {
-  // 搜索栏显示/隐藏
-  $('#editorSearchToggle').on('click', () => toggleSearchBar('editor'));
-  $('#treeSearchToggle').on('click', () => toggleSearchBar('tree'));
-
-  // Ctrl+F / Cmd+F 快捷键
-  $(document).on('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-      e.preventDefault();
-      const isEditorMode = !$('#editor-mode').hasClass('hidden');
-      toggleSearchBar(isEditorMode ? 'editor' : 'tree', true);
-    }
-  });
-
-  // 编辑器模式搜索
-  let editorDebounce: ReturnType<typeof setTimeout>;
-  $('#editorSearchInput').on('input', function() {
-    clearTimeout(editorDebounce);
-    editorDebounce = setTimeout(() => {
-      performSearch('json-display', 'editorSearchInput', 'editorSearchCount', 'editor');
-    }, 300);
-  });
-  $('#editorSearchInput').on('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      navigateSearch('editor', e.shiftKey ? 'prev' : 'next');
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      toggleSearchBar('editor', false);
-    }
-  });
-
-  // Aa 按钮 - 大小写敏感
-  $('#editorCaseSensitive').on('click', function() {
-    const $btn = $(this);
-    searchState.editor.caseSensitive = !searchState.editor.caseSensitive;
-    $btn.toggleClass('active', searchState.editor.caseSensitive);
-    performSearch('json-display', 'editorSearchInput', 'editorSearchCount', 'editor');
-  });
-
-  // .* 按钮 - 正则模式
-  $('#editorUseRegex').on('click', function() {
-    const $btn = $(this);
-    searchState.editor.useRegex = !searchState.editor.useRegex;
-    $btn.toggleClass('active', searchState.editor.useRegex);
-    performSearch('json-display', 'editorSearchInput', 'editorSearchCount', 'editor');
-  });
-
-  $('#editorSearchPrev').on('click', () => navigateSearch('editor', 'prev'));
-  $('#editorSearchNext').on('click', () => navigateSearch('editor', 'next'));
-  $('#editorSearchClear').on('click', () => toggleSearchBar('editor', false));
-
-  // 树形视图搜索
-  let treeDebounce: ReturnType<typeof setTimeout>;
-  $('#treeSearchInput').on('input', function() {
-    clearTimeout(treeDebounce);
-    treeDebounce = setTimeout(() => {
-      performSearch('tree-view', 'treeSearchInput', 'treeSearchCount', 'tree');
-    }, 300);
-  });
-  $('#treeSearchInput').on('keydown', function(e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      navigateSearch('tree', e.shiftKey ? 'prev' : 'next');
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      toggleSearchBar('tree', false);
-    }
-  });
-
-  // Aa 按钮 - 大小写敏感
-  $('#treeCaseSensitive').on('click', function() {
-    const $btn = $(this);
-    searchState.tree.caseSensitive = !searchState.tree.caseSensitive;
-    $btn.toggleClass('active', searchState.tree.caseSensitive);
-    performSearch('tree-view', 'treeSearchInput', 'treeSearchCount', 'tree');
-  });
-
-  // .* 按钮 - 正则模式
-  $('#treeUseRegex').on('click', function() {
-    const $btn = $(this);
-    searchState.tree.useRegex = !searchState.tree.useRegex;
-    $btn.toggleClass('active', searchState.tree.useRegex);
-    performSearch('tree-view', 'treeSearchInput', 'treeSearchCount', 'tree');
-  });
-
-  $('#treeSearchPrev').on('click', () => navigateSearch('tree', 'prev'));
-  $('#treeSearchNext').on('click', () => navigateSearch('tree', 'next'));
-  $('#treeSearchClear').on('click', () => toggleSearchBar('tree', false));
 }
 
 // ==================== 事件绑定 ====================
@@ -1121,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindButtonEvents();
   bindCheckboxEvents();
   bindViewModeEvents();
-  bindSearchEvents();
+  searchController.bind();
   applySavedViewMode();
   applyTheme(isDarkMode);
   setValidationState('empty', '等待输入 JSON');
@@ -1130,5 +800,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('beforeunload', () => {
+  searchController.dispose();
   void trayController.dispose();
 });

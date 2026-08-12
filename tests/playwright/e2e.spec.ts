@@ -345,6 +345,25 @@ test.describe('搜索功能', () => {
     expect(text).toMatch(/\d+\/\d+/);
   });
 
+  test('分屏内容刷新后清理旧搜索结果', async ({ page }) => {
+    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
+    await page.locator('#splitSourceText').fill('{"name":"Alice"}');
+    await page.waitForTimeout(500);
+    await page.locator('#treeSearchToggle').click();
+    await page.locator('#treeSearchInput').fill('Alice');
+    await page.waitForTimeout(500);
+    await expect(page.locator('#treeSearchCount')).toContainText('1/');
+
+    await page.locator('#splitSourceText').fill('{"name":"Bob"}');
+    await page.waitForTimeout(500);
+
+    await expect(page.locator('#treeSearchInput')).toHaveValue('');
+    await expect(page.locator('#treeSearchCount')).toBeEmpty();
+    await expect(page.locator('#tree-view .search-highlight, #tree-view .search-highlight-active')).toHaveCount(0);
+    await page.locator('#treeSearchNext').click();
+    await expect(page.locator('#treeSearchCount')).toBeEmpty();
+  });
+
   test('搜索导航 - 上/下一个', async ({ page }) => {
     await page.locator('#sourceText').fill('{"a":"test","b":"test","c":"test"}');
     await page.locator('#formatBtn').click();
