@@ -26,8 +26,9 @@
     "test:unit": "jest --passWithNoTests",
     "test:unit:watch": "jest --watch",
     "test:unit:coverage": "jest --coverage",
-    "test:e2e": "wdio run wdio.conf.mjs",
-    "test:all": "pnpm test:unit && pnpm test:e2e"
+    "test:playwright": "playwright test",
+    "test:e2e": "node scripts/run-tauri-e2e.mjs",
+    "test:all": "pnpm test:unit:coverage && pnpm exec tsc --noEmit && pnpm build && pnpm test:playwright && pnpm test:e2e"
   },
   "dependencies": {
     "@tauri-apps/api": "2.9.1",

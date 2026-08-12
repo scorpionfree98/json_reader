@@ -263,7 +263,6 @@ export const jsonTool: JsonTool = {
 
   async copyToClipboard(value: any, path?: string): Promise<void> {
     const valueText = value === undefined ? '' : String(value);
-    console.log('copyToClipboard called with:', valueText.substring(0, 100));
 
     try {
       if ('__TAURI_INTERNALS__' in window) {

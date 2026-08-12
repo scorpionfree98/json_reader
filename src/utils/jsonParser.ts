@@ -11,6 +11,7 @@ export type JsonParseResult =
   | { ok: true; value: unknown; formatted: string }
   | { ok: false; kind: 'empty' }
   | { ok: false; kind: 'too-large'; maxSize: number }
+  | { ok: false; kind: 'unsafe-number'; token: string; position: number; errorSource: string }
   | { ok: false; kind: 'invalid'; stage: 'outer' | 'inner'; error: Error; errorSource: string }
   | {
       ok: false;
@@ -27,6 +28,55 @@ const asError = (error: unknown): Error => error instanceof Error ? error : new 
 type JsonContainer = unknown[] | Record<string, unknown>;
 
 const isContainer = (value: unknown): value is JsonContainer => typeof value === 'object' && value !== null;
+
+interface UnsafeNumber {
+  token: string;
+  position: number;
+}
+
+const normalizeDecimalToken = (token: string): string => {
+  const match = token.match(/^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/)!;
+  let digits = `${match[2]}${match[3] || ''}`.replace(/^0+/, '');
+  if (!digits) return '0';
+
+  let exponent = Number(match[4] || 0) - (match[3]?.length || 0);
+  const trailingZeros = digits.match(/0+$/)?.[0].length || 0;
+  if (trailingZeros > 0) {
+    digits = digits.slice(0, -trailingZeros);
+    exponent += trailingZeros;
+  }
+  return `${match[1]}${digits}e${exponent}`;
+};
+
+const isUnsafeNumberToken = (token: string): boolean => {
+  const value = Number(token);
+  return !Number.isFinite(value) || normalizeDecimalToken(token) !== normalizeDecimalToken(String(value));
+};
+
+const findUnsafeNumber = (source: string): UnsafeNumber | undefined => {
+  let index = 0;
+  while (index < source.length) {
+    if (source[index] === '"') {
+      index += 1;
+      while (index < source.length) {
+        if (source[index] === '\\') index += 2;
+        else if (source[index++] === '"') break;
+      }
+      continue;
+    }
+
+    if (source[index] === '-' || /\d/.test(source[index])) {
+      const match = source.slice(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+      if (match) {
+        if (isUnsafeNumberToken(match[0])) return { token: match[0], position: index };
+        index += match[0].length;
+        continue;
+      }
+    }
+    index += 1;
+  }
+  return undefined;
+};
 
 function findExceededDepth(value: unknown, maxDepth: number): number | undefined {
   if (!isContainer(value)) return undefined;
@@ -83,6 +133,17 @@ export function parseJsonSource(source: string, options: JsonParseOptions): Json
         errorSource: innerSource
       };
     }
+  }
+
+  const unsafeNumber = findUnsafeNumber(effectiveSource);
+  if (unsafeNumber) {
+    return {
+      ok: false,
+      kind: 'unsafe-number',
+      token: unsafeNumber.token,
+      position: unsafeNumber.position,
+      errorSource: effectiveSource
+    };
   }
 
   const maxDepth = options.maxDepth ?? DEFAULT_MAX_JSON_DEPTH;

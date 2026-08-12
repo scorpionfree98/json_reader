@@ -74,8 +74,10 @@ pnpm build            # 仅构建前端(Vite)
 pnpm dev              # 仅启动前端开发服务器(端口 5173)
 pnpm test:unit        # 运行单元测试
 pnpm test:unit:coverage  # 运行单元测试并生成覆盖率报告
-pnpm test:e2e         # 运行 E2E 测试
-pnpm test:tauri:e2e   # 构建并运行真实 Tauri WebDriver 测试
+pnpm test:playwright  # 运行浏览器 UI 自动化测试
+pnpm test:e2e         # 构建并运行真实 Tauri WebDriver 测试
+pnpm test:tauri:e2e   # test:e2e 的兼容别名
+pnpm test:all         # 单元、类型、构建、浏览器 UI 和 Tauri E2E
 ```
 
 ## 4. 项目结构
@@ -123,6 +125,8 @@ json_reader/
 **JSON 处理与树渲染**
 - 解析 JSON 并递归构建树形 DOM 结构
 - 支持对象、数组、字符串、数字、布尔、null 等所有 JSON 类型
+- 拒绝会被 JavaScript `Number` 静默改写的数字，避免格式化造成精度损失
+- 编辑器超过 10,000 个节点时停止完整 DOM 渲染，引导用户使用分屏分批加载
 - 通过 `MAX_RENDER_DEPTH` 常量限制最大渲染深度,防止栈溢出
 - 使用 `escapeHtml()` 对所有用户数据进行 XSS 转义
 
@@ -233,10 +237,10 @@ pnpm test:unit:coverage
 使用 WebdriverIO 框架，测试文件位于 `tests/specs/`。
 
 ```bash
-# 运行 E2E 测试(需要先构建应用)
+# 构建并运行真实 Tauri WebDriver 测试
 pnpm test:e2e
 
-# 构建并运行真实 Tauri WebDriver 测试
+# 兼容别名
 pnpm test:tauri:e2e
 ```
 

@@ -31,15 +31,27 @@ describe('基础 JSON 功能', () => {
   });
 
   it('格式化空输入不应崩溃', async () => {
+    await formatInEditor(serializeCase(validCases.primitives));
+    await waitForText('#json-display', 'hello');
     await setInputValue('#sourceText', '');
     await safeClick('#formatBtn');
     expect(await getControlValue('#sourceText')).toBe('');
+    expect(await $('#json-display').getText()).toBe('');
+    expect(await $('#valid-result').getText()).toBe('');
   });
 
   it('格式化非 JSON 文本应报错', async () => {
     await setInputValue('#sourceText', 'this is not json');
     await safeClick('#formatBtn');
     await waitForText('#valid-result', /Unexpected|JSON|位置|Syntax/i);
+    expect(await $('#json-display').getText()).toBe('');
+  });
+
+  it('超出安全精度的数字不应被静默篡改', async () => {
+    await setInputValue('#sourceText', '{"value":9007199254740993}');
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', '超出安全精度范围');
+    expect(await getControlValue('#sourceText')).toContain('9007199254740993');
     expect(await $('#json-display').getText()).toBe('');
   });
 

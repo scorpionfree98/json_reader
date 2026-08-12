@@ -35,7 +35,7 @@ describe('JSON 错误定位功能 (TODO #3)', () => {
   it('缺少逗号的错误应定位到正确行', async () => {
     await formatInEditor(invalidCases.missingComma.input);
     const result = await getElementHTML('#valid-result');
-    expect(result).toContain('行');
+    expect(result).toContain(`第 ${invalidCases.missingComma.expectedLine} 行`);
   });
 
   it('多余逗号的错误应报错', async () => {

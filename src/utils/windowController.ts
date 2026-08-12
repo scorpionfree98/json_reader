@@ -1,15 +1,17 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import $ from 'jquery';
+import { AsyncActionQueue } from './asyncActionQueue';
 
 type ShowMessage = (message: string) => void;
 
 export const createWindowController = (showMessage: ShowMessage) => {
   const isTauri = '__TAURI_INTERNALS__' in window;
   const appWindow = isTauri ? getCurrentWebviewWindow() : null;
+  const maximizeActionQueue = new AsyncActionQueue();
 
-  const updateMaximizeButton = (isMaximized: boolean, buttonSelector?: string, isFullscreen = false) => {
-    const selectors = buttonSelector ? [buttonSelector] : ['#maximizeBtn', '#splitMaximize'];
+  const updateMaximizeButton = (isMaximized: boolean, isFullscreen = false) => {
+    const selectors = ['#maximizeBtn', '#splitMaximize'];
     const icon = isMaximized ? 'layui-icon-screen-restore' : 'layui-icon-screen-full';
     const text = isMaximized ? '还原' : isFullscreen ? '全屏' : '最大化';
 
@@ -24,7 +26,7 @@ export const createWindowController = (showMessage: ShowMessage) => {
     });
   };
 
-  const toggleMaximize = async (buttonSelector?: string): Promise<void> => {
+  const toggleMaximize = (): Promise<void> => maximizeActionQueue.run(async () => {
     if (!appWindow) {
       showMessage('窗口控制仅在应用模式中可用');
       return;
@@ -40,10 +42,21 @@ export const createWindowController = (showMessage: ShowMessage) => {
       } else {
         await appWindow.maximize();
       }
-      updateMaximizeButton(!isExpanded, buttonSelector, isMac);
+      updateMaximizeButton(!isExpanded, isMac);
     } catch (error) {
       console.error('最大化/还原失败:', error);
       showMessage('操作失败');
+    }
+  });
+
+  const syncMaximizeState = async (): Promise<void> => {
+    if (!appWindow) return;
+    try {
+      const isMac = await invoke<string>('get_platform') === 'macos';
+      const expanded = isMac ? await appWindow.isFullscreen() : await appWindow.isMaximized();
+      updateMaximizeButton(expanded, isMac);
+    } catch (error) {
+      console.error('同步窗口状态失败:', error);
     }
   };
 
@@ -88,6 +101,7 @@ export const createWindowController = (showMessage: ShowMessage) => {
     isTauri,
     close,
     minimize,
+    syncMaximizeState,
     startDragging,
     toggleMaximize
   };

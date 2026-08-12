@@ -1,8 +1,11 @@
 import { safeClick, elementExists, getControlValue, setInputValue, switchToEditor, toggleLayuiCheckbox, waitForElement } from '../helpers/utils.js';
 
 describe('窗口操作 (TODO #2)', () => {
+  let initialMaximizeIconClass;
+
   before(async () => {
     await switchToEditor();
+    initialMaximizeIconClass = await $('#maximizeBtn i').getAttribute('class');
   });
 
   it('最小化按钮应存在', async () => {
@@ -36,11 +39,16 @@ describe('窗口操作 (TODO #2)', () => {
   it('最大化按钮应可点击', async () => {
     await safeClick('#maximizeBtn');
     await browser.pause(1000);
+    const editorClass = await $('#maximizeBtn i').getAttribute('class');
+    const splitClass = await $('#splitMaximize i').getAttribute('class');
+    expect(splitClass).toBe(editorClass);
   });
 
   it('再次点击最大化应还原窗口', async () => {
     await safeClick('#maximizeBtn');
     await browser.pause(1000);
+    expect(await $('#maximizeBtn i').getAttribute('class')).toBe(initialMaximizeIconClass);
+    expect(await $('#splitMaximize i').getAttribute('class')).toBe(initialMaximizeIconClass);
   });
 
   it('置顶复选框应存在', async () => {

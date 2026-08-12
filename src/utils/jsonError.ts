@@ -32,7 +32,7 @@ export function findJsonErrorPosition(source: string): number {
 
   const parseNumber = () => {
     const match = source.slice(index).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
-    if (!match) fail();
+    if (!match) return fail();
     index += match[0].length;
   };
 

@@ -12,7 +12,7 @@
 
 ## Current Baseline
 
-- Tauri E2E：111 项、浏览器自测 35 项全部通过；前端单元测试 161 项全部通过，语句覆盖率 97.53%、分支覆盖率 92.27%。
+- Tauri E2E：113 项、Playwright 47 项、浏览器自测 35 项全部通过；前端单元测试 176 项全部通过，语句覆盖率 97.34%、分支覆盖率 92.53%。
 - `jsonTool.ts` 已拆出树渲染、图片/HTML 预览、路径格式、错误定位和 LaTeX 模块。
 - `main.ts` 已拆出解析、工作台状态、设置、更新和托盘监听，仍混合搜索、主题和事件绑定。
 - 分屏支持 `JSON Str` 和“富内容”两个复选框，但命名需要明确：
@@ -284,8 +284,9 @@ Suggested commit: `test: harden rich content and large json boundaries`
 
 - HTML 预览最大 256KB；图片预览最大 4MB，只接受签名与声明 MIME 一致的 PNG、JPEG、GIF、WebP、BMP 和 ICO。
 - JSON 输入最大 5MB，解析深度最大 100 层；树形视图展示深度最大 50 层。
+- 会被 JavaScript 静默改写的数字会明确报错；编辑器超过 10,000 个节点时引导切换到分屏按需加载。
 - 树形首屏使用全局 500 项预算，平面集合保持每批 500 项，未加载的大型分支不会被“展开全部”强制实例化。
-- 161 项 Jest 单元测试、111 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
+- 176 项 Jest 单元测试、47 项 Playwright、113 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
 
 ## Required Gate After Every Task
 

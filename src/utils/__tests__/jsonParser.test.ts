@@ -79,6 +79,30 @@ describe('parseJsonSource', () => {
   });
 
   test.each([
+    ['超出安全整数上限', '{"value":9007199254740993}', '9007199254740993'],
+    ['超出安全整数下限', '{"value":-9007199254740993}', '-9007199254740993'],
+    ['溢出为 Infinity', '{"value":1e400}', '1e400'],
+    ['高精度小数', '{"value":1.23456789012345678}', '1.23456789012345678']
+  ])('%s时拒绝可能损失精度的数字', (_label, source, token) => {
+    expect(parseJsonSource(source, { parseJsonString: false })).toMatchObject({
+      ok: false,
+      kind: 'unsafe-number',
+      token,
+      errorSource: source
+    });
+  });
+
+  test.each(['9007199254740991', '-9007199254740991', '1.23456789012345', '3.141592653589793', '1e100'])(
+    '安全数字仍可格式化: %s', source => {
+      expect(parseJsonSource(source, { parseJsonString: false }).ok).toBe(true);
+    }
+  );
+
+  test('字符串中的大数字文本不触发精度保护', () => {
+    expect(parseJsonSource('{"value":"9007199254740993"}', { parseJsonString: false }).ok).toBe(true);
+  });
+
+  test.each([
     ['对象', nestedObjectSource],
     ['数组', nestedArraySource]
   ])('%s正好达到配置深度时仍可格式化', (_label, createSource) => {

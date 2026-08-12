@@ -161,4 +161,14 @@ describe('视图模式切换', () => {
     expect(await getControlValue('#splitSourceText')).toBe('{"version":"new"}');
     await waitForText('#tree-view', 'new');
   });
+
+  it('非法输入切换到分屏后不应沿用旧的有效状态', async () => {
+    await setInputValue('#sourceText', '{"valid":true}');
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', '格式正确');
+    await setInputValue('#sourceText', '{invalid}');
+    await switchToSplit();
+    await waitForText('#split-valid-result', 'JSON 格式错误');
+    await waitForText('#tree-view', 'JSON 格式错误');
+  });
 });

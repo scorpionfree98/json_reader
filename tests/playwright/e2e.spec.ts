@@ -430,6 +430,21 @@ test.describe('大型 JSON 和边界情况', () => {
     await expect(result).toContainText('格式正确');
   });
 
+  test('超大节点集应提示切换分屏而不是一次性创建全部 DOM', async ({ page }) => {
+    const values = Array.from({ length: 10_050 }, (_, index) => index);
+    await page.locator('#sourceText').fill(JSON.stringify(values));
+    await page.locator('#formatBtn').click();
+
+    await expect(page.locator('#valid-result')).toContainText('格式正确');
+    await expect(page.locator('.json-render-limit')).toContainText('已暂停编辑器完整渲染');
+    await expect(page.locator('#json-display .json-number')).toHaveCount(0);
+
+    await page.locator('.json-render-limit-action').click();
+    await expect(page.locator('#split-mode')).toBeVisible();
+    await expect(page.locator('#tree-view .tree-value')).toHaveCount(500);
+    await expect(page.locator('#tree-view .tree-load-more')).toBeVisible();
+  });
+
   test('深层嵌套对象', async ({ page }) => {
     let obj: any = { value: 'deep' };
     for (let i = 0; i < 30; i++) obj = { nested: obj };

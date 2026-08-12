@@ -48,12 +48,17 @@ describe('分屏模式基础功能', () => {
     await browser.pause(500);
     const value = await getControlValue('#splitSourceText');
     expect(value).toBe('');
+    expect(await $('#tree-view').getText()).toBe('');
+    expect(await $('#split-valid-result').getText()).toContain('等待输入');
   });
 
   it('分屏模式格式化空输入不崩溃', async () => {
+    await setInputValue('#splitSourceText', '{"stale":true}');
+    await safeClick('#splitFormatBtn');
+    expect(await $('#tree-view').getText()).toContain('stale');
     await setInputValue('#splitSourceText', '');
     await safeClick('#splitFormatBtn');
-    await browser.pause(500);
-    // 无断言，仅验证不崩溃
+    expect(await $('#tree-view').getText()).toBe('');
+    expect(await $('#split-valid-result').getText()).toContain('等待输入');
   });
 });

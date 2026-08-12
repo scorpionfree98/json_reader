@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { connect } from 'node:net';
 import { delimiter, dirname } from 'node:path';
 import process from 'node:process';
 
@@ -11,6 +12,7 @@ if (nodeMajor < 20 || nodeMajor >= 26) {
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const tauriWd = process.platform === 'win32' ? 'tauri-wd.exe' : 'tauri-wd';
 const services = [];
+let shuttingDown = false;
 const childEnv = {
   ...process.env,
   PATH: `${dirname(process.execPath)}${delimiter}${process.env.PATH || ''}`
@@ -59,16 +61,36 @@ const startService = (command, args) => {
     env: childEnv,
     detached: process.platform !== 'win32'
   });
-  child.once('error', error => {
-    console.error(`无法启动 ${command}: ${error.message}`);
-  });
+  child.startError = undefined;
+  child.once('error', error => { child.startError = error; });
   services.push(child);
   return child;
 };
 
-const waitForUrl = async (url, timeout = 20_000) => {
+const isPortOpen = (port) => new Promise(resolve => {
+  const socket = connect({ host: '127.0.0.1', port });
+  const finish = value => {
+    socket.destroy();
+    resolve(value);
+  };
+  socket.setTimeout(500, () => finish(false));
+  socket.once('connect', () => finish(true));
+  socket.once('error', () => finish(false));
+});
+
+const assertPortAvailable = async (port, service) => {
+  if (await isPortOpen(port)) {
+    throw new Error(`${service} 端口 ${port} 已被其他进程占用，请先关闭后重试`);
+  }
+};
+
+const waitForUrl = async (url, timeout = 20_000, child) => {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
+    if (child?.startError) throw new Error(`无法启动 ${child.spawnfile}: ${child.startError.message}`);
+    if (child && child.exitCode !== null) {
+      throw new Error(`${child.spawnfile} 在服务就绪前退出，退出码 ${child.exitCode}`);
+    }
     try {
       const response = await fetch(url);
       if (response.ok) return;
@@ -78,43 +100,63 @@ const waitForUrl = async (url, timeout = 20_000) => {
   throw new Error(`等待服务超时: ${url}`);
 };
 
-const stopServices = () => {
-  for (const child of services.reverse()) {
-    if (!child.pid || child.exitCode !== null) continue;
-    try {
-      if (process.platform === 'win32') child.kill();
-      else process.kill(-child.pid, 'SIGTERM');
-    } catch {}
-  }
-};
-
-const stopService = async (child) => {
+const signalService = (child, signal) => {
   if (!child?.pid || child.exitCode !== null) return;
   try {
-    if (process.platform === 'win32') child.kill();
-    else process.kill(-child.pid, 'SIGTERM');
+    if (process.platform === 'win32') child.kill(signal);
+    else process.kill(-child.pid, signal);
   } catch {}
-  await new Promise(resolve => setTimeout(resolve, 750));
 };
 
-process.on('SIGINT', () => {
-  stopServices();
-  process.exit(130);
-});
-process.on('SIGTERM', () => {
-  stopServices();
-  process.exit(143);
-});
+const waitForExit = async (child, timeout) => {
+  if (!child || child.exitCode !== null) return true;
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      child.off('exit', onExit);
+      resolve(false);
+    }, timeout);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    child.once('exit', onExit);
+    if (child.exitCode !== null) onExit();
+  });
+};
+
+const stopService = async child => {
+  if (!child?.pid || child.exitCode !== null) return;
+  signalService(child, 'SIGTERM');
+  if (await waitForExit(child, 3_000)) return;
+  signalService(child, 'SIGKILL');
+  await waitForExit(child, 2_000);
+};
+
+const stopServices = async () => {
+  const pending = services.splice(0).reverse();
+  await Promise.all(pending.map(stopService));
+};
+
+const shutdown = exitCode => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  void stopServices().finally(() => process.exit(exitCode));
+};
+
+process.on('SIGINT', () => shutdown(130));
+process.on('SIGTERM', () => shutdown(143));
 
 try {
   await run('cargo', ['build', '--manifest-path', 'src-tauri/Cargo.toml', '--features', 'webdriver']);
-  startService(pnpm, ['dev', '--host', '127.0.0.1']);
-  await waitForUrl('http://127.0.0.1:5173');
+  await assertPortAvailable(5173, 'Vite');
+  await assertPortAvailable(4444, 'Tauri WebDriver');
+  const vite = startService(pnpm, ['dev', '--host', '127.0.0.1']);
+  await waitForUrl('http://127.0.0.1:5173', 20_000, vite);
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt++) {
     const webdriver = startService(tauriWd, ['--port', '4444', '--log-level', 'warn']);
     try {
-      await waitForUrl('http://127.0.0.1:4444/status');
+      await waitForUrl('http://127.0.0.1:4444/status', 20_000, webdriver);
       await run(pnpm, ['exec', 'wdio', 'run', 'wdio.conf.mjs'], {
         abortOnPattern: /plugin request failed|no pending script with that id|lock poisoned|failed to lock pending scripts/i,
         captureOutput: true,
@@ -134,5 +176,5 @@ try {
   console.error(error.message);
   process.exitCode = 1;
 } finally {
-  stopServices();
+  await stopServices();
 }

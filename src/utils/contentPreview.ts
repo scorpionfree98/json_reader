@@ -309,7 +309,8 @@ const hideImagePreview = (): void => {
   if (imagePreviewHideTimer) clearTimeout(imagePreviewHideTimer);
   imagePreviewHideTimer = setTimeout(() => {
     imagePreviewHideTimer = null;
-    if ($(document.activeElement).closest('.image-preview-source').length) return;
+    const activeElement = document.activeElement;
+    if (activeElement && $(activeElement).closest('.image-preview-source').length) return;
     ensureImagePreviewPopover().removeClass('visible').find('img').removeAttr('src').off('.imagePreview');
   }, 50);
 };

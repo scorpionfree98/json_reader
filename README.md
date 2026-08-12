@@ -95,6 +95,8 @@
 - **JSON 文本（JSON Str）**: 仅当最外层 JSON 值本身是字符串时，再解析一次字符串内部的 JSON
   - 例如输入 `"{\"name\":\"Alice\"}"`，开启后会得到对象 `{ "name": "Alice" }`
   - 只解析最外层一次，不会递归解析普通对象字段里的 JSON 字符串
+- **数据完整性保护**: 检测会被 JavaScript 静默改写的高精度或溢出数字并停止格式化，避免错误值覆盖原文
+- **大型数据保护**: 编辑器视图超过 10,000 个节点时暂停完整 DOM 渲染，可切换分屏视图按每批 500 项加载
 - **富内容**: 预览 JSON 字符串值中的 HTML 图片、表格和 Base64 图片
   - HTML 在无脚本权限的 sandbox iframe 中显示
   - 普通尖括号文本（例如 `<image>`）仍按文本显示
@@ -145,11 +147,17 @@ pnpm exec tsc --noEmit
 # 前端生产构建
 pnpm build
 
+# 浏览器 UI 自动化测试
+pnpm test:playwright
+
 # Rust 静态检查
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
-# 真实 Tauri + WebDriver 端到端测试（当前 93 项）
-pnpm test:tauri:e2e
+# 真实 Tauri + WebDriver 端到端测试（当前 113 项）
+pnpm test:e2e
+
+# 单元、类型、构建、浏览器 UI 和 Tauri E2E
+pnpm test:all
 ```
 
 Tauri E2E 需要 Node 20-25，并要求 `tauri-wd` 可从 `PATH` 访问。测试脚本会启动和清理 Vite、WebDriver 与 Tauri 进程；仅对已知的 WebDriver 插件锁故障自动重试一次。

@@ -12,6 +12,8 @@ import {
 } from '@tauri-apps/plugin-autostart';
 import { readText as readClipboardText, writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 import $ from 'jquery';
+import { AsyncActionQueue } from './utils/asyncActionQueue';
+import { DEFAULT_MAX_EDITOR_RENDER_NODES, exceedsJsonNodeLimit } from './utils/jsonComplexity';
 import jsonTool from './utils/jsonTool';
 import { SettingsStore } from './utils/settingsStore';
 import { initSplitResizer } from './utils/splitResizer';
@@ -58,6 +60,9 @@ const isTauri = () => windowController.isTauri;
 type ViewMode = WorkbenchMode;
 const settings = new SettingsStore();
 const workbench = new WorkbenchController({ mode: settings.getViewMode() });
+const topActionQueue = new AsyncActionQueue();
+const autostartActionQueue = new AsyncActionQueue();
+const updateDisabledActionQueue = new AsyncActionQueue();
 
 // 禁用更新状态
 let isUpdateDisabled = settings.getUpdateDisabled();
@@ -102,11 +107,7 @@ function setSourceContent(value: string) {
 
 function syncContentToMode(mode: ViewMode) {
   setSourceContent(workbench.source);
-  if (mode === 'split') {
-    const result = workbench.parse();
-    if (result.ok) jsonTool.updateTreeView(result.value, workbench.renderOptions);
-    else $('#tree-view').empty();
-  }
+  if (mode === 'split') refreshTreeView();
 }
 
 function syncSettingsToSplitMode(mode: ViewMode) {
@@ -178,66 +179,78 @@ async function copyOutputToClipboard(text: string) {
   }
 }
 
-export async function toggleTop() {
+const syncTopState = (enabled: boolean): void => {
+  byId('topCheck')?.prop('checked', enabled);
+  $('#splitTopBtn').toggleClass('active', enabled);
+  layui.form.render('checkbox');
+};
+
+export function toggleTop(requestedState?: boolean): Promise<void> {
   if (!appWindow) {
     showLayuiMsg('置顶功能仅在应用模式中可用');
-    return;
+    return Promise.resolve();
   }
-  try {
-    const current = await appWindow.isAlwaysOnTop();
-    const newStatus = !current;
-    await appWindow.setAlwaysOnTop(newStatus);
-    $('#splitTopBtn').toggleClass('active', newStatus);
-    showLayuiMsg(`窗口${newStatus ? '已' : '未'}置顶`);
-  } catch (error) {
-    console.error('切换置顶状态失败:', error);
-    showLayuiMsg('操作失败');
-    // 恢复 checkbox 状态
+  return topActionQueue.run(async () => {
     try {
       const current = await appWindow.isAlwaysOnTop();
-      byId('topCheck')?.prop('checked', current);
-      $('#splitTopBtn').toggleClass('active', current);
-      layui.form.render('checkbox');
-    } catch (e) {
-      console.error('恢复状态失败:', e);
+      const next = requestedState ?? !current;
+      if (next !== current) await appWindow.setAlwaysOnTop(next);
+      await invoke('set_always_on_top');
+      syncTopState(next);
+      showLayuiMsg(`窗口${next ? '已' : '未'}置顶`);
+    } catch (error) {
+      console.error('切换置顶状态失败:', error);
+      showLayuiMsg('操作失败');
+      try {
+        syncTopState(await appWindow.isAlwaysOnTop());
+      } catch (recoveryError) {
+        console.error('恢复置顶状态失败:', recoveryError);
+      }
     }
-  }
+  });
 }
 
-export async function toggleAutostart() {
+export function toggleAutostart(requestedState?: boolean): Promise<void> {
   if (!isTauri()) {
     showLayuiMsg('自启动功能仅在应用模式中可用');
-    return;
+    return Promise.resolve();
   }
-  try {
-    const current = await isAutostartEnabled();
-    const newStatus = !current;
-    if (newStatus) {
-      await enableAutostart();
-    } else {
-      await disableAutostart();
-    }
-    await invoke('set_autostart');
-    showLayuiMsg(`开机自启动${newStatus ? '已启用' : '已禁用'}`);
-  } catch (error) {
-    console.error('切换自启动失败:', error);
-    showLayuiMsg('操作失败');
+  return autostartActionQueue.run(async () => {
     try {
       const current = await isAutostartEnabled();
-      byId('autoStart')?.prop('checked', current);
+      const next = requestedState ?? !current;
+      if (next !== current) {
+        if (next) await enableAutostart();
+        else await disableAutostart();
+      }
+      await invoke('set_autostart');
+      byId('autoStart')?.prop('checked', next);
       layui.form.render('checkbox');
-    } catch (e) {
-      console.error('恢复状态失败:', e);
+      showLayuiMsg(`开机自启动${next ? '已启用' : '已禁用'}`);
+    } catch (error) {
+      console.error('切换自启动失败:', error);
+      showLayuiMsg('操作失败');
+      try {
+        byId('autoStart')?.prop('checked', await isAutostartEnabled());
+        layui.form.render('checkbox');
+      } catch (recoveryError) {
+        console.error('恢复自启动状态失败:', recoveryError);
+      }
     }
-  }
+  });
 }
 
 export function clearInputContent() {
   setSourceContent('');
-  $('#tree-view').empty();
-  $('#json-display').empty();
+  clearRenderedOutput();
   setValidationState('empty', '等待输入 JSON');
   showLayuiMsg('已清空内容');
+}
+
+function clearRenderedOutput() {
+  clearSearch('editor');
+  clearSearch('tree');
+  $('#tree-view, #json-display').empty();
 }
 
 function setValidationState(state: 'empty' | 'valid' | 'invalid', message: string) {
@@ -262,12 +275,29 @@ function setValidationState(state: 'empty' | 'valid' | 'invalid', message: strin
 export function formatJson() {
   const result = workbench.parse();
   if (result.ok === false && result.kind === 'empty') {
+    clearRenderedOutput();
+    setValidationState('empty', '等待输入 JSON');
     showLayuiMsg('请输入JSON字符串');
     return;
   }
   if (result.ok === false && result.kind === 'too-large') {
+    clearRenderedOutput();
     setValidationState('invalid', '输入超过 5MB');
+    if (workbench.mode === 'split') {
+      $('#tree-view').html('<div class="tree-error-state">输入超过 5MB</div>');
+    }
     showLayuiMsg('输入内容过大（超过5MB），请缩减后重试');
+    return;
+  }
+  if (result.ok === false && result.kind === 'unsafe-number') {
+    const token = result.token.length > 32 ? `${result.token.slice(0, 29)}...` : result.token;
+    const message = `数字 ${token} 超出安全精度范围`;
+    clearRenderedOutput();
+    setValidationState('invalid', message);
+    if (workbench.mode === 'split') {
+      $('#tree-view').html(`<div class="tree-error-state">${message}</div>`);
+    }
+    showLayuiMsg('检测到可能损失精度的数字，已停止格式化');
     return;
   }
   if (result.ok === true) {
@@ -278,7 +308,7 @@ export function formatJson() {
 
   if (result.ok === false && result.kind === 'too-deep') {
     const message = `JSON 嵌套超过 ${result.maxDepth} 层`;
-    $('#json-display').empty();
+    clearRenderedOutput();
     setValidationState('invalid', message);
     if (workbench.mode === 'split') {
       $('#tree-view').html(`<div class="tree-error-state">${message}</div>`);
@@ -288,7 +318,7 @@ export function formatJson() {
   }
 
   if (result.ok === false && result.kind === 'format-error') {
-    $('#json-display').empty();
+    clearRenderedOutput();
     setValidationState('invalid', 'JSON 格式化失败');
     if (workbench.mode === 'split') {
       $('#tree-view').html('<div class="tree-error-state">JSON 格式化失败</div>');
@@ -300,8 +330,8 @@ export function formatJson() {
 
   if (result.ok === false && result.kind === 'invalid') {
     const errorInfo = jsonTool.parseJsonError(result.errorSource, result.error.message);
+    clearRenderedOutput();
     byId('valid-result')?.html(errorInfo).removeClass('es-pass es-empty').addClass('es-fail');
-    $('#json-display').empty();
     if (workbench.mode === 'split') {
       $('#tree-view').html('<div class="tree-error-state">JSON 格式错误</div>');
       setValidationState('invalid', 'JSON 格式错误');
@@ -312,11 +342,30 @@ export function formatJson() {
 
 function renderParsedJson(jsonObj: unknown, formatted = JSON.stringify(jsonObj, null, 2)) {
   workbench.commitFormattedResult(jsonObj, formatted);
+  clearSearch('editor');
+  clearSearch('tree');
   $('#sourceText, #splitSourceText').val(formatted);
   setValidationState('valid', 'JSON 有效');
 
   if (workbench.mode === 'split') {
     jsonTool.updateTreeView(jsonObj, workbench.renderOptions);
+    return;
+  }
+
+  if (exceedsJsonNodeLimit(jsonObj)) {
+    const $switchButton = $('<button type="button">')
+      .addClass('json-render-limit-action')
+      .text('切换到分屏视图')
+      .on('click', () => switchViewMode('split'));
+    $('#json-display').empty().append(
+      $('<div>')
+        .addClass('json-render-limit')
+        .append(
+          $('<strong>').text('数据量较大，已暂停编辑器完整渲染'),
+          $('<span>').text(`超过 ${DEFAULT_MAX_EDITOR_RENDER_NODES.toLocaleString()} 个节点。源码已完成格式化，可在分屏视图中按需加载。`),
+          $switchButton
+        )
+    );
     return;
   }
 
@@ -370,11 +419,11 @@ const showUpdateDialog = (details: SafeUpdateDetails, actions: UpdateDialogActio
         </div>
       `,
       btn: ['立即更新', '稍后再说'],
-      yes: async function(index) {
+      yes: async function(index: number) {
         layer.close(index);
         await actions.confirm();
       },
-      btn2: function(index) {
+      btn2: function(index: number) {
         layer.close(index);
         actions.cancel();
       }
@@ -423,6 +472,7 @@ const trayController = new TrayController({
       isUpdateDisabled = disabled;
       settings.setUpdateDisabled(disabled);
       byId('disableUpdate')?.prop('checked', disabled);
+      layui.form.render('checkbox');
       showLayuiMsg(`自动更新已${disabled ? '禁用' : '启用'}`);
     }
   },
@@ -472,6 +522,8 @@ function refreshTreeView() {
   } else {
     const message = result.kind === 'too-large'
       ? '输入内容过大（超过5MB），请缩减后重试'
+      : result.kind === 'unsafe-number'
+        ? `数字 ${result.token.length > 32 ? `${result.token.slice(0, 29)}...` : result.token} 超出安全精度范围`
       : result.kind === 'too-deep'
         ? `JSON 嵌套超过 ${result.maxDepth} 层`
         : result.kind === 'format-error'
@@ -828,7 +880,7 @@ function bindViewModeEvents() {
   });
 
   // 主工具栏最大化按钮
-  $('#maximizeBtn').off('click').on('click', () => windowController.toggleMaximize('#maximizeBtn'));
+  $('#maximizeBtn').off('click').on('click', windowController.toggleMaximize);
 
   // 分屏模式编辑器实时同步（带防抖）
   const debouncedTreeUpdate = debounce((text: string) => {
@@ -914,15 +966,6 @@ function bindSplitToolbarEvents() {
 
   $('#splitTopBtn').off('click').on('click', async function() {
     await toggleTop();
-    if (appWindow) {
-      try {
-        const current = await appWindow.isAlwaysOnTop();
-        byId('topCheck')?.prop('checked', current);
-        layui.form.render('checkbox');
-      } catch (e) {
-        console.error('同步置顶状态失败:', e);
-      }
-    }
   });
 
   // 复制格式选择器 - 同步到主选择器
@@ -936,7 +979,7 @@ function bindSplitToolbarEvents() {
 
   // 窗口控制按钮
   $('#splitMinimize').off('click').on('click', windowController.minimize);
-  $('#splitMaximize').off('click').on('click', () => windowController.toggleMaximize('#splitMaximize'));
+  $('#splitMaximize').off('click').on('click', windowController.toggleMaximize);
   $('#splitClose').off('click').on('click', windowController.close);
 
   // 初始化可拖动分割线
@@ -964,7 +1007,7 @@ function initLayuiForm() {
     const form = layui.form;
     form.render();
 
-    form.on('checkbox(explain)', function () {
+    form.on('checkbox(explain)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setExplain(enabled);
       $('#splitExplainBtn').toggleClass('active', enabled);
@@ -972,44 +1015,46 @@ function initLayuiForm() {
       showLayuiMsg(`转义状态已${enabled ? '启用' : '禁用'}`);
     });
 
-    form.on('checkbox(renderHtml)', function () {
+    form.on('checkbox(renderHtml)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setRichContent(enabled);
       byId('splitRenderHtml')?.prop('checked', enabled);
       formatJson();
     });
 
-    form.on('checkbox(parseJsonString)', function () {
+    form.on('checkbox(parseJsonString)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setParseJsonString(enabled);
       byId('splitParseJsonString')?.prop('checked', enabled);
       formatJson();
     });
 
-    form.on('checkbox(topCheck)', function () {
-      toggleTop();
+    form.on('checkbox(topCheck)', function (this: HTMLInputElement) {
+      void toggleTop(this.checked);
     });
 
-    form.on('checkbox(autoStart)', function () {
-      toggleAutostart();
+    form.on('checkbox(autoStart)', function (this: HTMLInputElement) {
+      void toggleAutostart(this.checked);
     });
 
-    form.on('checkbox(disableUpdate)', async function () {
+    form.on('checkbox(disableUpdate)', function (this: HTMLInputElement) {
       const newStatus = $(this).prop('checked');
-      try {
-        await invoke('set_update_disabled', { disabled: newStatus });
-        isUpdateDisabled = newStatus;
-        settings.setUpdateDisabled(newStatus);
-        showLayuiMsg(`自动更新已${newStatus ? '禁用' : '启用'}`);
-      } catch (error) {
-        console.error('设置更新状态失败:', error);
-        showLayuiMsg('操作失败');
-        byId('disableUpdate')?.prop('checked', isUpdateDisabled);
-        layui.form.render('checkbox');
-      }
+      void updateDisabledActionQueue.run(async () => {
+        try {
+          await invoke('set_update_disabled', { disabled: newStatus });
+          isUpdateDisabled = newStatus;
+          settings.setUpdateDisabled(newStatus);
+          showLayuiMsg(`自动更新已${newStatus ? '禁用' : '启用'}`);
+        } catch (error) {
+          console.error('设置更新状态失败:', error);
+          showLayuiMsg('操作失败');
+          byId('disableUpdate')?.prop('checked', isUpdateDisabled);
+          layui.form.render('checkbox');
+        }
+      });
     });
 
-    form.on('select(copyFormat)', function (data) {
+    form.on('select(copyFormat)', function (data: { value: string }) {
       syncCopyFormat(data.value);
     });
   });
@@ -1069,6 +1114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {
       console.warn('恢复窗口状态失败:', e);
     }
+    await windowController.syncMaximizeState();
   }
 
   await initCheckboxStates();
