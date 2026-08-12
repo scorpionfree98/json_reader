@@ -1,4 +1,5 @@
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const HOSTILE_MESSAGE_TYPE = 'json-reader-hostile-executed';
 
 export const validCases = {
   primitives: {
@@ -88,6 +89,41 @@ export const imageCases = {
   expectedDimensions: '1 × 1',
   nonImageBase64: 'VGhpcyBpcyBqdXN0IHRleHQsIG5vdCBhbiBpbWFnZS4='
 };
+
+export const hostileContentCases = {
+  messageType: HOSTILE_MESSAGE_TYPE,
+  executableHtml: {
+    scriptTag: `<script>parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'script' }, '*')</script><p>script fixture</p>`,
+    eventAttribute: `<img src="invalid://hostile-image" onerror="parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'event-attribute' }, '*')">`,
+    javascriptUrl: `<a href="javascript:parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'javascript-url' }, '*')">dangerous link</a>`,
+    svgMarkup: `<svg xmlns="http://www.w3.org/2000/svg" onload="parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'svg-onload' }, '*')"><script>parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'svg-script' }, '*')</script><text>svg fixture</text></svg>`
+  },
+  unsafeImageValues: {
+    malformedPayload: 'data:image/png;base64,AAAA',
+    malformedPadding: 'data:image/png;base64,iVBORw0KGgo===',
+    unsupportedAvif: 'data:image/avif;base64,AAAA',
+    svgDataUrl: `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>').toString('base64')}`,
+    htmlDataUrl: `data:text/html;base64,${Buffer.from(`<script>parent.postMessage({ type: '${HOSTILE_MESSAGE_TYPE}', source: 'html-data-url' }, '*')</script>`).toString('base64')}`
+  }
+};
+
+export const createOversizedHtmlCase = (contentLength = 1024 * 1024) =>
+  `<table><tbody><tr><td>${'x'.repeat(contentLength)}</td></tr></tbody></table>`;
+
+export const createDeeplyNestedCase = (depth = 80) => {
+  const root = {};
+  let current = root;
+  for (let level = 0; level < depth; level += 1) {
+    current[`level-${level}`] = {};
+    current = current[`level-${level}`];
+  }
+  current.value = 'deep-leaf';
+  return root;
+};
+
+export const createLargeFlatCase = (count = 1200) => Object.fromEntries(
+  Array.from({ length: count }, (_, index) => [`key-${index}`, `value-${index}`])
+);
 
 export const createLargeCase = (count = 1000) => ({
   generatedAt: '2026-08-11T00:00:00.000Z',

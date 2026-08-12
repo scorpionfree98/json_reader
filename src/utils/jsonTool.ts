@@ -2,9 +2,8 @@ import $ from 'jquery';
 import { writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 import {
   bindImagePreviewEvents,
-  createSandboxedHtmlPreview,
+  createHtmlPreviewCard,
   detectImagePreview,
-  isRichContentEnabled,
   markImagePreview
 } from './contentPreview';
 import {
@@ -20,15 +19,25 @@ export { findJsonErrorPosition } from './jsonError';
 
 // ==================== 类型定义 ====================
 interface JsonTool {
-  renderJson(obj: any, path: string): JQuery;
+  renderJson(obj: any, path: string, options?: JsonRenderOptions): JQuery;
   addEventListeners(): void;
   copyToClipboard(value: any, path?: string): void;
   formatKeyPath(path: string, format: string): string;
   parsePathTokens(path: string): PathToken[];
-  renderTreeView(obj: any, container: JQuery, path?: string, isRoot?: boolean): void;
-  updateTreeView(obj: any): void;
+  renderTreeView(obj: any, container: JQuery, path?: string, isRoot?: boolean, options?: JsonRenderOptions): void;
+  updateTreeView(obj: any, options?: JsonRenderOptions): void;
   parseJsonError(jsonStr: string, errorMsg: string): string;
 }
+
+export interface JsonRenderOptions {
+  explain: boolean;
+  richContent: boolean;
+}
+
+const DEFAULT_RENDER_OPTIONS: JsonRenderOptions = {
+  explain: false,
+  richContent: false
+};
 
 // ==================== 工具函数 ====================
 
@@ -95,7 +104,7 @@ const formatKeyPath = (path: string, format: string): string => {
 
 // ==================== JSON 渲染器 ====================
 
-const createValueElement = (value: any, type: string, path: string): JQuery => {
+const createValueElement = (value: any, type: string, path: string, options: JsonRenderOptions): JQuery => {
   const $el = $('<span>')
     .addClass(`json-${type}`)
     .text(String(value))
@@ -103,12 +112,14 @@ const createValueElement = (value: any, type: string, path: string): JQuery => {
 
   if (type === 'string') {
     const strValue = value as string;
-    const isExplain = $('#explain')?.prop('checked') || false;
+    const isExplain = options.explain;
     const imagePreview = detectImagePreview(strValue);
-    const htmlPreview = isRichContentEnabled() ? createSandboxedHtmlPreview(strValue) : null;
+    const htmlPreview = options.richContent
+      ? createHtmlPreviewCard(strValue, { copySource: source => jsonTool.copyToClipboard(source) })
+      : null;
     markImagePreview($el, strValue);
 
-    if (isRichContentEnabled() && imagePreview) {
+    if (options.richContent && imagePreview) {
       $el.empty().append($('<img>').addClass('inline-image-preview').attr('src', imagePreview.src).attr('alt', imagePreview.format));
     } else if (htmlPreview) {
       $el.empty().append(htmlPreview);
@@ -150,6 +161,7 @@ const renderCollection = (
   obj: any,
   path: string,
   isArray: boolean,
+  options: JsonRenderOptions,
   renderItem: (item: any, index: number | string, itemPath: string) => JQuery
 ): JQuery => {
   const $div = $('<div>').addClass(isArray ? 'json-array' : 'json-object');
@@ -168,7 +180,7 @@ const renderCollection = (
       ? $('<li>').append(renderItem(value, key, newPath))
       : $('<li>')
           .append(createKeyElement(String(key), newPath))
-          .append(jsonTool.renderJson(value, newPath));
+          .append(jsonTool.renderJson(value, newPath, options));
     if (index < entries.length - 1) $li.append(',');
     $ul.append($li);
   });
@@ -182,7 +194,7 @@ const renderCollection = (
 export const jsonTool: JsonTool = {
   parseJsonError,
 
-  renderJson(obj: any, path: string = ''): JQuery {
+  renderJson(obj: any, path: string = '', options: JsonRenderOptions = DEFAULT_RENDER_OPTIONS): JQuery {
     if (parsePathTokens(path).length > MAX_RENDER_DEPTH) {
       return $('<span>').addClass('json-depth-limit').text('[max depth reached]');
     }
@@ -190,26 +202,26 @@ export const jsonTool: JsonTool = {
     const type = typeof obj;
 
     if (obj === null) {
-      return createValueElement(null, 'null', path);
+      return createValueElement(null, 'null', path, options);
     }
 
     if (type === 'number' || type === 'boolean') {
-      return createValueElement(obj, type, path);
+      return createValueElement(obj, type, path, options);
     }
 
     if (type === 'string') {
-      return createValueElement(obj, 'string', path);
+      return createValueElement(obj, 'string', path, options);
     }
 
     if (Array.isArray(obj)) {
-      return renderCollection(obj, path, true, (item, idx, itemPath) =>
-        this.renderJson(item, itemPath)
+      return renderCollection(obj, path, true, options, (item, idx, itemPath) =>
+        this.renderJson(item, itemPath, options)
       );
     }
 
     if (type === 'object') {
-      return renderCollection(obj, path, false, (item, key, itemPath) =>
-        this.renderJson(item, itemPath)
+      return renderCollection(obj, path, false, options, (item, key, itemPath) =>
+        this.renderJson(item, itemPath, options)
       );
     }
 
@@ -250,7 +262,7 @@ export const jsonTool: JsonTool = {
   },
 
   async copyToClipboard(value: any, path?: string): Promise<void> {
-    const valueText = String(value ?? '');
+    const valueText = value === undefined ? '' : String(value);
     console.log('copyToClipboard called with:', valueText.substring(0, 100));
 
     try {
@@ -281,20 +293,27 @@ export const jsonTool: JsonTool = {
   formatKeyPath,
   parsePathTokens,
 
-  renderTreeView(obj: any, container: JQuery, path: string = '', isRoot: boolean = true): void {
+  renderTreeView(
+    obj: any,
+    container: JQuery,
+    path: string = '',
+    isRoot: boolean = true,
+    options: JsonRenderOptions = DEFAULT_RENDER_OPTIONS
+  ): void {
     renderTree(obj, container, {
       copyToClipboard: value => jsonTool.copyToClipboard(value),
       formatPath: valuePath => formatKeyPath(valuePath, getCopyFormat()),
-      isExplainEnabled: () => Boolean($('#explain').prop('checked'))
+      explainEnabled: options.explain,
+      richContentEnabled: options.richContent
     }, path, isRoot);
   },
 
-  updateTreeView(obj: any): void {
+  updateTreeView(obj: any, options: JsonRenderOptions = DEFAULT_RENDER_OPTIONS): void {
     const $treeView = $('#tree-view');
     $treeView.empty();
 
     if (obj !== undefined) {
-      this.renderTreeView(obj, $treeView, '', true);
+      this.renderTreeView(obj, $treeView, '', true, options);
     }
   }
 };

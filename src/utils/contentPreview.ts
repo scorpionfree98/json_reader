@@ -6,22 +6,150 @@ export interface ImagePreviewInfo {
   format: string;
 }
 
-const MAX_IMAGE_PREVIEW_BASE64_LENGTH = 20 * 1024 * 1024;
-const imageSignatures: Array<{ prefix: string; mimeType: string; format: string }> = [
-  { prefix: 'iVBORw0KGgo', mimeType: 'image/png', format: 'PNG' },
-  { prefix: '/9j/', mimeType: 'image/jpeg', format: 'JPEG' },
-  { prefix: 'R0lGOD', mimeType: 'image/gif', format: 'GIF' },
-  { prefix: 'UklGR', mimeType: 'image/webp', format: 'WebP' },
-  { prefix: 'Qk', mimeType: 'image/bmp', format: 'BMP' },
-  { prefix: 'AAABAA', mimeType: 'image/x-icon', format: 'ICO' }
+export interface HtmlPreviewOptions {
+  copySource: (source: string) => void | Promise<void>;
+}
+
+export const MAX_HTML_PREVIEW_LENGTH = 256 * 1024;
+export const MAX_IMAGE_PREVIEW_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_PREVIEW_BASE64_LENGTH = Math.ceil(MAX_IMAGE_PREVIEW_BYTES / 3) * 4;
+const MAX_BASE64_LINE_WHITESPACE = Math.ceil(MAX_IMAGE_PREVIEW_BASE64_LENGTH / 76) * 2;
+
+interface ImageSignature {
+  mimeType: string;
+  mimeAliases: string[];
+  format: string;
+  minimumBytes: number;
+  matches: (bytes: number[]) => boolean;
+}
+
+const imageSignatures: ImageSignature[] = [
+  {
+    mimeType: 'image/png',
+    mimeAliases: ['image/png'],
+    format: 'PNG',
+    minimumBytes: 33,
+    matches: bytes => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+      .every((value, index) => bytes[index] === value)
+  },
+  {
+    mimeType: 'image/jpeg',
+    mimeAliases: ['image/jpeg', 'image/jpg'],
+    format: 'JPEG',
+    minimumBytes: 4,
+    matches: bytes => bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  },
+  {
+    mimeType: 'image/gif',
+    mimeAliases: ['image/gif'],
+    format: 'GIF',
+    minimumBytes: 13,
+    matches: bytes => ['GIF87a', 'GIF89a'].some(signature =>
+      [...signature].every((value, index) => bytes[index] === value.charCodeAt(0)))
+  },
+  {
+    mimeType: 'image/webp',
+    mimeAliases: ['image/webp'],
+    format: 'WebP',
+    minimumBytes: 20,
+    matches: bytes =>
+      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  },
+  {
+    mimeType: 'image/bmp',
+    mimeAliases: ['image/bmp'],
+    format: 'BMP',
+    minimumBytes: 26,
+    matches: bytes => bytes[0] === 0x42 && bytes[1] === 0x4d
+  },
+  {
+    mimeType: 'image/x-icon',
+    mimeAliases: ['image/x-icon', 'image/vnd.microsoft.icon'],
+    format: 'ICO',
+    minimumBytes: 22,
+    matches: bytes =>
+      bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01 && bytes[3] === 0x00
+  }
 ];
 
-export const isRichContentEnabled = (): boolean =>
-  Boolean($('#renderHtml').prop('checked') || $('#splitRenderHtml').prop('checked'));
+const normalizeBase64 = (value: string): { base64: string; byteLength: number } | null => {
+  if (value.length > MAX_IMAGE_PREVIEW_BASE64_LENGTH + MAX_BASE64_LINE_WHITESPACE) return null;
+  const base64 = value.replace(/[\t\n\f\r ]/g, '');
+  if (!base64 || base64.length % 4 !== 0 || !/^[a-z0-9+/]+={0,2}$/i.test(base64)) return null;
+
+  const paddingLength = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  const lastValue = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    .indexOf(base64[base64.length - paddingLength - 1]);
+  if ((paddingLength === 2 && (lastValue & 0x0f) !== 0) ||
+      (paddingLength === 1 && (lastValue & 0x03) !== 0)) return null;
+
+  const byteLength = (base64.length / 4) * 3 - paddingLength;
+  return byteLength <= MAX_IMAGE_PREVIEW_BYTES ? { base64, byteLength } : null;
+};
+
+const detectImageSignature = (base64: string, byteLength: number): ImageSignature | null => {
+  try {
+    const header = atob(base64.slice(0, 32));
+    const bytes = Array.from(header, character => character.charCodeAt(0));
+    return imageSignatures.find(signature =>
+      byteLength >= signature.minimumBytes && signature.matches(bytes)) || null;
+  } catch {
+    return null;
+  }
+};
+
+const expandEscapedWhitespace = (value: string): string => value
+  .replace(/\\r\\n/g, '\n')
+  .replace(/\\n|\\r/g, '\n')
+  .replace(/\\t/g, '\t');
+
+const expandEscapedWhitespaceInHtmlText = (html: string): string => {
+  let result = '';
+  let textStart = 0;
+  let index = 0;
+
+  while (index < html.length) {
+    if (html[index] !== '<') {
+      index += 1;
+      continue;
+    }
+
+    result += expandEscapedWhitespace(html.slice(textStart, index));
+    const tagStart = index;
+    let quote: '"' | "'" | null = null;
+    let tagClosed = false;
+    index += 1;
+
+    while (index < html.length) {
+      const character = html[index];
+      if (quote) {
+        if (character === quote) quote = null;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === '>') {
+        index += 1;
+        tagClosed = true;
+        break;
+      }
+      index += 1;
+    }
+
+    if (!tagClosed) {
+      return result + expandEscapedWhitespace(html.slice(tagStart));
+    }
+
+    result += html.slice(tagStart, index);
+    textStart = index;
+  }
+
+  return result + expandEscapedWhitespace(html.slice(textStart));
+};
 
 export const createSandboxedHtmlPreview = (html: string): JQuery | null => {
-  if (!/<\/?[a-z][^>]*>/i.test(html)) return null;
-  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:"><style>body{padding:10px;margin:0;font:14px sans-serif;color:#222}table{border-collapse:collapse}th,td{padding:6px 9px;border:1px solid #cbd5cb}img{max-width:100%;height:auto}</style></head><body>${html}</body></html>`;
+  if (html.length > MAX_HTML_PREVIEW_LENGTH || !/<\/?[a-z][^>]*>/i.test(html)) return null;
+  const previewHtml = expandEscapedWhitespaceInHtmlText(html);
+  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><style>:root{color-scheme:light}*{box-sizing:border-box}body{padding:18px;margin:0;background:#fffefa;color:#26322b;font:14px/1.7 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:pre-wrap;overflow-wrap:anywhere}table{width:100%;border-spacing:0;border-collapse:separate;border:1px solid #d9dfda;border-radius:8px;overflow:hidden;white-space:normal}th,td{padding:8px 11px;border-right:1px solid #e4e8e5;border-bottom:1px solid #e4e8e5;text-align:left;vertical-align:top}th{background:#f1f4f1;font-weight:700}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}img{display:block;max-width:100%;height:auto;margin:8px 0;border-radius:7px}pre,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}a{color:#176b4d}</style></head><body>${previewHtml}</body></html>`;
   return $('<iframe>')
     .addClass('html-inline-preview')
     .attr('title', 'HTML 富内容预览')
@@ -29,26 +157,87 @@ export const createSandboxedHtmlPreview = (html: string): JQuery | null => {
     .attr('srcdoc', documentHtml);
 };
 
+export const createHtmlPreviewCard = (html: string, options: HtmlPreviewOptions): JQuery | null => {
+  const $iframe = createSandboxedHtmlPreview(html);
+  if (!$iframe) return null;
+
+  const $previewButton = $('<button type="button">')
+    .addClass('html-preview-tab active')
+    .attr('aria-pressed', 'true')
+    .text('预览');
+  const $sourceButton = $('<button type="button">')
+    .addClass('html-preview-tab')
+    .attr('aria-pressed', 'false')
+    .text('源码');
+  const $copyButton = $('<button type="button">')
+    .addClass('html-preview-copy')
+    .attr('title', '复制完整 HTML 原文')
+    .text('复制原文');
+  const $source = $('<code>').addClass('html-preview-source hidden').text(html);
+
+  const showSource = (visible: boolean): void => {
+    $iframe.toggleClass('hidden', visible);
+    $source.toggleClass('hidden', !visible);
+    $previewButton.toggleClass('active', !visible).attr('aria-pressed', String(!visible));
+    $sourceButton.toggleClass('active', visible).attr('aria-pressed', String(visible));
+  };
+
+  $previewButton.on('click', event => {
+    event.stopPropagation();
+    showSource(false);
+  });
+  $sourceButton.on('click', event => {
+    event.stopPropagation();
+    showSource(true);
+  });
+  $copyButton.on('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void options.copySource(html);
+  });
+
+  return $('<span>')
+    .addClass('html-preview-card')
+    .append(
+      $('<span>').addClass('html-preview-header').append(
+        $('<span>').addClass('html-preview-label').text('HTML'),
+        $('<span>').addClass('html-preview-actions').append($previewButton, $sourceButton, $copyButton)
+      ),
+      $('<span>').addClass('html-preview-content').append($iframe, $source)
+    );
+};
+
 export const detectImagePreview = (value: string): ImagePreviewInfo | null => {
   const trimmed = value.trim();
-  const dataUrlMatch = trimmed.match(/^data:(image\/(?:png|jpe?g|gif|webp|bmp|x-icon|vnd\.microsoft\.icon));base64,([a-z0-9+/=\s]+)$/i);
+  const dataUrlMatch = trimmed.match(/^data:([^;,]+);base64,([\s\S]*)$/i);
 
   if (dataUrlMatch) {
-    const base64 = dataUrlMatch[2].replace(/\s/g, '');
-    if (base64.length > MAX_IMAGE_PREVIEW_BASE64_LENGTH) return null;
-    const mimeType = dataUrlMatch[1].toLowerCase().replace('image/jpg', 'image/jpeg');
-    const format = mimeType.includes('jpeg') ? 'JPEG' : mimeType.split('/')[1].replace('x-icon', 'ICO').toUpperCase();
-    return { src: `data:${mimeType};base64,${base64}`, mimeType, format };
+    const declaredMimeType = dataUrlMatch[1].toLowerCase();
+    const declaredSignature = imageSignatures.find(signature =>
+      signature.mimeAliases.includes(declaredMimeType));
+    const normalized = normalizeBase64(dataUrlMatch[2]);
+    if (!declaredSignature || !normalized) return null;
+
+    const detectedSignature = detectImageSignature(normalized.base64, normalized.byteLength);
+    if (detectedSignature !== declaredSignature) return null;
+    return {
+      src: `data:${detectedSignature.mimeType};base64,${normalized.base64}`,
+      mimeType: detectedSignature.mimeType,
+      format: detectedSignature.format
+    };
   }
 
-  const base64 = trimmed.replace(/\s/g, '');
-  if (base64.length < 32 || base64.length > MAX_IMAGE_PREVIEW_BASE64_LENGTH || !/^[a-z0-9+/]+={0,2}$/i.test(base64)) {
-    return null;
-  }
+  if (/^data:/i.test(trimmed)) return null;
+  const normalized = normalizeBase64(trimmed);
+  if (!normalized) return null;
 
-  const signature = imageSignatures.find(item => base64.startsWith(item.prefix));
+  const signature = detectImageSignature(normalized.base64, normalized.byteLength);
   return signature
-    ? { src: `data:${signature.mimeType};base64,${base64}`, mimeType: signature.mimeType, format: signature.format }
+    ? {
+        src: `data:${signature.mimeType};base64,${normalized.base64}`,
+        mimeType: signature.mimeType,
+        format: signature.format
+      }
     : null;
 };
 

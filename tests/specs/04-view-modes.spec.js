@@ -53,8 +53,8 @@ describe('视图模式切换', () => {
     });
 
     expect(result.afterWidth).toBeGreaterThan(result.beforeWidth + 40);
-    expect(result.leftFlex).toContain('%');
-    expect(result.rightFlex).toContain('%');
+    expect(result.leftFlex).toContain('px');
+    expect(result.rightFlex).toContain('auto');
     expect(result.cursor).toBe('');
     expect(result.userSelect).toBe('');
   });
@@ -69,6 +69,60 @@ describe('视图模式切换', () => {
     await switchToSplit();
     const exists = await elementExists('#splitCollapseAll');
     expect(exists).toBe(true);
+  });
+
+  it('默认窗口宽度下分屏工具栏控件不应被隐藏或裁切', async () => {
+    await switchToSplit();
+    const state = await browser.execute(() => {
+      const panel = document.querySelector('#splitLeftPanel');
+      const controls = [
+        '#splitLeftPanel .view-mode-btn', '#splitFormatBtn', '#splitPasteBtn', '#splitClearBtn',
+        '#splitRenderHtml', '#splitParseJsonString', '#splitCheckUpdate', '#splitThemeToggle',
+        '#splitMinimize', '#splitMaximize', '#splitClose'
+      ];
+      const panelRect = panel.getBoundingClientRect();
+      return controls.map(selector => {
+        const element = document.querySelector(selector);
+        const target = element.matches('input') ? element.closest('label') : element;
+        const rect = target.getBoundingClientRect();
+        const style = getComputedStyle(target);
+        return {
+          selector,
+          visible: style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0,
+          insidePanel: rect.left >= panelRect.left - 1 && rect.right <= panelRect.right + 1
+        };
+      });
+    });
+
+    expect(state.every(control => control.visible)).toBe(true);
+    expect(state.filter(control => !control.insidePanel)).toEqual([]);
+  });
+
+  it('分割线拖到边界时仍应为两侧工具栏保留最小宽度', async () => {
+    await switchToSplit();
+    const state = await browser.execute(() => {
+      const resizer = document.querySelector('#splitResizer');
+      const leftPanel = document.querySelector('#splitLeftPanel');
+      const rightPanel = document.querySelector('#splitRightPanel');
+      const startX = resizer.getBoundingClientRect().left + 2;
+
+      resizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: startX }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: -1000 }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: -1000 }));
+
+      const leftRect = leftPanel.getBoundingClientRect();
+      const rightRect = rightPanel.getBoundingClientRect();
+      const toolbarRect = leftPanel.querySelector('.split-toolbar').getBoundingClientRect();
+      return {
+        leftWidth: leftRect.width,
+        rightWidth: rightRect.width,
+        toolbarInside: toolbarRect.left >= leftRect.left - 1 && toolbarRect.right <= leftRect.right + 1
+      };
+    });
+
+    expect(state.leftWidth).toBeGreaterThanOrEqual(419);
+    expect(state.rightWidth).toBeGreaterThanOrEqual(319);
+    expect(state.toolbarInside).toBe(true);
   });
 
   it('折叠全部应折叠 TreeView', async () => {

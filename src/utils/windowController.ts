@@ -65,7 +65,22 @@ export const createWindowController = (showMessage: ShowMessage) => {
       showMessage('窗口控制仅在应用模式中可用');
       return;
     }
-    await appWindow.close();
+    try {
+      await appWindow.close();
+    } catch (error) {
+      console.error('关闭窗口失败:', error);
+      showMessage('关闭窗口失败');
+    }
+  };
+
+  const startDragging = async (): Promise<void> => {
+    if (!appWindow) return;
+    try {
+      await appWindow.startDragging();
+    } catch (error) {
+      console.error('拖动窗口失败:', error);
+      showMessage('拖动窗口失败');
+    }
   };
 
   return {
@@ -73,6 +88,7 @@ export const createWindowController = (showMessage: ShowMessage) => {
     isTauri,
     close,
     minimize,
+    startDragging,
     toggleMaximize
   };
 };

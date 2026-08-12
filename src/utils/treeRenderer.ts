@@ -1,9 +1,8 @@
 import $ from 'jquery';
 import {
   bindImagePreviewEvents,
-  createSandboxedHtmlPreview,
+  createHtmlPreviewCard,
   detectImagePreview,
-  isRichContentEnabled,
   markImagePreview
 } from './contentPreview';
 import { hasLatex, renderLatexString } from './latexRenderer';
@@ -11,16 +10,27 @@ import { hasLatex, renderLatexString } from './latexRenderer';
 export interface TreeRendererOptions {
   copyToClipboard(value: string): void | Promise<void>;
   formatPath(path: string): string;
-  isExplainEnabled(): boolean;
+  explainEnabled: boolean;
+  richContentEnabled: boolean;
 }
 
 const TREE_RENDER_BATCH_SIZE = 500;
 const MAX_TREE_DEPTH = 50;
+const AUTO_EXPAND_PARENT_ENTRY_LIMIT = 50;
 
-const createTreeToggle = ($children: JQuery, $ellipsis: JQuery): JQuery => $('<span>')
+interface TreeRenderSession {
+  initialEntriesRemaining: number;
+}
+
+const createTreeToggle = (
+  $children: JQuery,
+  $ellipsis: JQuery,
+  initiallyCollapsed: boolean,
+  ensureChildrenRendered: () => void
+): JQuery => $('<span>')
   .addClass('tree-toggle')
-  .text('▼')
-  .attr('data-collapsed', 'false')
+  .text(initiallyCollapsed ? '▶' : '▼')
+  .attr('data-collapsed', String(initiallyCollapsed))
   .on('click', function() {
     const $toggle = $(this);
     const isCollapsed = $toggle.attr('data-collapsed') === 'true';
@@ -28,6 +38,7 @@ const createTreeToggle = ($children: JQuery, $ellipsis: JQuery): JQuery => $('<s
     const $footer = $parent.children('.tree-collection-footer').first();
 
     if (isCollapsed) {
+      ensureChildrenRendered();
       $children.removeClass('collapsed');
       $ellipsis.addClass('hidden');
       $footer.removeClass('hidden');
@@ -54,7 +65,7 @@ const renderTreeScalar = (
   key?: string
 ): void => {
   const type = value === null ? 'null' : typeof value;
-  const isExplain = options.isExplainEnabled();
+  const isExplain = options.explainEnabled;
   const $line = $('<div>').addClass('tree-item tree-line');
   $line.append($('<span>').addClass('tree-toggle-placeholder'));
   if (key !== undefined) $line.append(createTreeKey(key, path, options));
@@ -78,9 +89,11 @@ const renderTreeScalar = (
     },
     string: () => {
       const stringValue = value as string;
-      const richContentEnabled = isRichContentEnabled();
+      const richContentEnabled = options.richContentEnabled;
       const imagePreview = detectImagePreview(stringValue);
-      const htmlPreview = richContentEnabled ? createSandboxedHtmlPreview(stringValue) : null;
+      const htmlPreview = richContentEnabled
+        ? createHtmlPreviewCard(stringValue, { copySource: source => options.copyToClipboard(source) })
+        : null;
       const processedValue = isExplain
         ? stringValue.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
         : stringValue;
@@ -135,39 +148,69 @@ const renderTreeCollection = (
   isRoot = false,
   hasTrailingComma = false,
   key?: string,
-  depth = 0
+  depth = 0,
+  session: TreeRenderSession = { initialEntriesRemaining: TREE_RENDER_BATCH_SIZE },
+  autoExpand = isRoot
 ): void => {
   const $node = $('<div>').addClass(isRoot ? 'tree-node-root' : 'tree-node');
   const $header = $('<div>').addClass('tree-line tree-collection-header');
   const $bracketOpen = $('<span>').addClass('tree-bracket').text(isArray ? '[' : '{');
-  const $children = $('<div>').addClass('tree-children');
+  const initiallyCollapsed = !isRoot && !autoExpand;
+  const $children = $('<div>').addClass('tree-children').toggleClass('collapsed', initiallyCollapsed);
   const $bracketClose = $('<span>').addClass('tree-bracket').text(isArray ? ']' : '}');
-  const $footer = $('<div>').addClass('tree-line tree-collection-footer').append($bracketClose);
+  const $footer = $('<div>')
+    .addClass('tree-line tree-collection-footer')
+    .toggleClass('hidden', initiallyCollapsed)
+    .append($bracketClose);
   if (hasTrailingComma) $footer.append($('<span>').addClass('tree-comma').text(','));
 
-  const entries: Array<[string | number, unknown]> = isArray
-    ? (value as unknown[]).map((item, index) => [index, item])
-    : Object.entries(value);
+  const objectKeys = isArray ? null : Object.keys(value);
+  const entryCount = isArray ? (value as unknown[]).length : objectKeys!.length;
+  const getEntry = (index: number): [string | number, unknown] => {
+    if (isArray) return [index, (value as unknown[])[index]];
+    const entryKey = objectKeys![index];
+    return [entryKey, (value as Record<string, unknown>)[entryKey]];
+  };
   const $ellipsis = $('<span>')
-    .addClass('tree-ellipsis hidden')
-    .text(`… ${entries.length} ${isArray ? '项' : '个键'} ${isArray ? ']' : '}'}${hasTrailingComma ? ',' : ''}`);
-  const $toggle = createTreeToggle($children, $ellipsis);
-
-  $header.append($toggle);
-  if (key !== undefined) $header.append(createTreeKey(key, path, options));
-  $header.append($bracketOpen, $ellipsis);
+    .addClass('tree-ellipsis')
+    .toggleClass('hidden', !initiallyCollapsed)
+    .text(`… ${entryCount} ${isArray ? '项' : '个键'} ${isArray ? ']' : '}'}${hasTrailingComma ? ',' : ''}`);
 
   const renderEntry = ([entryKey, entryValue]: [string | number, unknown], index: number): void => {
     const itemPath = isArray ? `${path}[${entryKey}]` : `${path}[${JSON.stringify(String(entryKey))}]`;
-    const trailingComma = index < entries.length - 1;
+    const trailingComma = index < entryCount - 1;
     const childKey = isArray ? undefined : String(entryKey);
 
     if (depth >= MAX_TREE_DEPTH && entryValue !== null && typeof entryValue === 'object') {
       renderTreeScalar('[max depth reached]', itemPath, $children, trailingComma, options, childKey);
     } else if (Array.isArray(entryValue)) {
-      renderTreeCollection(entryValue, itemPath, $children, true, options, false, trailingComma, childKey, depth + 1);
+      renderTreeCollection(
+        entryValue,
+        itemPath,
+        $children,
+        true,
+        options,
+        false,
+        trailingComma,
+        childKey,
+        depth + 1,
+        session,
+        entryCount <= AUTO_EXPAND_PARENT_ENTRY_LIMIT && session.initialEntriesRemaining > 0
+      );
     } else if (entryValue !== null && typeof entryValue === 'object') {
-      renderTreeCollection(entryValue as Record<string, unknown>, itemPath, $children, false, options, false, trailingComma, childKey, depth + 1);
+      renderTreeCollection(
+        entryValue as Record<string, unknown>,
+        itemPath,
+        $children,
+        false,
+        options,
+        false,
+        trailingComma,
+        childKey,
+        depth + 1,
+        session,
+        entryCount <= AUTO_EXPAND_PARENT_ENTRY_LIMIT && session.initialEntriesRemaining > 0
+      );
     } else {
       renderTreeScalar(entryValue, itemPath, $children, trailingComma, options, childKey);
     }
@@ -175,13 +218,13 @@ const renderTreeCollection = (
 
   let renderedCount = 0;
   const $loadMore = $('<button>').attr('type', 'button').addClass('tree-load-more');
-  const renderNextBatch = (): void => {
+  const renderNextBatch = (limit = TREE_RENDER_BATCH_SIZE): void => {
     $loadMore.detach();
-    const nextCount = Math.min(renderedCount + TREE_RENDER_BATCH_SIZE, entries.length);
-    for (let index = renderedCount; index < nextCount; index += 1) renderEntry(entries[index], index);
+    const nextCount = Math.min(renderedCount + limit, entryCount);
+    for (let index = renderedCount; index < nextCount; index += 1) renderEntry(getEntry(index), index);
 
     renderedCount = nextCount;
-    const remaining = entries.length - renderedCount;
+    const remaining = entryCount - renderedCount;
     if (remaining > 0) {
       const batchCount = Math.min(TREE_RENDER_BATCH_SIZE, remaining);
       $loadMore
@@ -194,7 +237,24 @@ const renderTreeCollection = (
     event.stopPropagation();
     renderNextBatch();
   });
-  renderNextBatch();
+
+  let childrenInitialized = false;
+  const ensureChildrenRendered = (limit = TREE_RENDER_BATCH_SIZE): void => {
+    if (childrenInitialized) return;
+    childrenInitialized = true;
+    renderNextBatch(limit);
+  };
+  const $toggle = createTreeToggle($children, $ellipsis, initiallyCollapsed, ensureChildrenRendered);
+
+  $header.append($toggle);
+  if (key !== undefined) $header.append(createTreeKey(key, path, options));
+  $header.append($bracketOpen, $ellipsis);
+
+  if (!initiallyCollapsed && session.initialEntriesRemaining > 0) {
+    const initialCount = Math.min(TREE_RENDER_BATCH_SIZE, entryCount);
+    session.initialEntriesRemaining = Math.max(0, session.initialEntriesRemaining - initialCount);
+    ensureChildrenRendered(initialCount);
+  }
 
   $node.append($header, $children, $footer);
   container.append($node);
@@ -207,10 +267,23 @@ export const renderTreeView = (
   path = '',
   isRoot = true
 ): void => {
+  const session: TreeRenderSession = { initialEntriesRemaining: TREE_RENDER_BATCH_SIZE };
   if (Array.isArray(value)) {
-    renderTreeCollection(value, path, container, true, options, isRoot);
+    renderTreeCollection(value, path, container, true, options, isRoot, false, undefined, 0, session, true);
   } else if (value !== null && typeof value === 'object') {
-    renderTreeCollection(value as Record<string, unknown>, path, container, false, options, isRoot);
+    renderTreeCollection(
+      value as Record<string, unknown>,
+      path,
+      container,
+      false,
+      options,
+      isRoot,
+      false,
+      undefined,
+      0,
+      session,
+      true
+    );
   } else {
     renderTreeScalar(value, path, container, false, options);
   }

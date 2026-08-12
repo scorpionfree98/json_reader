@@ -13,7 +13,11 @@ import {
 import { readText as readClipboardText, writeText as writeClipboardText } from '@tauri-apps/plugin-clipboard-manager';
 import $ from 'jquery';
 import jsonTool from './utils/jsonTool';
+import { SettingsStore } from './utils/settingsStore';
 import { initSplitResizer } from './utils/splitResizer';
+import { TrayController, type TrayListen } from './utils/trayController';
+import { UpdateService, type SafeUpdateDetails, type UpdateDialogActions } from './utils/updateService';
+import { WorkbenchController, type WorkbenchMode } from './utils/workbenchController';
 import { createWindowController } from './utils/windowController';
 
 // 导入 LayUI CSS（npm 安装）
@@ -38,16 +42,6 @@ const byId = (id: string) => $(`#${id}`);
 const byClass = (cls: string) => $(`.${cls}`);
 const getLayui = (): any => (window as any).layui;
 
-// HTML 转义，防止 XSS
-const escapeHtml = (str: string): string => {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-};
-
 // 防抖函数
 function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -57,86 +51,19 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...
   };
 }
 
-// 输入大小限制（5MB）
-const MAX_INPUT_SIZE = 5 * 1024 * 1024;
-
 const windowController = createWindowController(showLayuiMsg);
 const { appWindow } = windowController;
 const isTauri = () => windowController.isTauri;
-// 状态管理
-let isExplainEnabled = false;
-// 暴露到 window 以便 jsonTool 访问
-(window as any).isExplainEnabled = isExplainEnabled;
-
 // 视图模式管理
-type ViewMode = 'editor' | 'split';
-const VIEW_MODE_KEY = 'json_formatter_view_mode';
-let currentViewMode: ViewMode = loadViewMode();
-let sourceContent = '';
+type ViewMode = WorkbenchMode;
+const settings = new SettingsStore();
+const workbench = new WorkbenchController({ mode: settings.getViewMode() });
 
 // 禁用更新状态
-const UPDATE_DISABLED_KEY = 'json_formatter_update_disabled';
-let isUpdateDisabled = loadBooleanSetting(UPDATE_DISABLED_KEY);
+let isUpdateDisabled = settings.getUpdateDisabled();
 
 // 主题状态
-const THEME_KEY = 'json_formatter_theme';
-let isDarkMode = loadTheme();
-
-// ==================== 本地存储工具函数 ====================
-
-function loadBooleanSetting(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function saveBooleanSetting(key: string, value: boolean) {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch (e) {
-    console.log(`保存设置 ${key} 失败:`, e);
-  }
-}
-
-function loadViewMode(): ViewMode {
-  try {
-    const savedMode = localStorage.getItem(VIEW_MODE_KEY) as ViewMode;
-    if (savedMode && (savedMode === 'editor' || savedMode === 'split')) {
-      return savedMode;
-    }
-  } catch (e) {
-    console.log('加载视图模式失败:', e);
-  }
-  return 'editor';
-}
-
-function saveViewMode(mode: ViewMode) {
-  try {
-    localStorage.setItem(VIEW_MODE_KEY, mode);
-  } catch (e) {
-    console.log('保存视图模式失败:', e);
-  }
-}
-
-function loadTheme(): boolean {
-  try {
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    return savedTheme === 'dark';
-  } catch (e) {
-    console.log('加载主题失败:', e);
-    return false;
-  }
-}
-
-function saveTheme(isDark: boolean) {
-  try {
-    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
-  } catch (e) {
-    console.log('保存主题失败:', e);
-  }
-}
+let isDarkMode = settings.getTheme() === 'dark';
 
 // ==================== UI 工具函数 ====================
 
@@ -169,23 +96,16 @@ function applyTheme(isDark: boolean) {
 // ==================== 同步函数 ====================
 
 function setSourceContent(value: string) {
-  sourceContent = value;
+  workbench.setSource(value);
   $('#sourceText, #splitSourceText').val(value);
 }
 
 function syncContentToMode(mode: ViewMode) {
-  setSourceContent(sourceContent);
+  setSourceContent(workbench.source);
   if (mode === 'split') {
-    try {
-      if (sourceContent.trim()) {
-        const jsonObj = parseJsonInput(sourceContent);
-        jsonTool.updateTreeView(jsonObj);
-      } else {
-        $('#tree-view').empty();
-      }
-    } catch (e) {
-      $('#tree-view').empty();
-    }
+    const result = workbench.parse();
+    if (result.ok) jsonTool.updateTreeView(result.value, workbench.renderOptions);
+    else $('#tree-view').empty();
   }
 }
 
@@ -207,7 +127,7 @@ function syncCopyFormat(value: string) {
 // ==================== 视图模式函数 ====================
 
 function switchViewMode(mode: ViewMode) {
-  currentViewMode = mode;
+  workbench.setMode(mode);
   
   $('.view-mode-btn').removeClass('active');
   $(`.view-mode-btn[data-mode="${mode}"]`).addClass('active');
@@ -220,12 +140,12 @@ function switchViewMode(mode: ViewMode) {
 
   syncContentToMode(mode);
   syncSettingsToSplitMode(mode);
-  saveViewMode(mode);
+  settings.setViewMode(mode);
   console.log('切换到模式:', mode);
 }
 
 function applySavedViewMode() {
-  switchViewMode(loadViewMode());
+  switchViewMode(settings.getViewMode());
 }
 
 // ==================== 功能函数 ====================
@@ -233,7 +153,7 @@ function applySavedViewMode() {
 function toggleTheme() {
   isDarkMode = !isDarkMode;
   applyTheme(isDarkMode);
-  saveTheme(isDarkMode);
+  settings.setTheme(isDarkMode ? 'dark' : 'light');
   showLayuiMsg(`已切换到${isDarkMode ? '夜间' : '白天'}模式`);
 }
 
@@ -340,59 +260,67 @@ function setValidationState(state: 'empty' | 'valid' | 'invalid', message: strin
 }
 
 export function formatJson() {
-  const text = sourceContent;
-  if (!text.trim()) {
+  const result = workbench.parse();
+  if (result.ok === false && result.kind === 'empty') {
     showLayuiMsg('请输入JSON字符串');
     return;
   }
-  if (text.length > MAX_INPUT_SIZE) {
+  if (result.ok === false && result.kind === 'too-large') {
+    setValidationState('invalid', '输入超过 5MB');
     showLayuiMsg('输入内容过大（超过5MB），请缩减后重试');
     return;
   }
-  try {
-    const jsonObj = parseJsonInput(text);
-    renderParsedJson(jsonObj);
+  if (result.ok === true) {
+    renderParsedJson(result.value, result.formatted);
     showLayuiMsg('格式化成功');
-  } catch (e: unknown) {
-    const error = e as Error;
-    const errorInfo = jsonTool.parseJsonError(text, error.message);
+    return;
+  }
+
+  if (result.ok === false && result.kind === 'too-deep') {
+    const message = `JSON 嵌套超过 ${result.maxDepth} 层`;
+    $('#json-display').empty();
+    setValidationState('invalid', message);
+    if (workbench.mode === 'split') {
+      $('#tree-view').html(`<div class="tree-error-state">${message}</div>`);
+    }
+    showLayuiMsg(message);
+    return;
+  }
+
+  if (result.ok === false && result.kind === 'format-error') {
+    $('#json-display').empty();
+    setValidationState('invalid', 'JSON 格式化失败');
+    if (workbench.mode === 'split') {
+      $('#tree-view').html('<div class="tree-error-state">JSON 格式化失败</div>');
+    }
+    console.error('JSON 格式化失败:', result.error);
+    showLayuiMsg('JSON 格式化失败');
+    return;
+  }
+
+  if (result.ok === false && result.kind === 'invalid') {
+    const errorInfo = jsonTool.parseJsonError(result.errorSource, result.error.message);
     byId('valid-result')?.html(errorInfo).removeClass('es-pass es-empty').addClass('es-fail');
     $('#json-display').empty();
-    // 在分屏模式下也显示错误信息
-    if (currentViewMode === 'split') {
+    if (workbench.mode === 'split') {
       $('#tree-view').html('<div class="tree-error-state">JSON 格式错误</div>');
-      setValidationState('invalid', 'JSON 无效');
+      setValidationState('invalid', 'JSON 格式错误');
     }
     showLayuiMsg('JSON格式错误');
   }
 }
 
-function isJsonStringParsingEnabled(): boolean {
-  return Boolean($('#parseJsonString').prop('checked') || $('#splitParseJsonString').prop('checked'));
-}
-
-function parseJsonInput(text: string): unknown {
-  const parsed = JSON.parse(text);
-  if (!isJsonStringParsingEnabled() || typeof parsed !== 'string') return parsed;
-
-  try {
-    return JSON.parse(parsed);
-  } catch {
-    throw new SyntaxError('JSON Str 的字符串内容不是有效 JSON');
-  }
-}
-
-function renderParsedJson(jsonObj: unknown) {
-  const formatted = JSON.stringify(jsonObj, null, 2);
-  setSourceContent(formatted);
+function renderParsedJson(jsonObj: unknown, formatted = JSON.stringify(jsonObj, null, 2)) {
+  workbench.commitFormattedResult(jsonObj, formatted);
+  $('#sourceText, #splitSourceText').val(formatted);
   setValidationState('valid', 'JSON 有效');
 
-  if (currentViewMode === 'split') {
-    jsonTool.updateTreeView(jsonObj);
+  if (workbench.mode === 'split') {
+    jsonTool.updateTreeView(jsonObj, workbench.renderOptions);
     return;
   }
 
-  const $rendered = jsonTool.renderJson(jsonObj, '');
+  const $rendered = jsonTool.renderJson(jsonObj, '', workbench.renderOptions);
   $('#json-display').empty().append($rendered);
   jsonTool.addEventListeners();
 }
@@ -415,82 +343,91 @@ export async function tryPasteFromClipboard() {
   }
 }
 
-export async function checkUpdate(isManual = false) {
-  if (!isTauri()) {
-    showLayuiMsg('更新检查仅在应用模式中可用');
-    return;
-  }
-  if (isUpdateDisabled && !isManual) {
-    console.log('自动更新已禁用，跳过检查');
-    return;
-  }
-  try {
-    const update = await check();
-    if (update) {
-      // 获取当前版本
-      const currentVersion = await getVersion();
-      const latestVersion = update.version || '未知';
-      const releaseNotes = update.body || '暂无更新日志';
-
-      // 转义 HTML 防止 XSS 注入
-      const escapedCurrentVersion = escapeHtml(currentVersion);
-      const escapedLatestVersion = escapeHtml(latestVersion);
-      const escapedReleaseNotes = escapeHtml(releaseNotes);
-
-      // 显示确认对话框
-      layui.use(['layer'], function() {
-        const layer = layui.layer;
-        layer.open({
-          type: 1,
-          title: '发现新版本',
-          area: ['480px', 'auto'],
-          shade: 0.3,
-          content: `
-            <div style="padding: 20px;">
-              <div style="margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                  <span style="color: #666;">当前版本：</span>
-                  <span style="font-weight: bold; color: #333;">${escapedCurrentVersion}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
-                  <span style="color: #666;">最新版本：</span>
-                  <span style="font-weight: bold; color: #1890ff;">${escapedLatestVersion}</span>
-                </div>
-              </div>
-              <div style="border-top: 1px solid #eee; padding-top: 15px;">
-                <div style="font-weight: bold; margin-bottom: 10px; color: #333;">更新日志：</div>
-                <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;">${escapedReleaseNotes}</div>
-              </div>
+const showUpdateDialog = (details: SafeUpdateDetails, actions: UpdateDialogActions): void => {
+  layui.use(['layer'], function() {
+    const layer = layui.layer;
+    layer.open({
+      type: 1,
+      title: '发现新版本',
+      area: ['480px', 'auto'],
+      shade: 0.3,
+      content: `
+        <div style="padding: 20px;">
+          <div style="margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+              <span style="color: #666;">当前版本：</span>
+              <span style="font-weight: bold; color: #333;">${details.currentVersion}</span>
             </div>
-          `,
-          btn: ['立即更新', '稍后再说'],
-          yes: async function(index) {
-            layer.close(index);
-            showLayuiMsg('正在下载更新...');
-            try {
-              await update.downloadAndInstall();
-              await relaunch();
-            } catch (err) {
-              console.error('下载更新失败:', err);
-              showLayuiMsg('下载更新失败');
-            }
-          },
-          btn2: function(index) {
-            layer.close(index);
-            showLayuiMsg('已取消更新');
-          }
-        });
-      });
-    } else if (isManual) {
-      showLayuiMsg('当前已是最新版本');
-    }
-  } catch (error) {
-    console.error('检查更新失败:', error);
-    if (isManual) {
-      showLayuiMsg('检查更新失败');
-    }
-  }
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+              <span style="color: #666;">最新版本：</span>
+              <span style="font-weight: bold; color: #1890ff;">${details.latestVersion}</span>
+            </div>
+          </div>
+          <div style="border-top: 1px solid #eee; padding-top: 15px;">
+            <div style="font-weight: bold; margin-bottom: 10px; color: #333;">更新日志：</div>
+            <div style="max-height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;">${details.releaseNotes}</div>
+          </div>
+        </div>
+      `,
+      btn: ['立即更新', '稍后再说'],
+      yes: async function(index) {
+        layer.close(index);
+        await actions.confirm();
+      },
+      btn2: function(index) {
+        layer.close(index);
+        actions.cancel();
+      }
+    });
+  });
+};
+
+const updateService = new UpdateService({
+  isTauri,
+  isDisabled: () => isUpdateDisabled,
+  checkForUpdate: check,
+  getCurrentVersion: getVersion,
+  relaunch: async () => { await relaunch(); },
+  showMessage: showLayuiMsg,
+  showDialog: showUpdateDialog,
+  log: (message, error) => error === undefined ? console.log(message) : console.error(message, error)
+});
+
+export async function checkUpdate(isManual = false): Promise<void> {
+  await updateService.check(isManual);
 }
+
+const trayController = new TrayController({
+  isTauri,
+  listen: listen as TrayListen,
+  handlers: {
+    checkUpdates: () => checkUpdate(true),
+    showWindow: async () => {
+      if (!appWindow) return;
+      await appWindow.show();
+      await appWindow.setFocus();
+    },
+    hideWindow: async () => {
+      if (appWindow) await appWindow.hide();
+    },
+    setAlwaysOnTop: enabled => {
+      byId('topCheck')?.prop('checked', enabled);
+      $('#splitTopBtn').toggleClass('active', enabled);
+      layui.form.render('checkbox');
+    },
+    setAutostart: enabled => {
+      byId('autoStart')?.prop('checked', enabled);
+      layui.form.render('checkbox');
+    },
+    setUpdateDisabled: disabled => {
+      isUpdateDisabled = disabled;
+      settings.setUpdateDisabled(disabled);
+      byId('disableUpdate')?.prop('checked', disabled);
+      showLayuiMsg(`自动更新已${disabled ? '禁用' : '启用'}`);
+    }
+  },
+  log: (message, error) => error === undefined ? console.log(message) : console.error(message, error)
+});
 
 // ==================== 树形视图控制 ====================
 
@@ -498,12 +435,17 @@ function expandAllTree() {
   $('#tree-view .tree-toggle').each(function() {
     const $this = $(this);
     const $parent = $this.closest('.tree-node, .tree-node-root');
-    $parent.find('.tree-children').first().removeClass('collapsed');
+    const $children = $parent.find('.tree-children').first();
+
+    // 懒加载分支保持折叠，避免“展开全部”一次性生成海量 DOM。
+    if ($this.attr('data-collapsed') === 'true' && $children.children().length === 0) return;
+
+    $children.removeClass('collapsed');
     $parent.find('.tree-ellipsis').first().addClass('hidden');
     $parent.children('.tree-collection-footer').first().removeClass('hidden');
     $this.text('▼').attr('data-collapsed', 'false');
   });
-  showLayuiMsg('已展开全部');
+  showLayuiMsg('已展开已加载节点');
 }
 
 function collapseAllTree() {
@@ -519,19 +461,24 @@ function collapseAllTree() {
 }
 
 function refreshTreeView() {
-  if (currentViewMode !== 'split') return;
-  try {
-    if (sourceContent.trim()) {
-      const jsonObj = parseJsonInput(sourceContent);
-      jsonTool.updateTreeView(jsonObj);
-      setValidationState('valid', 'JSON 有效');
-    } else {
-      $('#tree-view').empty();
-      setValidationState('empty', '等待输入 JSON');
-    }
-  } catch (e: unknown) {
-    $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误</div>');
-    setValidationState('invalid', 'JSON 无效');
+  if (workbench.mode !== 'split') return;
+  const result = workbench.parse();
+  if (result.ok === true) {
+    jsonTool.updateTreeView(result.value, workbench.renderOptions);
+    setValidationState('valid', 'JSON 有效');
+  } else if (result.kind === 'empty') {
+    $('#tree-view').empty();
+    setValidationState('empty', '等待输入 JSON');
+  } else {
+    const message = result.kind === 'too-large'
+      ? '输入内容过大（超过5MB），请缩减后重试'
+      : result.kind === 'too-deep'
+        ? `JSON 嵌套超过 ${result.maxDepth} 层`
+        : result.kind === 'format-error'
+          ? 'JSON 格式化失败'
+          : 'JSON 格式错误';
+    $('#tree-view').html(`<div style="color: #999; padding: 20px;">${message}</div>`);
+    setValidationState('invalid', result.kind === 'too-large' ? '输入超过 5MB' : message);
   }
 }
 
@@ -885,37 +832,20 @@ function bindViewModeEvents() {
 
   // 分屏模式编辑器实时同步（带防抖）
   const debouncedTreeUpdate = debounce((text: string) => {
-    if (text !== sourceContent) return;
-    try {
-      if (text.trim()) {
-        if (text.length > MAX_INPUT_SIZE) {
-          $('#tree-view').html('<div style="color: #999; padding: 20px;">输入内容过大（超过5MB），请缩减后重试</div>');
-          setValidationState('invalid', '输入超过 5MB');
-          return;
-        }
-        const jsonObj = parseJsonInput(text);
-        jsonTool.updateTreeView(jsonObj);
-        setValidationState('valid', 'JSON 有效');
-      } else {
-        $('#tree-view').empty();
-        setValidationState('empty', '等待输入 JSON');
-      }
-    } catch (e) {
-      $('#tree-view').html('<div style="color: #999; padding: 20px;">JSON 格式错误</div>');
-      setValidationState('invalid', 'JSON 无效');
-    }
+    if (text !== workbench.source) return;
+    refreshTreeView();
   }, 200);
 
   $('#splitSourceText').off('input').on('input', function() {
     const text = $(this).val() as string;
-    sourceContent = text;
+    workbench.setSource(text);
     $('#sourceText').val(text);
     debouncedTreeUpdate(text);
   });
 
   $('#sourceText').off('input.contentSync').on('input.contentSync', function() {
-    sourceContent = $(this).val() as string;
-    $('#splitSourceText').val(sourceContent);
+    workbench.setSource($(this).val() as string);
+    $('#splitSourceText').val(workbench.source);
   });
 
   // 主题切换按钮
@@ -940,7 +870,7 @@ function bindButtonEvents() {
   if (appWindow) {
     byClass('drag-region').off('mousedown').on('mousedown', (e) => {
       e.preventDefault();
-      appWindow!.startDragging();
+      void windowController.startDragging();
     });
   }
 
@@ -954,17 +884,17 @@ function bindSplitToolbarEvents() {
   $('#splitClearBtn').off('click').on('click', clearInputContent);
   $('#splitRenderHtml').off('change').on('change', function() {
     const enabled = $(this).prop('checked');
+    workbench.setRichContent(enabled);
     byId('renderHtml')?.prop('checked', enabled);
     layui.form.render('checkbox');
     formatJson();
-    refreshTreeView();
   });
   $('#splitParseJsonString').off('change').on('change', function() {
     const enabled = $(this).prop('checked');
+    workbench.setParseJsonString(enabled);
     byId('parseJsonString')?.prop('checked', enabled);
     layui.form.render('checkbox');
     formatJson();
-    refreshTreeView();
   });
   $('#splitCheckUpdate').off('click').on('click', () => checkUpdate(true));
   $('#splitExpandAll').off('click').on('click', expandAllTree);
@@ -975,12 +905,10 @@ function bindSplitToolbarEvents() {
     const $btn = $(this);
     const isActive = !$btn.hasClass('active');
     $btn.toggleClass('active', isActive);
-    isExplainEnabled = isActive;
-    (window as any).isExplainEnabled = isActive;
+    workbench.setExplain(isActive);
     byId('explain')?.prop('checked', isActive);
     layui.form.render('checkbox');
     formatJson();
-    refreshTreeView();
     showLayuiMsg(`转义状态已${isActive ? '启用' : '禁用'}`);
   });
 
@@ -1037,26 +965,25 @@ function initLayuiForm() {
     form.render();
 
     form.on('checkbox(explain)', function () {
-      isExplainEnabled = $(this).prop('checked');
-      (window as any).isExplainEnabled = isExplainEnabled;
-      $('#splitExplainBtn').toggleClass('active', isExplainEnabled);
+      const enabled = $(this).prop('checked');
+      workbench.setExplain(enabled);
+      $('#splitExplainBtn').toggleClass('active', enabled);
       formatJson();
-      refreshTreeView();
-      showLayuiMsg(`转义状态已${isExplainEnabled ? '启用' : '禁用'}`);
+      showLayuiMsg(`转义状态已${enabled ? '启用' : '禁用'}`);
     });
 
     form.on('checkbox(renderHtml)', function () {
       const enabled = $(this).prop('checked');
+      workbench.setRichContent(enabled);
       byId('splitRenderHtml')?.prop('checked', enabled);
       formatJson();
-      refreshTreeView();
     });
 
     form.on('checkbox(parseJsonString)', function () {
       const enabled = $(this).prop('checked');
+      workbench.setParseJsonString(enabled);
       byId('splitParseJsonString')?.prop('checked', enabled);
       formatJson();
-      refreshTreeView();
     });
 
     form.on('checkbox(topCheck)', function () {
@@ -1072,7 +999,7 @@ function initLayuiForm() {
       try {
         await invoke('set_update_disabled', { disabled: newStatus });
         isUpdateDisabled = newStatus;
-        saveBooleanSetting(UPDATE_DISABLED_KEY, newStatus);
+        settings.setUpdateDisabled(newStatus);
         showLayuiMsg(`自动更新已${newStatus ? '禁用' : '启用'}`);
       } catch (error) {
         console.error('设置更新状态失败:', error);
@@ -1085,58 +1012,6 @@ function initLayuiForm() {
     form.on('select(copyFormat)', function (data) {
       syncCopyFormat(data.value);
     });
-  });
-}
-
-// ==================== 托盘事件监听 ====================
-
-function initTrayListeners() {
-  if (!isTauri()) return;
-
-  // 监听托盘菜单的"检查更新"事件
-  listen('tray://check-updates', () => {
-    console.log('收到托盘检查更新事件');
-    checkUpdate(true);
-  });
-
-  // 监听托盘菜单的"显示主窗口"事件
-  listen('tray://show', () => {
-    console.log('收到托盘显示窗口事件');
-    if (appWindow) {
-      appWindow.show();
-      appWindow.setFocus();
-    }
-  });
-
-  // 监听托盘菜单的"隐藏主窗口"事件
-  listen('tray://hide', () => {
-    console.log('收到托盘隐藏窗口事件');
-    if (appWindow) {
-      appWindow.hide();
-    }
-  });
-
-  // 监听托盘菜单的"置顶切换"事件
-  listen<boolean>('tray://toggle-always-on-top', (event) => {
-    const isTop = event.payload;
-    byId('topCheck')?.prop('checked', isTop);
-    $('#splitTopBtn').toggleClass('active', isTop);
-    layui.form.render('checkbox');
-  });
-
-  // 监听托盘菜单的"自启动切换"事件
-  listen<boolean>('tray://toggle-autostart', (event) => {
-    byId('autoStart')?.prop('checked', event.payload);
-    layui.form.render('checkbox');
-  });
-
-  // 监听托盘菜单的"禁用更新切换"事件
-  listen('tray://toggle-disable-update', (event) => {
-    console.log('收到托盘禁用更新切换事件:', event.payload);
-    isUpdateDisabled = event.payload as boolean;
-    saveBooleanSetting(UPDATE_DISABLED_KEY, isUpdateDisabled);
-    byId('disableUpdate')?.prop('checked', isUpdateDisabled);
-    showLayuiMsg(`自动更新已${isUpdateDisabled ? '禁用' : '启用'}`);
   });
 }
 
@@ -1158,9 +1033,11 @@ async function initCheckboxStates() {
         console.log('获取禁用更新状态失败:', e);
       }
     }
-    isExplainEnabled = byId('explain')?.prop('checked') || false;
-    (window as any).isExplainEnabled = isExplainEnabled;
-    $('#splitExplainBtn').toggleClass('active', isExplainEnabled);
+    const explainEnabled = byId('explain')?.prop('checked') || false;
+    workbench.setExplain(explainEnabled);
+    workbench.setRichContent(Boolean(byId('renderHtml')?.prop('checked')));
+    workbench.setParseJsonString(Boolean(byId('parseJsonString')?.prop('checked')));
+    $('#splitExplainBtn').toggleClass('active', explainEnabled);
     layui.form.render();
   } catch (error) {
     console.error('初始化复选框状态失败:', error);
@@ -1203,5 +1080,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(isDarkMode);
   setValidationState('empty', '等待输入 JSON');
   displayVersion();
-  initTrayListeners();
+  await trayController.init();
+});
+
+window.addEventListener('beforeunload', () => {
+  void trayController.dispose();
 });

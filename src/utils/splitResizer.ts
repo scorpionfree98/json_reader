@@ -1,5 +1,8 @@
 let cleanupCurrentResizer: (() => void) | null = null;
 
+const MIN_LEFT_PANEL_WIDTH = 420;
+const MIN_RIGHT_PANEL_WIDTH = 320;
+
 export const initSplitResizer = (): void => {
   cleanupCurrentResizer?.();
   cleanupCurrentResizer = null;
@@ -25,13 +28,16 @@ export const initSplitResizer = (): void => {
 
   const onMouseMove = (event: MouseEvent) => {
     if (!isResizing) return;
-    const containerWidth = container.getBoundingClientRect().width;
-    if (containerWidth <= 0) return;
+    const containerStyle = window.getComputedStyle(container);
+    const horizontalPadding = Number.parseFloat(containerStyle.paddingLeft) + Number.parseFloat(containerStyle.paddingRight);
+    const availableWidth = container.clientWidth - horizontalPadding - resizer.getBoundingClientRect().width;
+    if (availableWidth <= 0) return;
 
-    const newLeftWidth = ((startLeftWidth + event.clientX - startX) / containerWidth) * 100;
-    if (newLeftWidth < 20 || newLeftWidth > 80) return;
-    leftPanel.style.flex = `0 0 ${newLeftWidth}%`;
-    rightPanel.style.flex = `0 0 ${100 - newLeftWidth}%`;
+    const desiredLeftWidth = startLeftWidth + event.clientX - startX;
+    const maxLeftWidth = Math.max(MIN_LEFT_PANEL_WIDTH, availableWidth - MIN_RIGHT_PANEL_WIDTH);
+    const clampedLeftWidth = Math.min(Math.max(desiredLeftWidth, MIN_LEFT_PANEL_WIDTH), maxLeftWidth);
+    leftPanel.style.flex = `0 0 ${clampedLeftWidth}px`;
+    rightPanel.style.flex = '1 1 auto';
   };
 
   const onMouseUp = () => {

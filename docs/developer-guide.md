@@ -22,7 +22,7 @@ JSONFormatter 是基于 Tauri v2 构建的跨平台桌面 JSON 格式化工具�
 ### 3.1 前置依赖
 
 **Node.js 环境:**
-- Node.js 18 或更高版本
+- Node.js 20-25
 - pnpm 包管理器
 
 ```bash
@@ -75,6 +75,7 @@ pnpm dev              # 仅启动前端开发服务器(端口 5173)
 pnpm test:unit        # 运行单元测试
 pnpm test:unit:coverage  # 运行单元测试并生成覆盖率报告
 pnpm test:e2e         # 运行 E2E 测试
+pnpm test:tauri:e2e   # 构建并运行真实 Tauri WebDriver 测试
 ```
 
 ## 4. 项目结构
@@ -84,7 +85,11 @@ json_reader/
 ├── src/                        # 前端源码(Vite 根目录)
 │   ├── main.ts                 # 应用入口:窗口控制、主题、视图模式、剪贴板、更新、托盘事件
 │   ├── utils/
-│   │   └── jsonTool.ts         # JSON 处理引擎:树渲染、LaTeX、路径解析、错误显示
+│   │   ├── jsonParser.ts       # JSON 解析、大小限制和深度保护
+│   │   ├── workbenchController.ts # 单一输入源和解析缓存
+│   │   ├── treeRenderer.ts     # 树形视图、分批渲染和复制事件
+│   │   ├── contentPreview.ts   # 沙箱 HTML 和图片预览
+│   │   └── jsonTool.ts         # 高亮渲染和兼容入口
 │   ├── lib/
 │   │   └── layui/              # Vendored LayUI 框架(排除在 TS 编译之外)
 │   └── index.html              # 应用 HTML 入口
@@ -203,7 +208,7 @@ json_reader/
 
 ### 6.1 单元测试
 
-使用 Jest 框架,测试文件位于 `tests/unit/`。
+使用 Jest 框架，测试文件位于 `src/utils/__tests__/`。
 
 ```bash
 # 运行所有单元测试
@@ -220,13 +225,19 @@ pnpm test:unit:coverage
 - LaTeX 检测逻辑
 - 错误信息解析
 
+单元覆盖率门槛只统计可独立运行的纯逻辑模块。DOM 渲染、窗口控制、托盘和 Tauri 插件交互由真实 Tauri E2E 测试覆盖，不计入 Jest 覆盖率。
+当前门槛为语句、函数和行覆盖率 90%，分支覆盖率 80%。新增 `src/utils` 纯逻辑模块会自动计入 Jest 覆盖范围；新增 DOM 或 Tauri 集成模块时，应提供对应 E2E 后再明确排除。
+
 ### 6.2 E2E 测试
 
-使用 WebdriverIO 框架,测试文件位于 `tests/e2e/`。
+使用 WebdriverIO 框架，测试文件位于 `tests/specs/`。
 
 ```bash
 # 运行 E2E 测试(需要先构建应用)
 pnpm test:e2e
+
+# 构建并运行真实 Tauri WebDriver 测试
+pnpm test:tauri:e2e
 ```
 
 **测试覆盖范围:**
@@ -314,7 +325,14 @@ function escapeHtml(str: string): string {
 
 ### 渲染深度限制
 
-`MAX_RENDER_DEPTH` 常量限制树形视图的最大渲染深度,防止恶意构造的深层嵌套 JSON 导致栈溢出或性能问题。
+当前安全和性能边界如下：
+
+- JSON 输入最大 5MB，解析深度最大 100 层。
+- 树形视图展示深度最大 50 层，首屏全局预算 500 项，后续每批加载 500 项。
+- HTML 富内容预览最大 256KB，并使用空 `sandbox` 和严格 CSP。
+- HTML 预览会将正文中的字面量 `\\n`、`\\r\\n`、`\\r`、`\\t` 展开为换行或缩进；标签属性、源码页签和剪贴板始终保留原值。
+- HTML 卡片提供“预览 / 源码 / 复制原文”，编辑器和分屏视图使用相同复制契约。
+- Base64 图片预览最大 4MB，只接受内容签名与 MIME 一致的受支持位图格式；SVG 不作为图片预览。
 
 ### 错误信息安全
 

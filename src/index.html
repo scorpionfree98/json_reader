@@ -694,11 +694,13 @@
             margin-left: auto;
             display: flex;
             gap: 4px;
+            min-width: 0;
         }
 
         .split-btn {
             width: 28px;
             height: 28px;
+            flex: 0 0 28px;
             padding: 0;
             border: 1px solid #d9d9d9;
             border-radius: 4px;
@@ -1407,6 +1409,34 @@
             background: var(--accent-soft);
         }
 
+        /* 编辑模式结果区固定使用深色代码面板，不跟随应用主题切换。 */
+        #editor-mode #json-display {
+            background-color: #1a1a1a;
+            border-color: #3f4541;
+            color: #e0e0e0;
+            color-scheme: dark;
+        }
+
+        #editor-mode #json-display .json-key {
+            color: #d4a5d4;
+        }
+
+        #editor-mode #json-display .json-string {
+            color: #7fdbca;
+        }
+
+        #editor-mode #json-display .json-number {
+            color: #82b1ff;
+        }
+
+        #editor-mode #json-display .json-boolean {
+            color: #ffab91;
+        }
+
+        #editor-mode #json-display .json-null {
+            color: #b0b0b0;
+        }
+
         body.dark-mode {
             --app-bg: #111713;
             --panel-bg: #18201b;
@@ -1463,11 +1493,104 @@
 
         .html-inline-preview {
             display: block;
-            width: min(560px, 68vw);
-            min-height: 140px;
+            width: 100%;
+            min-height: 180px;
             border: 0;
-            border-radius: 7px;
+            border-radius: 0 0 8px 8px;
             background: #fff;
+        }
+
+        .html-preview-card {
+            display: inline-flex;
+            width: min(580px, calc(100vw - 120px));
+            max-width: 100%;
+            margin: 4px 0;
+            overflow: hidden;
+            flex-direction: column;
+            vertical-align: top;
+            border: 1px solid var(--line-strong);
+            border-radius: 9px;
+            background: var(--panel-bg);
+            color: var(--text);
+            box-shadow: 0 8px 24px rgba(28, 44, 34, 0.1);
+            white-space: normal;
+        }
+
+        .html-preview-header {
+            display: flex;
+            min-height: 34px;
+            padding: 4px 6px 4px 10px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel-muted);
+        }
+
+        .html-preview-label {
+            color: var(--text-muted);
+            font-family: var(--code-font);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+        }
+
+        .html-preview-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .html-preview-tab,
+        .html-preview-copy {
+            min-height: 24px;
+            padding: 2px 8px;
+            border: 0;
+            border-radius: 5px;
+            background: transparent;
+            color: var(--text-muted);
+            font: 11px/1.2 var(--code-font);
+            cursor: pointer;
+        }
+
+        .html-preview-tab:hover,
+        .html-preview-copy:hover {
+            background: var(--panel-bg);
+            color: var(--accent);
+        }
+
+        .html-preview-tab.active {
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 800;
+        }
+
+        .html-preview-copy {
+            margin-left: 3px;
+            border-left: 1px solid var(--line);
+            border-radius: 0 5px 5px 0;
+        }
+
+        .html-preview-content {
+            display: block;
+            min-width: 0;
+            background: #fffefa;
+        }
+
+        .html-preview-source {
+            display: block;
+            min-height: 180px;
+            max-height: 320px;
+            margin: 0;
+            padding: 16px 18px;
+            overflow: auto;
+            background: #18201b;
+            color: #bce8d3;
+            font: 12px/1.65 var(--code-font);
+            text-align: left;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            tab-size: 2;
         }
 
         .inline-image-preview {
@@ -1487,6 +1610,37 @@
             padding: 0 7px;
             color: var(--ink-muted);
             white-space: nowrap;
+        }
+
+        @media (max-width: 1300px) {
+            .split-left .panel-header {
+                flex-wrap: wrap;
+                align-content: center;
+            }
+
+            .split-left .panel-title {
+                width: 100%;
+            }
+
+            .split-left .split-toolbar {
+                width: 100%;
+                margin-left: 0;
+                gap: 2px;
+                justify-content: space-between;
+                overflow: visible;
+            }
+
+            .split-left .split-btn,
+            body.dark-mode .split-left .split-btn {
+                width: 28px;
+                height: 28px;
+                flex-basis: 28px;
+            }
+
+            .split-left .html-render-toggle {
+                padding: 0 4px;
+                font-size: 11px;
+            }
         }
 
         @media (max-width: 760px) {

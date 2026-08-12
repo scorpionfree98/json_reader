@@ -37,7 +37,7 @@ describe('分屏模式基础功能', () => {
     await browser.pause(1000);
     const validResult = await $('#split-valid-result');
     const text = await validResult.getText();
-    expect(text).toContain('无效');
+    expect(text).toContain('JSON 格式错误');
   });
 
   it('分屏模式清空按钮清除输入和 TreeView', async () => {

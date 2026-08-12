@@ -1,4 +1,4 @@
-import { safeClick, setInputValue, getElementHTML, switchToEditor } from '../helpers/utils.js';
+import { safeClick, setInputValue, getElementHTML, switchToEditor, waitForText } from '../helpers/utils.js';
 
 describe('大 JSON 和边界情况', () => {
   before(async () => {
@@ -58,6 +58,18 @@ describe('大 JSON 和边界情况', () => {
 
     const outputHtml = await getElementHTML('#json-display');
     expect(outputHtml).toContain('max depth reached');
+  });
+
+  it('5000 层 JSON 应显示明确错误且应用可继续格式化', async () => {
+    const tooDeepJson = `${'{"value":'.repeat(5000)}0${'}'.repeat(5000)}`;
+    await setInputValue('#sourceText', tooDeepJson);
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', 'JSON 嵌套超过 100 层', 10000);
+
+    await setInputValue('#sourceText', '{"recovered":true}');
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', '格式正确');
+    expect(await getElementHTML('#json-display')).toContain('recovered');
   });
 
   it('空 JSON {} 正常处理', async () => {

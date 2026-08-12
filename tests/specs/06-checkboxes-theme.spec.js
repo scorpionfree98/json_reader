@@ -39,6 +39,20 @@ describe('复选框和主题功能', () => {
     expect(exists).toBe(true);
   });
 
+  it('编辑模式结果区在两种主题下都应保持黑色', async () => {
+    const getResultBackground = () => browser.execute(() =>
+      getComputedStyle(document.querySelector('#json-display')).backgroundColor
+    );
+    const before = await getResultBackground();
+
+    await safeClick('#themeToggle');
+    const after = await getResultBackground();
+    await safeClick('#themeToggle');
+
+    expect(before).toBe('rgb(26, 26, 26)');
+    expect(after).toBe('rgb(26, 26, 26)');
+  });
+
   it('主题切换应改变 body 类', async () => {
     const classBefore = await browser.execute(() => document.body.className);
     const isDarkBefore = classBefore.includes('dark-mode');

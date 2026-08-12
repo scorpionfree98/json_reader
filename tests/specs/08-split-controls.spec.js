@@ -12,18 +12,20 @@ describe('分屏模式控件', () => {
 
   it('分屏模式置顶按钮切换', async () => {
     const topBtn = await $('#splitTopBtn');
+    const initialClassName = await topBtn.getAttribute('class');
+    const initiallyActive = initialClassName.includes('active');
 
-    // Click to activate
     await safeClick('#splitTopBtn');
-    await browser.pause(300);
-    let className = await topBtn.getAttribute('class');
-    expect(className).toContain('active');
+    await browser.waitUntil(async () => {
+      const className = await topBtn.getAttribute('class');
+      return className.includes('active') !== initiallyActive;
+    }, { timeout: 3000, timeoutMsg: '分屏置顶状态未切换' });
 
-    // Click to deactivate
     await safeClick('#splitTopBtn');
-    await browser.pause(300);
-    className = await topBtn.getAttribute('class');
-    expect(className).not.toContain('active');
+    await browser.waitUntil(async () => {
+      const className = await topBtn.getAttribute('class');
+      return className.includes('active') === initiallyActive;
+    }, { timeout: 3000, timeoutMsg: '分屏置顶状态未恢复' });
   });
 
   it('分屏模式转义按钮切换', async () => {

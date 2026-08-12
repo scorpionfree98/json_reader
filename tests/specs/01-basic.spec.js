@@ -59,4 +59,13 @@ describe('基础 JSON 功能', () => {
     expect(await getControlValue('#sourceText')).toBe(encoded);
   });
 
+  it('JSON Str 内层无效时应显示内层解析错误', async () => {
+    await setInputValue('#sourceText', JSON.stringify('{"name":}'));
+    await toggleLayuiCheckbox('parseJsonString');
+    await waitForText('#valid-result', 'JSON Str');
+    await waitForText('#valid-result', '位置');
+    expect(await $('#json-display').getText()).toBe('');
+    await toggleLayuiCheckbox('parseJsonString');
+  });
+
 });

@@ -15,17 +15,18 @@ export default {
     ],
   },
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/lib/**',
-    '!src/main.ts',
+    'src/utils/*.ts',
+    '!src/utils/jsonTool.ts',
+    '!src/utils/splitResizer.ts',
+    '!src/utils/treeRenderer.ts',
+    '!src/utils/windowController.ts',
   ],
   coverageThreshold: {
     global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
+      branches: 80,
+      functions: 90,
+      lines: 90,
+      statements: 90,
     },
   },
 };
