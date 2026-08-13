@@ -17,11 +17,29 @@ describe('复选框和主题功能', () => {
     expect(after).not.toBe(before);
   });
 
-  it('JSON Str 复选框应存在并同步到分屏', async () => {
+  it('解析字符串类型 JSON 复选框应存在并同步到分屏', async () => {
     expect(await elementExists('#parseJsonString')).toBe(true);
     await toggleLayuiCheckbox('parseJsonString');
     expect(await isChecked('#splitParseJsonString')).toBe(true);
     await toggleLayuiCheckbox('parseJsonString');
+  });
+
+  it('字符串类型 JSON 和富内容应明确说明处理边界', async () => {
+    const copy = await browser.execute(() => ({
+      editorJsonText: document.querySelector('#parseJsonString + .layui-form-checkbox')?.textContent || '',
+      editorJsonTip: document.querySelector('#parseJsonString')?.parentElement?.title || '',
+      editorRichTip: document.querySelector('#renderHtml')?.parentElement?.title || '',
+      splitJsonText: document.querySelector('#splitParseJsonString')?.parentElement?.textContent || '',
+      splitJsonTip: document.querySelector('#splitParseJsonString')?.parentElement?.title || '',
+      splitRichTip: document.querySelector('#splitRenderHtml')?.parentElement?.title || ''
+    }));
+
+    expect(copy.editorJsonText).toContain('解析字符串类型 JSON');
+    expect(copy.editorJsonTip).toContain('仅解析最外层');
+    expect(copy.editorRichTip).toContain('不执行脚本');
+    expect(copy.splitJsonText).toContain('解析字符串类型 JSON');
+    expect(copy.splitJsonTip).toContain('仅解析最外层');
+    expect(copy.splitRichTip).toContain('不执行脚本');
   });
 
   it('开机自启复选框应存在', async () => {

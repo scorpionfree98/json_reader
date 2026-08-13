@@ -150,7 +150,7 @@ try {
   await run('cargo', ['build', '--manifest-path', 'src-tauri/Cargo.toml', '--features', 'webdriver']);
   await assertPortAvailable(5173, 'Vite');
   await assertPortAvailable(4444, 'Tauri WebDriver');
-  const vite = startService(pnpm, ['dev', '--host', '127.0.0.1']);
+  const vite = startService(pnpm, ['exec', 'vite', '--host', '127.0.0.1', '--port', '5173']);
   await waitForUrl('http://127.0.0.1:5173', 20_000, vite);
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt++) {

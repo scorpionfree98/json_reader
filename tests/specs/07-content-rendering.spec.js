@@ -102,6 +102,17 @@ describe('内容渲染与安全边界', () => {
     await resetWorkspace('editor');
   });
 
+  afterEach(async () => {
+    await browser.execute(() => {
+      ['#splitParseJsonString', '#splitRenderHtml'].forEach(selector => {
+        const checkbox = document.querySelector(selector);
+        if (!checkbox?.checked) return;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  });
+
   it('尖括号内容应作为文本显示而不是 HTML', async () => {
     await formatInEditor(serializeCase(validCases.unicodeAndMarkup));
     await waitForText('#json-display', '<image>');
@@ -178,6 +189,25 @@ describe('内容渲染与安全边界', () => {
     });
     await waitForVisibility('#tree-view .html-inline-preview');
     expect(await browser.execute(() => document.querySelectorAll('#tree-view .inline-image-preview').length)).toBeGreaterThan(0);
+  });
+
+  it('分屏可先解析字符串类型 JSON 再渲染内部富内容', async () => {
+    const inner = JSON.stringify({ content: '<table><tr><td>联合渲染</td></tr></table>' });
+    await formatInSplit(JSON.stringify(inner));
+    await browser.execute(() => {
+      const parse = document.querySelector('#splitParseJsonString');
+      const rich = document.querySelector('#splitRenderHtml');
+      parse.checked = true;
+      parse.dispatchEvent(new Event('change', { bubbles: true }));
+      rich.checked = true;
+      rich.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await waitForVisibility('#tree-view .html-inline-preview');
+    const preview = await browser.execute(() =>
+      document.querySelector('#tree-view .html-inline-preview')?.getAttribute('srcdoc') || '');
+    expect(preview).toContain('联合渲染');
+
   });
 
   [

@@ -27,7 +27,7 @@ describe('WorkbenchController', () => {
     expect(workbench.getParseCount()).toBe(2);
   });
 
-  test('JSON 文本选项变化会使解析缓存失效', () => {
+  test('字符串类型 JSON 选项变化会使解析缓存失效', () => {
     const inner = JSON.stringify({ value: 1 });
     const workbench = new WorkbenchController({ source: JSON.stringify(inner) });
     expect(workbench.parse()).toMatchObject({ ok: true, value: inner });

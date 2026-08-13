@@ -75,6 +75,7 @@ pnpm dev              # 仅启动前端开发服务器(端口 5173)
 pnpm test:unit        # 运行单元测试
 pnpm test:unit:coverage  # 运行单元测试并生成覆盖率报告
 pnpm test:playwright  # 运行浏览器 UI 自动化测试
+pnpm test:self        # 自动启动临时 Vite 并运行浏览器全面自测
 pnpm test:e2e         # 构建并运行真实 Tauri WebDriver 测试
 pnpm test:tauri:e2e   # test:e2e 的兼容别名
 pnpm test:all         # 单元、类型、构建、浏览器 UI 和 Tauri E2E

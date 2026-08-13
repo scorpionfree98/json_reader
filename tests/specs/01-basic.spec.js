@@ -55,7 +55,7 @@ describe('基础 JSON 功能', () => {
     expect(await $('#json-display').getText()).toBe('');
   });
 
-  it('勾选 JSON Str 后应自动解析最外层 JSON 字符串', async () => {
+  it('勾选解析字符串类型 JSON 后应自动解析最外层 JSON 字符串', async () => {
     const inner = JSON.stringify({ user: { name: '张三' }, enabled: true });
     await setInputValue('#sourceText', JSON.stringify(inner));
     await toggleLayuiCheckbox('parseJsonString');
@@ -64,17 +64,17 @@ describe('基础 JSON 功能', () => {
     await toggleLayuiCheckbox('parseJsonString');
   });
 
-  it('未勾选 JSON Str 时应保留外层字符串', async () => {
+  it('未勾选解析字符串类型 JSON 时应保留外层字符串', async () => {
     const inner = JSON.stringify({ name: '保留字符串' });
     const encoded = JSON.stringify(inner);
     await formatInEditor(encoded);
     expect(await getControlValue('#sourceText')).toBe(encoded);
   });
 
-  it('JSON Str 内层无效时应显示内层解析错误', async () => {
+  it('字符串类型 JSON 内层无效时应显示内层解析错误', async () => {
     await setInputValue('#sourceText', JSON.stringify('{"name":}'));
     await toggleLayuiCheckbox('parseJsonString');
-    await waitForText('#valid-result', 'JSON Str');
+    await waitForText('#valid-result', '字符串类型 JSON');
     await waitForText('#valid-result', '位置');
     expect(await $('#json-display').getText()).toBe('');
     await toggleLayuiCheckbox('parseJsonString');

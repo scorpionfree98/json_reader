@@ -129,7 +129,7 @@ export function parseJsonSource(source: string, options: JsonParseOptions): Json
         ok: false,
         kind: 'invalid',
         stage: 'inner',
-        error: new SyntaxError(`JSON Str 的字符串内容不是有效 JSON：${asError(error).message}`),
+        error: new SyntaxError(`字符串类型 JSON 的内容不是有效 JSON：${asError(error).message}`),
         errorSource: innerSource
       };
     }

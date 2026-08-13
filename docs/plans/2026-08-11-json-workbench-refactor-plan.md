@@ -12,11 +12,11 @@
 
 ## Current Baseline
 
-- Tauri E2E：113 项、Playwright 48 项、浏览器自测 35 项全部通过；前端单元测试 187 项全部通过，语句覆盖率 97.35%、分支覆盖率 91.38%。
+- Tauri E2E：115 项、Playwright 48 项、浏览器自测 35 项全部通过；前端单元测试 187 项全部通过，语句覆盖率 97.34%、分支覆盖率 91.38%。
 - `jsonTool.ts` 已拆出树渲染、图片/HTML 预览、路径格式、错误定位和 LaTeX 模块。
 - `main.ts` 已拆出解析、工作台状态、设置、更新、托盘监听和双视图搜索，当前保留主题、剪贴板及全局事件编排。
-- 分屏支持 `JSON Str` 和“富内容”两个复选框，但命名需要明确：
-  - `JSON Str` 只在最外层 JSON 值是字符串时，再解析一次字符串内部的 JSON。
+- 分屏支持“解析字符串类型 JSON”和“富内容”两个复选框：
+  - “解析字符串类型 JSON”只在最外层 JSON 值是字符串时，再解析一次字符串内部的 JSON。
   - “富内容”只预览字符串值中的 Base64 图片和沙箱 HTML（如图片、表格），不会递归解析 JSON 字段，也不会执行脚本。
 
 ## Main Risks
@@ -38,7 +38,7 @@
 - 结构重构与视觉改版必须分开提交。未明确批准的字体、间距、颜色、窗口尺寸和控件位置变化一律视为回归。
 - 截图比较之外继续保留 Tauri E2E；只有视觉基线和功能测试同时通过，才能合并双视图。
 
-### Task 1: Correct Feature Names and Lock the Split-Mode Contract
+### Task 1: Correct Feature Names and Lock the Split-Mode Contract（已完成）
 
 **Files:**
 - Modify: `src/index.html`
@@ -51,22 +51,21 @@
 - 在分屏输入一个双重编码 JSON 字符串。
 - 勾选 `#splitParseJsonString`，断言树中出现内部对象。
 - 同时勾选 `#splitRenderHtml`，断言内部字符串里的表格或图片可预览。
-- 断言关闭 JSON 文本解析后，外层字符串保持字符串，不递归修改对象字段。
+- 断言关闭“解析字符串类型 JSON”后，外层字符串保持字符串，不递归修改对象字段。
 
 **Step 2: Run the targeted tests**
 
 Run:
 
 ```bash
-WDIO_GREP='JSON 文本|富内容' $HOME/.nvm/versions/node/v24.12.0/bin/node scripts/run-tauri-e2e.mjs
+WDIO_GREP='字符串类型 JSON|富内容' $HOME/.nvm/versions/node/v24.12.0/bin/node scripts/run-tauri-e2e.mjs
 ```
 
 Expected: 新增行为测试在文案或分屏链路不完整处失败，现有图片测试保持通过。
 
 **Step 3: Correct the UI copy**
 
-- 主界面标题改为“解析 JSON 文本（JSON Str）”。
-- 分屏短标签改为“JSON 文本”。
+- 主界面和分屏标题统一为“解析字符串类型 JSON”。
 - tooltip 明确说明“仅解析最外层 JSON 字符串一次”。
 - “富内容”tooltip 明确说明“沙箱预览图片和表格，不执行脚本”。
 - ID 和存储语义保持不变，避免无意义迁移。
@@ -85,6 +84,13 @@ Expected: 全部通过。
 **Step 5: Commit checkpoint**
 
 Suggested commit: `test: define split json text and rich content behavior`
+
+**Completion record:**
+
+- 主界面与分屏统一使用“解析字符串类型 JSON”，tooltip 明确只解析最外层字符串一次。
+- 富内容 tooltip 明确使用严格沙箱预览图片和表格，不执行脚本。
+- Tauri E2E 覆盖复选框同步、无效内层错误，以及先解析字符串再渲染内部富内容的顺序。
+- `pnpm test:self` 可自动启动、等待并清理临时 Vite 服务，不再需要手工运行 `pnpm dev`。
 
 ### Task 2: Introduce a Single JSON Parse Pipeline（已完成）
 
@@ -287,7 +293,7 @@ Suggested commit: `test: harden rich content and large json boundaries`
 - JSON 输入最大 5MB，解析深度最大 100 层；树形视图展示深度最大 50 层。
 - 会被 JavaScript 静默改写的数字会明确报错；编辑器超过 10,000 个节点时引导切换到分屏按需加载。
 - 树形首屏使用全局 500 项预算，平面集合保持每批 500 项，未加载的大型分支不会被“展开全部”强制实例化。
-- 187 项 Jest 单元测试、48 项 Playwright、113 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
+- 187 项 Jest 单元测试、48 项 Playwright、115 项真实 Tauri E2E、35 项浏览器自测、TypeScript、Vite build、rustfmt 和 Clippy 全部通过。
 
 ## Required Gate After Every Task
 

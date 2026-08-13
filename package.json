@@ -16,7 +16,7 @@
     "tauri:build": "tauri build",
     "tauri:build:e2e": "cargo build --manifest-path src-tauri/Cargo.toml --features webdriver",
     "test:tauri:e2e": "node scripts/run-tauri-e2e.mjs",
-    "test:self": "node selftest.mjs",
+    "test:self": "node scripts/run-browser-selftest.mjs",
     "version:sync": "node scripts/auto-version.js  --build",
     "version:set": "node scripts/auto-version.js",
     "version:show": "node scripts/auto-version.js",

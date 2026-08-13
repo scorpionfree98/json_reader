@@ -5,7 +5,7 @@
  */
 import { chromium } from 'playwright';
 
-const BASE_URL = 'http://localhost:5173';
+const BASE_URL = 'http://127.0.0.1:5173';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function run() {

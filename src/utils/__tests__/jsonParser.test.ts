@@ -36,7 +36,7 @@ describe('parseJsonSource', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('只解析一层 JSON 文本', () => {
+  test('只解析一层字符串类型 JSON', () => {
     const inner = JSON.stringify({ nested: { value: 1 } });
     expect(parseJsonSource(JSON.stringify(inner), { parseJsonString: true })).toEqual({
       ok: true,
@@ -45,7 +45,7 @@ describe('parseJsonSource', () => {
     });
   });
 
-  test('关闭 JSON 文本解析时保留外层字符串', () => {
+  test('关闭字符串类型 JSON 解析时保留外层字符串', () => {
     const inner = JSON.stringify({ value: 1 });
     expect(parseJsonSource(JSON.stringify(inner), { parseJsonString: false })).toEqual({
       ok: true,
@@ -151,7 +151,7 @@ describe('parseJsonSource', () => {
     stringify.mockRestore();
   });
 
-  test('JSON Str 内层过深时保留解码后的错误源', () => {
+  test('字符串类型 JSON 内层过深时保留解码后的错误源', () => {
     const innerSource = nestedArraySource(101);
     const result = parseJsonSource(JSON.stringify(innerSource), { parseJsonString: true });
 
