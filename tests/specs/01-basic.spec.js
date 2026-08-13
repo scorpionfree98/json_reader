@@ -55,7 +55,7 @@ describe('基础 JSON 功能', () => {
     expect(await $('#json-display').getText()).toBe('');
   });
 
-  it('勾选解析字符串类型 JSON 后应自动解析最外层 JSON 字符串', async () => {
+  it('勾选解析字符串类型json后应自动解析最外层 JSON 字符串', async () => {
     const inner = JSON.stringify({ user: { name: '张三' }, enabled: true });
     await setInputValue('#sourceText', JSON.stringify(inner));
     await toggleLayuiCheckbox('parseJsonString');
@@ -64,7 +64,7 @@ describe('基础 JSON 功能', () => {
     await toggleLayuiCheckbox('parseJsonString');
   });
 
-  it('未勾选解析字符串类型 JSON 时应保留外层字符串', async () => {
+  it('未勾选解析字符串类型json时应保留外层字符串', async () => {
     const inner = JSON.stringify({ name: '保留字符串' });
     const encoded = JSON.stringify(inner);
     await formatInEditor(encoded);

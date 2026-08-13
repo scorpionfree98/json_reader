@@ -17,7 +17,7 @@ describe('复选框和主题功能', () => {
     expect(after).not.toBe(before);
   });
 
-  it('解析字符串类型 JSON 复选框应存在并同步到分屏', async () => {
+  it('解析字符串类型json复选框应存在并同步到分屏', async () => {
     expect(await elementExists('#parseJsonString')).toBe(true);
     await toggleLayuiCheckbox('parseJsonString');
     expect(await isChecked('#splitParseJsonString')).toBe(true);
@@ -34,10 +34,10 @@ describe('复选框和主题功能', () => {
       splitRichTip: document.querySelector('#splitRenderHtml')?.parentElement?.title || ''
     }));
 
-    expect(copy.editorJsonText).toContain('解析字符串类型 JSON');
+    expect(copy.editorJsonText).toContain('解析字符串类型json');
     expect(copy.editorJsonTip).toContain('仅解析最外层');
     expect(copy.editorRichTip).toContain('不执行脚本');
-    expect(copy.splitJsonText).toContain('解析字符串类型 JSON');
+    expect(copy.splitJsonText).toContain('解析字符串类型json');
     expect(copy.splitJsonTip).toContain('仅解析最外层');
     expect(copy.splitRichTip).toContain('不执行脚本');
   });

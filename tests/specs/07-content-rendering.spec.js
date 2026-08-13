@@ -191,7 +191,7 @@ describe('内容渲染与安全边界', () => {
     expect(await browser.execute(() => document.querySelectorAll('#tree-view .inline-image-preview').length)).toBeGreaterThan(0);
   });
 
-  it('分屏可先解析字符串类型 JSON 再渲染内部富内容', async () => {
+  it('分屏可先解析字符串类型json再渲染内部富内容', async () => {
     const inner = JSON.stringify({ content: '<table><tr><td>联合渲染</td></tr></table>' });
     await formatInSplit(JSON.stringify(inner));
     await browser.execute(() => {
