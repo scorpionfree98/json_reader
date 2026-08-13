@@ -20,7 +20,11 @@ import { SettingsStore } from './utils/settingsStore';
 import { initSplitResizer } from './utils/splitResizer';
 import { TrayController, type TrayListen } from './utils/trayController';
 import { UpdateService, type SafeUpdateDetails, type UpdateDialogActions } from './utils/updateService';
-import { WorkbenchController, type WorkbenchMode } from './utils/workbenchController';
+import {
+  WorkbenchController,
+  type WorkbenchLayout,
+  type WorkbenchResultView
+} from './utils/workbenchController';
 import { createWindowController } from './utils/windowController';
 
 // 导入 LayUI CSS（npm 安装）
@@ -57,10 +61,8 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...
 const windowController = createWindowController(showLayuiMsg);
 const { appWindow } = windowController;
 const isTauri = () => windowController.isTauri;
-// 视图模式管理
-type ViewMode = WorkbenchMode;
 const settings = new SettingsStore();
-const workbench = new WorkbenchController({ mode: settings.getViewMode() });
+const workbench = new WorkbenchController(settings.getWorkbenchView());
 const topActionQueue = new AsyncActionQueue();
 const autostartActionQueue = new AsyncActionQueue();
 const updateDisabledActionQueue = new AsyncActionQueue();
@@ -89,66 +91,54 @@ function applyTheme(isDark: boolean) {
     html.classList.add('dark');
     document.body.classList.add('dark-mode');
     $('#themeToggle').html('<i class="layui-icon layui-icon-light"></i> 白天');
-    $('#splitThemeToggle').html('<i class="layui-icon layui-icon-light"></i>');
-    $('#splitThemeToggle').attr('title', '切换到白天模式');
   } else {
     html.classList.remove('dark');
     document.body.classList.remove('dark-mode');
     $('#themeToggle').html('<i class="layui-icon layui-icon-moon"></i> 夜间');
-    $('#splitThemeToggle').html('<i class="layui-icon layui-icon-moon"></i>');
-    $('#splitThemeToggle').attr('title', '切换到夜间模式');
   }
 }
 
-// ==================== 同步函数 ====================
+// ==================== 工作台状态 ====================
 
 function setSourceContent(value: string) {
   workbench.setSource(value);
-  $('#sourceText, #splitSourceText').val(value);
-}
-
-function syncContentToMode(mode: ViewMode) {
-  setSourceContent(workbench.source);
-  if (mode === 'split') refreshTreeView();
-}
-
-function syncSettingsToSplitMode(mode: ViewMode) {
-  if (mode === 'split') {
-    $('#splitExplainBtn').toggleClass('active', $('#explain').prop('checked'));
-    $('#splitTopBtn').toggleClass('active', $('#topCheck').prop('checked'));
-    // 同步复制格式选择器
-    const copyFormat = $('#copyFormat').val() as string;
-    $('#splitCopyFormat').val(copyFormat);
-  }
+  $('#sourceText').val(value);
 }
 
 function syncCopyFormat(value: string) {
   $('#customFormatContainer').toggleClass('hidden', value !== 'custom');
-  if (value !== 'custom') $('#splitCopyFormat').val(value);
 }
 
-// ==================== 视图模式函数 ====================
-
-function switchViewMode(mode: ViewMode) {
-  workbench.setMode(mode);
-  
-  $('.view-mode-btn').removeClass('active');
-  $(`.view-mode-btn[data-mode="${mode}"]`).addClass('active');
-  $('.mode-container').addClass('hidden');
-  $(`#${mode}-mode`).removeClass('hidden');
-
-  const isSplit = mode === 'split';
-  $('#editor-input-container').toggleClass('hidden', isSplit);
-  $('#main-toolbar').toggleClass('hidden', isSplit);
-
-  syncContentToMode(mode);
-  syncSettingsToSplitMode(mode);
-  settings.setViewMode(mode);
-  console.log('切换到模式:', mode);
+function applyLayout(layout: WorkbenchLayout) {
+  workbench.setLayout(layout);
+  $('#workbenchShell').attr('data-layout', layout);
+  $('.layout-mode-btn')
+    .removeClass('active')
+    .filter(`[data-layout="${layout}"]`)
+    .addClass('active');
+  settings.setLayout(layout);
 }
 
-function applySavedViewMode() {
-  switchViewMode(settings.getViewMode());
+function switchResultView(resultView: WorkbenchResultView, refresh = true) {
+  workbench.setResultView(resultView);
+  $('#resultWorkspace').attr('data-result-view', resultView);
+  $('.result-view-btn')
+    .removeClass('active')
+    .attr('aria-selected', 'false')
+    .filter(`[data-result-view="${resultView}"]`)
+    .addClass('active')
+    .attr('aria-selected', 'true');
+  $('.result-view-panel').addClass('hidden');
+  $(`#${resultView === 'tree' ? 'tree-result' : 'highlight-result'}`).removeClass('hidden');
+  $('.result-tools').addClass('hidden');
+  $(`.result-tools[data-result-tools="${resultView}"]`).removeClass('hidden');
+  settings.setResultView(resultView);
+  if (refresh) refreshActiveResult();
+}
+
+function applySavedWorkbenchView() {
+  applyLayout(workbench.layout);
+  switchResultView(workbench.resultView, false);
 }
 
 // ==================== 功能函数 ====================
@@ -183,7 +173,6 @@ async function copyOutputToClipboard(text: string) {
 
 const syncTopState = (enabled: boolean): void => {
   byId('topCheck')?.prop('checked', enabled);
-  $('#splitTopBtn').toggleClass('active', enabled);
   layui.form.render('checkbox');
 };
 
@@ -260,18 +249,10 @@ function setValidationState(state: 'empty' | 'valid' | 'invalid', message: strin
   const isInvalid = state === 'invalid';
 
   $('#valid-result')
-    .text(state === 'empty' ? '' : isValid ? '格式正确' : message)
+    .text(state === 'empty' ? message : isValid ? '格式正确' : message)
     .toggleClass('es-empty', state === 'empty')
     .toggleClass('es-pass', isValid)
     .toggleClass('es-fail', isInvalid);
-
-  $('#split-valid-result')
-    .text(message)
-    .removeClass('es-empty es-pass es-fail status-empty status-valid status-invalid')
-    .addClass(`status-${state}`)
-    .toggleClass('es-pass', isValid)
-    .toggleClass('es-fail', isInvalid)
-    .show();
 }
 
 export function formatJson() {
@@ -285,7 +266,7 @@ export function formatJson() {
   if (result.ok === false && result.kind === 'too-large') {
     clearRenderedOutput();
     setValidationState('invalid', '输入超过 5MB');
-    if (workbench.mode === 'split') {
+    if (workbench.resultView === 'tree') {
       $('#tree-view').html('<div class="tree-error-state">输入超过 5MB</div>');
     }
     showLayuiMsg('输入内容过大（超过5MB），请缩减后重试');
@@ -296,7 +277,7 @@ export function formatJson() {
     const message = `数字 ${token} 超出安全精度范围`;
     clearRenderedOutput();
     setValidationState('invalid', message);
-    if (workbench.mode === 'split') {
+    if (workbench.resultView === 'tree') {
       $('#tree-view').html(`<div class="tree-error-state">${message}</div>`);
     }
     showLayuiMsg('检测到可能损失精度的数字，已停止格式化');
@@ -312,7 +293,7 @@ export function formatJson() {
     const message = `JSON 嵌套超过 ${result.maxDepth} 层`;
     clearRenderedOutput();
     setValidationState('invalid', message);
-    if (workbench.mode === 'split') {
+    if (workbench.resultView === 'tree') {
       $('#tree-view').html(`<div class="tree-error-state">${message}</div>`);
     }
     showLayuiMsg(message);
@@ -322,7 +303,7 @@ export function formatJson() {
   if (result.ok === false && result.kind === 'format-error') {
     clearRenderedOutput();
     setValidationState('invalid', 'JSON 格式化失败');
-    if (workbench.mode === 'split') {
+    if (workbench.resultView === 'tree') {
       $('#tree-view').html('<div class="tree-error-state">JSON 格式化失败</div>');
     }
     console.error('JSON 格式化失败:', result.error);
@@ -334,9 +315,8 @@ export function formatJson() {
     const errorInfo = jsonTool.parseJsonError(result.errorSource, result.error.message);
     clearRenderedOutput();
     byId('valid-result')?.html(errorInfo).removeClass('es-pass es-empty').addClass('es-fail');
-    if (workbench.mode === 'split') {
+    if (workbench.resultView === 'tree') {
       $('#tree-view').html('<div class="tree-error-state">JSON 格式错误</div>');
-      setValidationState('invalid', 'JSON 格式错误');
     }
     showLayuiMsg('JSON格式错误');
   }
@@ -346,10 +326,13 @@ function renderParsedJson(jsonObj: unknown, formatted = JSON.stringify(jsonObj, 
   workbench.commitFormattedResult(jsonObj, formatted);
   searchController.clear('editor');
   searchController.clear('tree');
-  $('#sourceText, #splitSourceText').val(formatted);
+  $('#sourceText').val(formatted);
   setValidationState('valid', 'JSON 有效');
+  renderResult(jsonObj, workbench.resultView);
+}
 
-  if (workbench.mode === 'split') {
+function renderResult(jsonObj: unknown, resultView: WorkbenchResultView) {
+  if (resultView === 'tree') {
     jsonTool.updateTreeView(jsonObj, workbench.renderOptions);
     return;
   }
@@ -357,14 +340,14 @@ function renderParsedJson(jsonObj: unknown, formatted = JSON.stringify(jsonObj, 
   if (exceedsJsonNodeLimit(jsonObj)) {
     const $switchButton = $('<button type="button">')
       .addClass('json-render-limit-action')
-      .text('切换到分屏视图')
-      .on('click', () => switchViewMode('split'));
+      .text('查看树形视图')
+      .on('click', () => switchResultView('tree'));
     $('#json-display').empty().append(
       $('<div>')
         .addClass('json-render-limit')
         .append(
-          $('<strong>').text('数据量较大，已暂停编辑器完整渲染'),
-          $('<span>').text(`超过 ${DEFAULT_MAX_EDITOR_RENDER_NODES.toLocaleString()} 个节点。源码已完成格式化，可在分屏视图中按需加载。`),
+          $('<strong>').text('数据量较大，已暂停高亮完整渲染'),
+          $('<span>').text(`超过 ${DEFAULT_MAX_EDITOR_RENDER_NODES.toLocaleString()} 个节点。源码已完成格式化，可在树形视图中按需加载。`),
           $switchButton
         )
     );
@@ -463,7 +446,6 @@ const trayController = new TrayController({
     },
     setAlwaysOnTop: enabled => {
       byId('topCheck')?.prop('checked', enabled);
-      $('#splitTopBtn').toggleClass('active', enabled);
       layui.form.render('checkbox');
     },
     setAutostart: enabled => {
@@ -512,15 +494,15 @@ function collapseAllTree() {
   showLayuiMsg('已折叠全部');
 }
 
-function refreshTreeView() {
-  if (workbench.mode !== 'split') return;
-  searchController.clear('tree');
+function refreshActiveResult() {
+  const resultView = workbench.resultView;
+  searchController.clear(resultView === 'tree' ? 'tree' : 'editor');
   const result = workbench.parse();
   if (result.ok === true) {
-    jsonTool.updateTreeView(result.value, workbench.renderOptions);
+    renderResult(result.value, resultView);
     setValidationState('valid', 'JSON 有效');
   } else if (result.kind === 'empty') {
-    $('#tree-view').empty();
+    $(resultView === 'tree' ? '#tree-view' : '#json-display').empty();
     setValidationState('empty', '等待输入 JSON');
   } else {
     const message = result.kind === 'too-large'
@@ -532,45 +514,48 @@ function refreshTreeView() {
         : result.kind === 'format-error'
           ? 'JSON 格式化失败'
           : 'JSON 格式错误';
-    $('#tree-view').html(`<div style="color: #999; padding: 20px;">${message}</div>`);
-    setValidationState('invalid', result.kind === 'too-large' ? '输入超过 5MB' : message);
+    $(resultView === 'tree' ? '#tree-view' : '#json-display')
+      .html(`<div class="tree-error-state">${message}</div>`);
+    if (result.kind === 'invalid') {
+      const errorInfo = jsonTool.parseJsonError(result.errorSource, result.error.message);
+      byId('valid-result')?.html(errorInfo).removeClass('es-pass es-empty').addClass('es-fail');
+    } else {
+      setValidationState('invalid', result.kind === 'too-large' ? '输入超过 5MB' : message);
+    }
   }
+}
+
+function refreshTreeView() {
+  if (workbench.resultView === 'tree') refreshActiveResult();
 }
 
 // ==================== 事件绑定 ====================
 
 function bindViewModeEvents() {
-  $('.view-mode-btn').off('click').on('click', function(e) {
+  $('.result-view-btn').off('click').on('click', function(e) {
     e.preventDefault();
-    e.stopPropagation();
-    const $btn = $(this).closest('.view-mode-btn');
-    const mode = $btn.data('mode') as ViewMode;
-    switchViewMode(mode);
-    showLayuiMsg(`已切换到${$btn.text().trim()}模式`);
+    const resultView = $(this).data('result-view') as WorkbenchResultView;
+    switchResultView(resultView);
   });
 
-  // 主工具栏最大化按钮
+  $('.layout-mode-btn').off('click').on('click', function(e) {
+    e.preventDefault();
+    applyLayout($(this).data('layout') as WorkbenchLayout);
+  });
+
   $('#maximizeBtn').off('click').on('click', windowController.toggleMaximize);
 
-  // 分屏模式编辑器实时同步（带防抖）
   const debouncedTreeUpdate = debounce((text: string) => {
     if (text !== workbench.source) return;
     refreshTreeView();
   }, 200);
 
-  $('#splitSourceText').off('input').on('input', function() {
+  $('#sourceText').off('input.contentSync').on('input.contentSync', function() {
     const text = $(this).val() as string;
     workbench.setSource(text);
-    $('#sourceText').val(text);
     debouncedTreeUpdate(text);
   });
 
-  $('#sourceText').off('input.contentSync').on('input.contentSync', function() {
-    workbench.setSource($(this).val() as string);
-    $('#splitSourceText').val(workbench.source);
-  });
-
-  // 主题切换按钮
   $('#themeToggle').off('click').on('click', toggleTheme);
 }
 
@@ -587,6 +572,8 @@ function bindButtonEvents() {
   $('#copyFormat').off('change.copyFormat').on('change.copyFormat', function() {
     syncCopyFormat($(this).val() as string);
   });
+  $('#splitExpandAll').off('click').on('click', expandAllTree);
+  $('#splitCollapseAll').off('click').on('click', collapseAllTree);
 
   // 拖拽区域
   if (appWindow) {
@@ -596,63 +583,6 @@ function bindButtonEvents() {
     });
   }
 
-  bindSplitToolbarEvents();
-}
-
-function bindSplitToolbarEvents() {
-  // 功能按钮
-  $('#splitFormatBtn').off('click').on('click', formatJson);
-  $('#splitPasteBtn').off('click').on('click', tryPasteFromClipboard);
-  $('#splitClearBtn').off('click').on('click', clearInputContent);
-  $('#splitRenderHtml').off('change').on('change', function() {
-    const enabled = $(this).prop('checked');
-    workbench.setRichContent(enabled);
-    byId('renderHtml')?.prop('checked', enabled);
-    layui.form.render('checkbox');
-    formatJson();
-  });
-  $('#splitParseJsonString').off('change').on('change', function() {
-    const enabled = $(this).prop('checked');
-    workbench.setParseJsonString(enabled);
-    byId('parseJsonString')?.prop('checked', enabled);
-    layui.form.render('checkbox');
-    formatJson();
-  });
-  $('#splitCheckUpdate').off('click').on('click', () => checkUpdate(true));
-  $('#splitExpandAll').off('click').on('click', expandAllTree);
-  $('#splitCollapseAll').off('click').on('click', collapseAllTree);
-
-  // 转义和置顶按钮
-  $('#splitExplainBtn').off('click').on('click', function() {
-    const $btn = $(this);
-    const isActive = !$btn.hasClass('active');
-    $btn.toggleClass('active', isActive);
-    workbench.setExplain(isActive);
-    byId('explain')?.prop('checked', isActive);
-    layui.form.render('checkbox');
-    formatJson();
-    showLayuiMsg(`转义状态已${isActive ? '启用' : '禁用'}`);
-  });
-
-  $('#splitTopBtn').off('click').on('click', async function() {
-    await toggleTop();
-  });
-
-  // 复制格式选择器 - 同步到主选择器
-  $('#splitCopyFormat').off('change').on('change', function() {
-    const format = $(this).val() as string;
-    $('#copyFormat').val(format).trigger('change');
-  });
-
-  // 主题切换
-  $('#splitThemeToggle').off('click').on('click', toggleTheme);
-
-  // 窗口控制按钮
-  $('#splitMinimize').off('click').on('click', windowController.minimize);
-  $('#splitMaximize').off('click').on('click', windowController.toggleMaximize);
-  $('#splitClose').off('click').on('click', windowController.close);
-
-  // 初始化可拖动分割线
   initSplitResizer();
 }
 
@@ -680,7 +610,6 @@ function initLayuiForm() {
     form.on('checkbox(explain)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setExplain(enabled);
-      $('#splitExplainBtn').toggleClass('active', enabled);
       formatJson();
       showLayuiMsg(`转义状态已${enabled ? '启用' : '禁用'}`);
     });
@@ -688,14 +617,12 @@ function initLayuiForm() {
     form.on('checkbox(renderHtml)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setRichContent(enabled);
-      byId('splitRenderHtml')?.prop('checked', enabled);
       formatJson();
     });
 
     form.on('checkbox(parseJsonString)', function (this: HTMLInputElement) {
       const enabled = $(this).prop('checked');
       workbench.setParseJsonString(enabled);
-      byId('splitParseJsonString')?.prop('checked', enabled);
       formatJson();
     });
 
@@ -737,7 +664,6 @@ async function initCheckboxStates() {
     if (appWindow) {
       const isTop = await appWindow.isAlwaysOnTop();
       byId('topCheck')?.prop('checked', isTop);
-      $('#splitTopBtn').toggleClass('active', isTop);
     }
     if (isTauri()) {
       byId('autoStart')?.prop('checked', await isAutostartEnabled());
@@ -752,7 +678,6 @@ async function initCheckboxStates() {
     workbench.setExplain(explainEnabled);
     workbench.setRichContent(Boolean(byId('renderHtml')?.prop('checked')));
     workbench.setParseJsonString(Boolean(byId('parseJsonString')?.prop('checked')));
-    $('#splitExplainBtn').toggleClass('active', explainEnabled);
     layui.form.render();
   } catch (error) {
     console.error('初始化复选框状态失败:', error);
@@ -762,13 +687,11 @@ async function initCheckboxStates() {
 async function displayVersion() {
   if (!isTauri()) {
     byId('version')?.text('Web');
-    byId('splitVersionText')?.text('Web');
     return;
   }
   try {
     const version = await getVersion();
     byId('version')?.text(version);
-    byId('splitVersionText')?.text(version);
   } catch (e) {
     console.log('获取版本号失败:', e);
   }
@@ -792,7 +715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindCheckboxEvents();
   bindViewModeEvents();
   searchController.bind();
-  applySavedViewMode();
+  applySavedWorkbenchView();
   applyTheme(isDarkMode);
   setValidationState('empty', '等待输入 JSON');
   displayVersion();

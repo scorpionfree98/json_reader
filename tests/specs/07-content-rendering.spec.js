@@ -1,4 +1,4 @@
-import { formatInEditor, formatInSplit, getControlValue, resetWorkspace, safeClick, selectControlValue, toggleLayuiCheckbox, waitForText, waitForVisibility } from '../helpers/utils.js';
+import { formatInEditor, formatInSplit, getControlValue, resetWorkspace, safeClick, selectControlValue, setLayuiCheckbox, toggleLayuiCheckbox, waitForText, waitForVisibility } from '../helpers/utils.js';
 import {
   createDeeplyNestedCase,
   createLargeCase,
@@ -57,17 +57,7 @@ const waitForHostilePreviewsToLoad = async () => {
 };
 
 const enableRichContent = async (mode) => {
-  if (mode === 'editor') {
-    await browser.execute(() => window.layui?.form?.render('checkbox'));
-    await toggleLayuiCheckbox('renderHtml');
-    return;
-  }
-
-  await browser.execute(() => {
-    const checkbox = document.querySelector('#splitRenderHtml');
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-  });
+  await setLayuiCheckbox('renderHtml', true);
 };
 
 const waitForNestedObjectCount = async (count, timeout = 15000) => {
@@ -94,23 +84,15 @@ describe('内容渲染与安全边界', () => {
       window.__hostilePreviewCleanup?.();
       delete window.__hostilePreviewCleanup;
       delete window.__hostilePreviewState;
-      const main = document.querySelector('#renderHtml');
-      const split = document.querySelector('#splitRenderHtml');
-      if (main) main.checked = false;
-      if (split) split.checked = false;
     });
     await resetWorkspace('editor');
+    await setLayuiCheckbox('parseJsonString', false);
+    await setLayuiCheckbox('renderHtml', false);
   });
 
   afterEach(async () => {
-    await browser.execute(() => {
-      ['#splitParseJsonString', '#splitRenderHtml'].forEach(selector => {
-        const checkbox = document.querySelector(selector);
-        if (!checkbox?.checked) return;
-        checkbox.checked = false;
-        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    });
+    await setLayuiCheckbox('parseJsonString', false);
+    await setLayuiCheckbox('renderHtml', false);
   });
 
   it('尖括号内容应作为文本显示而不是 HTML', async () => {
@@ -182,11 +164,7 @@ describe('内容渲染与安全边界', () => {
 
   it('分屏视图的富内容复选框也可触发渲染', async () => {
     await formatInSplit(serializeCase(validCases.unicodeAndMarkup));
-    await browser.execute(() => {
-      const checkbox = document.querySelector('#splitRenderHtml');
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await setLayuiCheckbox('renderHtml', true);
     await waitForVisibility('#tree-view .html-inline-preview');
     expect(await browser.execute(() => document.querySelectorAll('#tree-view .inline-image-preview').length)).toBeGreaterThan(0);
   });
@@ -194,14 +172,8 @@ describe('内容渲染与安全边界', () => {
   it('分屏可先解析字符串类型json再渲染内部富内容', async () => {
     const inner = JSON.stringify({ content: '<table><tr><td>联合渲染</td></tr></table>' });
     await formatInSplit(JSON.stringify(inner));
-    await browser.execute(() => {
-      const parse = document.querySelector('#splitParseJsonString');
-      const rich = document.querySelector('#splitRenderHtml');
-      parse.checked = true;
-      parse.dispatchEvent(new Event('change', { bubbles: true }));
-      rich.checked = true;
-      rich.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await setLayuiCheckbox('parseJsonString', true);
+    await setLayuiCheckbox('renderHtml', true);
 
     await waitForVisibility('#tree-view .html-inline-preview');
     const preview = await browser.execute(() =>
@@ -212,7 +184,7 @@ describe('内容渲染与安全边界', () => {
 
   [
     { mode: 'editor', container: '#json-display', pasteButton: '#pasteBtn', input: '#sourceText', format: formatInEditor },
-    { mode: 'split', container: '#tree-view', pasteButton: '#splitPasteBtn', input: '#splitSourceText', format: formatInSplit }
+    { mode: 'split', container: '#tree-view', pasteButton: '#pasteBtn', input: '#sourceText', format: formatInSplit }
   ].forEach(({ mode, container, pasteButton, input, format }) => {
     it(`${mode === 'editor' ? '编辑器' : '分屏'} HTML 卡片应保留换行、切换源码并复制完整原文`, async () => {
       const html = '<section>第一行\\n第二行<table>\\r\\n<tr><td>单元格\\t内容</td></tr>\\n</table></section>';
@@ -306,8 +278,8 @@ describe('内容渲染与安全边界', () => {
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
     await waitForText('.custom-toast, .layui-layer-msg', '已复制');
-    await safeClick('#splitPasteBtn');
-    expect(await getControlValue('#splitSourceText')).toBe(longValue);
+    await safeClick('#pasteBtn');
+    expect(await getControlValue('#sourceText')).toBe(longValue);
   });
 
   [
@@ -333,8 +305,8 @@ describe('内容渲染与安全边界', () => {
         key.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
       });
       await waitForText('.custom-toast, .layui-layer-msg', '已复制');
-      await safeClick('#splitPasteBtn');
-      expect(await getControlValue('#splitSourceText')).toBe(expected);
+      await safeClick('#pasteBtn');
+      expect(await getControlValue('#sourceText')).toBe(expected);
     });
   });
 
@@ -379,8 +351,8 @@ describe('内容渲染与安全边界', () => {
       value.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
     await waitForText('.custom-toast, .layui-layer-msg', '已复制');
-    await safeClick('#splitPasteBtn');
-    expect(await getControlValue('#splitSourceText')).toBe('item-1199');
+    await safeClick('#pasteBtn');
+    expect(await getControlValue('#sourceText')).toBe('item-1199');
   });
 
   it('大型扁平对象也应遵守 500 个节点的分批渲染约定', async () => {
@@ -422,7 +394,7 @@ describe('内容渲染与安全边界', () => {
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     });
     await waitForText('.custom-toast, .layui-layer-msg', '已复制');
-    await safeClick('#splitPasteBtn');
-    expect(await getControlValue('#splitSourceText')).toBe('null');
+    await safeClick('#pasteBtn');
+    expect(await getControlValue('#sourceText')).toBe('null');
   });
 });

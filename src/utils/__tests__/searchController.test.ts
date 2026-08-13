@@ -54,8 +54,7 @@ describe('SearchController', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     document.body.innerHTML = `
-      <div id="editor-mode"></div>
-      <div id="split-mode" class="hidden"></div>
+      <div id="resultWorkspace" data-result-view="highlight"></div>
       ${searchBar('editor')}
       ${searchBar('tree')}
       <div id="json-display"></div>
@@ -158,7 +157,7 @@ describe('SearchController', () => {
     $(document).trigger($.Event('keydown', { key: 'f', ctrlKey: true }));
     expect($('#editorSearchBar').hasClass('hidden')).toBe(false);
 
-    $('#editor-mode').addClass('hidden');
+    $('#resultWorkspace').attr('data-result-view', 'tree');
     $(document).trigger($.Event('keydown', { key: 'f', metaKey: true }));
     expect($('#treeSearchBar').hasClass('hidden')).toBe(false);
   });

@@ -237,50 +237,6 @@
             background-color: #fafafa;
         }
 
-        /* 编辑器模式下的输入框 */
-        #editor-input-container .layui-textarea {
-            max-height: 200px;
-            min-height: 100px;
-        }
-
-        /* ==================== 模式容器 ==================== */
-        .mode-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            overflow: hidden;
-            max-height: calc(100vh -10px);
-        }
-
-        /* 编辑器模式内容容器 */
-        .editor-mode-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            overflow: hidden;
-            max-height: 100%;
-        }
-
-        /* 编辑器模式内容容器内的元素 */
-        .editor-mode-content #valid-result {
-            flex-shrink: 0;
-        }
-
-
-        #split-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 1000;
-            background-color: #fff;
-            display: flex;
-            flex-direction: column;
-        }
-
         /* 分屏模式标题 */
         .split-title {
             flex-shrink: 0;
@@ -294,24 +250,6 @@
 
         body.dark-mode .split-title legend {
             color: #e0e0e0;
-        }
-
-        /* 分屏模式版本号 */
-        .split-version {
-            position: static;
-            text-align: right;
-            padding: 2px 20px;
-            background-color: transparent;
-            font-size: 11px;
-            line-height: 1.2;
-        }
-
-        .editor-mode-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            overflow: hidden;
         }
 
         /* ==================== 分屏布局 ==================== */
@@ -643,37 +581,6 @@
             white-space: nowrap;
         }
 
-        /* 视图模式按钮 */
-        .view-mode-group {
-            margin-left: 10px;
-        }
-
-        .view-mode-btn {
-            padding: 4px 12px;
-            border: 1px solid #d2d2d2;
-            background: #fff;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .view-mode-btn:first-child {
-            border-radius: 4px 0 0 4px;
-        }
-
-        .view-mode-btn:last-child {
-            border-radius: 0 4px 4px 0;
-        }
-
-        .view-mode-btn.active {
-            background: #1E9FFF;
-            color: #fff;
-            border-color: #1E9FFF;
-        }
-
-        .view-mode-btn:hover:not(.active) {
-            background: #f2f2f2;
-        }
-
         /* 主题切换按钮 */
         .theme-toggle {
             margin-left: 10px;
@@ -687,14 +594,6 @@
 
         .theme-toggle:hover {
             background-color: #e0e0e0;
-        }
-
-        /* 分屏模式工具栏按钮 */
-        .split-toolbar {
-            margin-left: auto;
-            display: flex;
-            gap: 4px;
-            min-width: 0;
         }
 
         .split-btn {
@@ -736,38 +635,6 @@
             color: #fff;
         }
 
-        .split-copy-format-select {
-            height: 28px;
-            padding: 0 6px;
-            border: 1px solid #e6e6e6;
-            border-radius: 4px;
-            background-color: #fff;
-            font-size: 12px;
-            color: #333;
-            cursor: pointer;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .split-copy-format-select:hover {
-            border-color: #1890ff;
-        }
-
-        .split-copy-format-select:focus {
-            border-color: #1890ff;
-        }
-
-        body.dark-mode .split-copy-format-select {
-            background-color: #3d3d3d;
-            border-color: #555;
-            color: #e0e0e0;
-        }
-
-        body.dark-mode .split-copy-format-select:hover,
-        body.dark-mode .split-copy-format-select:focus {
-            border-color: #1890ff;
-        }
-
         /* ==================== 版本号 ==================== */
         .version-display {
             position: fixed;
@@ -806,8 +673,7 @@
         }
 
         /* 夜间模式 - 基础组件 */
-        body.dark-mode .container,
-        body.dark-mode #split-mode {
+        body.dark-mode .container {
             background-color: #1a1a1a;
         }
 
@@ -910,27 +776,6 @@
             color: #7fdbca;
         }
 
-        /* 夜间模式 - 视图模式按钮 */
-        body.dark-mode .view-mode-btn {
-            background-color: #2d2d2d;
-            border-color: #444;
-            color: #999;
-        }
-
-        body.dark-mode .view-mode-btn:hover:not(.active) {
-            background-color: #3d3d3d;
-            border-color: #555;
-            color: #e0e0e0;
-        }
-
-        /* 视图模式按钮 active 样式 - 白天/夜间共用 */
-        .view-mode-btn.active,
-        body.dark-mode .view-mode-btn.active {
-            background: #1E9FFF;
-            color: #fff;
-            border-color: #1E9FFF;
-        }
-
         /* 夜间模式 - 分屏按钮 */
         body.dark-mode .split-btn {
             background-color: #2d2d2d;
@@ -948,31 +793,6 @@
             background-color: #1890ff22;
         }
 
-        /* 修复分屏模式下视图切换按钮的样式冲突 */
-        .split-btn.view-mode-btn {
-            width: auto;
-            min-width: 28px;
-            padding: 0 8px;
-        }
-
-        body.dark-mode .split-btn.view-mode-btn {
-            background-color: #2d2d2d;
-            border-color: #444;
-            color: #999;
-        }
-
-        body.dark-mode .split-btn.view-mode-btn:hover {
-            background-color: #3d3d3d;
-            border-color: #1890ff;
-            color: #1890ff;
-        }
-
-        .split-btn.view-mode-btn.active,
-        body.dark-mode .split-btn.view-mode-btn.active {
-            background-color: #1890ff;
-            border-color: #1890ff;
-            color: #fff;
-        }
         /* ==================== 搜索功能 ==================== */
         .search-bar {
             display: flex;
@@ -1159,10 +979,6 @@
             font-family: 'Avenir Next', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         }
 
-        #split-mode {
-            background: var(--app-bg);
-        }
-
         .split-title {
             height: 58px;
             padding: 0 20px;
@@ -1254,7 +1070,6 @@
         }
 
         .editor-container textarea,
-        #splitSourceText,
         #tree-view {
             margin: 0;
             border: 0;
@@ -1264,15 +1079,6 @@
             font-family: var(--code-font);
             font-size: 13px;
             line-height: 1.7;
-        }
-
-        #splitSourceText {
-            padding: 18px 20px;
-            outline: none;
-        }
-
-        #splitSourceText:focus {
-            box-shadow: inset 3px 0 0 var(--accent);
         }
 
         #tree-view {
@@ -1324,46 +1130,6 @@
             border-color: #665a3c;
         }
 
-        #split-valid-result {
-            display: flex !important;
-            align-items: center;
-            gap: 7px;
-            min-height: 31px;
-            margin: 0;
-            padding: 6px 16px;
-            border-bottom: 1px solid var(--line);
-            background: var(--panel-bg);
-            color: var(--text-muted);
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        #split-valid-result::before {
-            content: '';
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #a7afa9;
-        }
-
-        #split-valid-result.status-valid {
-            color: var(--accent);
-        }
-
-        #split-valid-result.status-valid::before {
-            background: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-soft);
-        }
-
-        #split-valid-result.status-invalid {
-            color: var(--danger);
-            background: var(--danger-soft);
-        }
-
-        #split-valid-result.status-invalid::before {
-            background: var(--danger);
-        }
-
         .split-resizer {
             width: 8px;
             background: var(--app-bg);
@@ -1403,14 +1169,6 @@
             color: white;
         }
 
-        .split-version {
-            height: 22px;
-            padding: 2px 18px 4px;
-            color: var(--text-muted);
-            font-family: var(--code-font);
-            background: transparent;
-        }
-
         .tree-item {
             padding: 3px 0;
         }
@@ -1437,34 +1195,6 @@
             background: var(--accent-soft);
         }
 
-        /* 编辑模式结果区固定使用深色代码面板，不跟随应用主题切换。 */
-        #editor-mode #json-display {
-            background-color: #1a1a1a;
-            border-color: #3f4541;
-            color: #e0e0e0;
-            color-scheme: dark;
-        }
-
-        #editor-mode #json-display .json-key {
-            color: #d4a5d4;
-        }
-
-        #editor-mode #json-display .json-string {
-            color: #7fdbca;
-        }
-
-        #editor-mode #json-display .json-number {
-            color: #82b1ff;
-        }
-
-        #editor-mode #json-display .json-boolean {
-            color: #ffab91;
-        }
-
-        #editor-mode #json-display .json-null {
-            color: #b0b0b0;
-        }
-
         body.dark-mode {
             --app-bg: #111713;
             --panel-bg: #18201b;
@@ -1481,9 +1211,7 @@
         }
 
         body.dark-mode .split-title,
-        body.dark-mode #split-valid-result,
         body.dark-mode #tree-view,
-        body.dark-mode #splitSourceText,
         body.dark-mode .split-left,
         body.dark-mode .split-right {
             background-color: var(--panel-bg);
@@ -1631,54 +1359,13 @@
             background: #fff;
         }
 
-        .html-render-toggle {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 0 7px;
-            color: var(--ink-muted);
-            white-space: nowrap;
-        }
-
-        @media (max-width: 1300px) {
-            .split-left .panel-header {
-                flex-wrap: wrap;
-                align-content: center;
-            }
-
-            .split-left .panel-title {
-                width: 100%;
-            }
-
-            .split-left .split-toolbar {
-                width: 100%;
-                margin-left: 0;
-                gap: 2px;
-                justify-content: space-between;
-                overflow: visible;
-            }
-
-            .split-left .split-btn,
-            body.dark-mode .split-left .split-btn {
-                width: 28px;
-                height: 28px;
-                flex-basis: 28px;
-            }
-
-            .split-left .html-render-toggle {
-                padding: 0 4px;
-                font-size: 11px;
-            }
-        }
-
         @media (max-width: 760px) {
             .split-title {
                 height: 50px;
                 padding: 0 12px;
             }
 
-            .split-title legend small,
-            .split-version {
+            .split-title legend small {
                 display: none;
             }
 
@@ -1702,250 +1389,571 @@
             .split-right {
                 margin-top: 8px;
             }
+        }
 
-            .split-toolbar {
-                overflow-x: auto;
+        /* ==================== 统一工作台 ==================== */
+        .workbench-shell {
+            width: 100%;
+            height: 100%;
+            max-height: none;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .workbench-titlebar {
+            flex: 0 0 58px;
+            justify-content: space-between;
+        }
+
+        .workbench-titlebar .version-display {
+            position: static;
+            flex: 0 0 auto;
+            padding: 0;
+            color: var(--text-muted);
+            font-family: var(--code-font);
+            font-size: 11px;
+        }
+
+        .workbench-form {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+
+        .workbench-toolbar {
+            flex: 0 0 auto;
+            padding: 10px 16px 8px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 254, 250, 0.82);
+        }
+
+        .workbench-toolbar .toolbar-row {
+            display: flex;
+            width: 100%;
+            margin: 0;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .workbench-primary-row {
+            justify-content: space-between;
+        }
+
+        .toolbar-cluster {
+            display: inline-flex;
+            min-width: 0;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toolbar-label {
+            margin-right: 3px;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+        }
+
+        .toolbar-button,
+        .result-view-btn {
+            display: inline-flex;
+            height: 32px;
+            padding: 0 10px;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: var(--panel-bg);
+            color: var(--text);
+            font: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .toolbar-button:hover,
+        .result-view-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .toolbar-button.primary,
+        .toolbar-button.active,
+        .result-view-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .toolbar-button.danger:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .workbench-toolbar .settings-row {
+            margin-top: 8px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .workbench-toolbar .setting-group {
+            display: flex;
+            margin: 0;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .workbench-toolbar .setting-group > label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .copy-format-setting .layui-input-inline {
+            width: 175px;
+            margin: 0;
+        }
+
+        .custom-format-row {
+            display: flex;
+            margin-top: 8px;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .custom-format-row .layui-input {
+            width: 150px;
+            height: 30px;
+        }
+
+        .workbench-content {
+            flex: 1;
+            min-height: 0;
+            max-height: none;
+            padding: 12px 16px 14px;
+            overflow: hidden;
+        }
+
+        .workbench-panel {
+            min-height: 0;
+        }
+
+        .workbench-panel .panel-header {
+            flex: 0 0 auto;
+            min-height: 46px;
+            justify-content: space-between;
+        }
+
+        .panel-hint {
+            color: var(--text-muted);
+            font-family: var(--code-font);
+            font-size: 10px;
+        }
+
+        .editor-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #sourceText {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            padding: 18px 20px;
+            resize: none;
+            border: 0;
+            border-radius: 0;
+            outline: none;
+            background: var(--panel-bg);
+            color: var(--text);
+            font-family: var(--code-font);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        #sourceText:focus {
+            box-shadow: inset 3px 0 0 var(--accent);
+        }
+
+        .result-header {
+            gap: 10px;
+        }
+
+        .result-view-tabs,
+        .result-tools {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .result-view-btn {
+            height: 30px;
+            border-color: transparent;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        #valid-result {
+            display: flex !important;
+            flex: 0 0 auto;
+            min-height: 31px;
+            margin: 0;
+            padding: 6px 16px;
+            align-items: center;
+            gap: 7px;
+            overflow: auto;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel-bg);
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 700;
+            white-space: pre-wrap;
+        }
+
+        #valid-result::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            flex: 0 0 7px;
+            border-radius: 50%;
+            background: #a7afa9;
+        }
+
+        #valid-result.es-pass {
+            color: var(--accent);
+        }
+
+        #valid-result.es-pass::before {
+            background: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        #valid-result.es-fail {
+            color: var(--danger);
+            background: var(--danger-soft);
+        }
+
+        #valid-result.es-fail::before {
+            background: var(--danger);
+        }
+
+        .result-workspace,
+        .result-view-panel {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #tree-view,
+        #json-display {
+            flex: 1;
+            min-height: 0;
+            margin: 0;
+            overflow: auto;
+        }
+
+        #highlight-result #json-display {
+            padding: 16px 18px 22px;
+            border: 0;
+            border-radius: 0;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            color-scheme: dark;
+        }
+
+        #highlight-result #json-display .json-key { color: #d4a5d4; }
+        #highlight-result #json-display .json-string { color: #7fdbca; }
+        #highlight-result #json-display .json-number { color: #82b1ff; }
+        #highlight-result #json-display .json-boolean { color: #ffab91; }
+        #highlight-result #json-display .json-null { color: #b0b0b0; }
+
+        #workbenchShell[data-layout="editor"] #splitRightPanel,
+        #workbenchShell[data-layout="editor"] #splitResizer,
+        #workbenchShell[data-layout="result"] #splitLeftPanel,
+        #workbenchShell[data-layout="result"] #splitResizer {
+            display: none;
+        }
+
+        #workbenchShell[data-layout="editor"] #splitLeftPanel,
+        #workbenchShell[data-layout="result"] #splitRightPanel {
+            flex: 1 1 100% !important;
+            border-radius: 10px;
+        }
+
+        body.dark-mode .workbench-toolbar,
+        body.dark-mode #valid-result,
+        body.dark-mode #sourceText {
+            border-color: var(--line);
+            background-color: var(--panel-bg);
+            color: var(--text);
+        }
+
+        body.dark-mode .toolbar-button,
+        body.dark-mode .result-view-btn {
+            border-color: var(--line);
+            background: var(--panel-muted);
+            color: var(--text);
+        }
+
+        body.dark-mode .toolbar-button.active,
+        body.dark-mode .toolbar-button.primary,
+        body.dark-mode .result-view-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: #10241f;
+        }
+
+        @media (max-width: 1050px) {
+            .toolbar-button span,
+            .window-actions .toolbar-button span {
+                display: none;
+            }
+
+            .toolbar-button {
+                width: 32px;
+                padding: 0;
+            }
+
+            .layout-mode-group .toolbar-button {
+                width: auto;
+                padding: 0 9px;
+            }
+
+            .layout-mode-group .toolbar-button span {
+                display: inline;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .workbench-titlebar {
+                height: 50px;
+                flex-basis: 50px;
+            }
+
+            .workbench-titlebar .version-display,
+            .toolbar-label,
+            .layout-mode-btn[data-layout="split"] {
+                display: none;
+            }
+
+            .workbench-toolbar {
+                padding: 8px;
+            }
+
+            .workbench-primary-row {
+                gap: 6px;
+            }
+
+            .window-actions {
+                margin-left: auto;
+            }
+
+            .workbench-toolbar .settings-row {
+                flex-wrap: wrap;
+                overflow: visible;
+            }
+
+            .workbench-content {
+                flex-direction: row;
+                padding: 8px;
+                overflow: hidden;
+            }
+
+            .workbench-content .split-left,
+            .workbench-content .split-right {
+                flex: 1 1 100% !important;
+                min-height: 0;
+                margin: 0;
+                border-radius: 8px;
+            }
+
+            #workbenchShell[data-layout="split"] #splitRightPanel,
+            #workbenchShell[data-layout="split"] #splitResizer {
+                display: none;
+            }
+
+            .panel-hint {
+                display: none;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="container no-drag">
-        <!-- 标题区域 -->
-        <div class="drag-region">
-            <fieldset class="layui-elem-field layui-field-title">
-                <legend>JSON 格式化工具</legend>
-            </fieldset>
-        </div>
-
-        <div class="layui-form no-drag">
-            <!-- 编辑器模式下的 JSON 输入框 -->
-            <div id="editor-input-container" class="layui-form-item layui-form-text">
-                <label class="layui-form-label">JSON 编辑器：</label>
-                <div class="layui-input-block no-drag">
-                    <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea" rows="10"></textarea>
-                </div>
-            </div>
-
-            <!-- 主工具栏 -->
-            <div id="main-toolbar" class="layui-form-item no-drag">
-                <div class="layui-input-block no-drag">
-                    <!-- 操作按钮 -->
-                    <div class="toolbar-row">
-                        <div class="layui-btn-group no-drag">
-                            <button id="pasteBtn" class="layui-btn no-drag"><i class="layui-icon layui-icon-read"></i>
-                                从剪贴板读取</button>
-                            <button id="formatBtn" class="layui-btn layui-btn-normal no-drag"><i
-                                    class="layui-icon layui-icon-release"></i> 格式化JSON</button>
-                            <button id="clearBtn" class="layui-btn layui-btn-primary no-drag"><i
-                                    class="layui-icon layui-icon-delete"></i> 清空</button>
-                        </div>
-
-                        <div class="layui-btn-group no-drag" style="margin-left: 10px;">
-                            <button id="checkUpdate" class="layui-btn layui-btn-primary no-drag" title="检查更新"><i
-                                    class="layui-icon layui-icon-radio"></i> 检查更新</button>
-                            <button id="themeToggle" class="layui-btn layui-btn-primary theme-toggle no-drag"
-                                title="切换主题"><i class="layui-icon layui-icon-light"></i> 白天</button>
-                            <button id="minimize" class="layui-btn layui-bg-blue no-drag"><i
-                                    class="layui-icon layui-icon-eye-invisible"></i> 最小化</button>
-                            <button id="maximizeBtn" class="layui-btn layui-btn-primary no-drag" title="最大化"><i
-                                    class="layui-icon layui-icon-screen-full"></i> 最大化</button>
-                            <button id="close" class="layui-btn layui-bg-red no-drag"><i
-                                    class="layui-icon layui-icon-close"></i> 关闭</button>
-                        </div>
-                    </div>
-
-                    <!-- 设置选项 -->
-                    <div class="toolbar-row settings-row">
-                        <div class="setting-group">
-                            <label>视图:</label>
-                            <div class="view-mode-group no-drag">
-                                <button class="view-mode-btn active" data-mode="editor" title="编辑器模式">
-                                    <i class="layui-icon layui-icon-form"></i> 编辑器
-                                </button>
-                                <button class="view-mode-btn" data-mode="split" title="分屏模式">
-                                    <i class="layui-icon layui-icon-senior"></i> 分屏
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="setting-group">
-                            <label>选项:</label>
-                            <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
-                            <span title="仅解析最外层 JSON 字符串一次">
-                                <input type="checkbox" lay-filter="parseJsonString" id="parseJsonString"
-                                    title="解析字符串类型json" class="no-drag">
-                            </span>
-                            <span title="在严格沙箱中预览图片和表格，不执行脚本">
-                                <input type="checkbox" lay-filter="renderHtml" id="renderHtml" title="富内容" class="no-drag">
-                            </span>
-                            <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
-                            <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
-                            <input type="checkbox" lay-filter="disableUpdate" id="disableUpdate" title="禁用更新"
-                                class="no-drag">
-                        </div>
-
-                        <div class="setting-group">
-                            <button id="editorSearchToggle" class="layui-btn layui-btn-sm layui-btn-primary no-drag">
-                                <i class="layui-icon layui-icon-search"></i> 搜索
-                            </button>
-                        </div>
-
-                        <div class="setting-group">
-                            <label>复制格式:</label>
-                            <div class="layui-input-inline" style="width: 180px; margin: 0;">
-                                <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
-                                    <option value="default">默认 ["key"]</option>
-                                    <option value="dot">点号 .key</option>
-                                    <option value="jsonpath">JSONPath $.key</option>
-                                    <option value="bracket">方括号 ['key']</option>
-                                    <option value="python">Python .get</option>
-                                    <option value="custom">自定义</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 自定义格式容器 -->
-                    <div id="customFormatContainer" class="layui-form-item hidden">
-                        <label class="layui-form-label">自定义格式:</label>
-                        <div class="layui-input-block">
-                            <div class="layui-form-mid">键格式:</div>
-                            <div class="layui-input-inline" style="width: 150px;">
-                                <input type="text" id="customKeyFormat" value=".{key}" placeholder="如: .{key}"
-                                    class="layui-input">
-                            </div>
-                            <div class="layui-form-mid">索引格式:</div>
-                            <div class="layui-input-inline" style="width: 150px;">
-                                <input type="text" id="customIndexFormat" value="[{index}]" placeholder="如: [{index}]"
-                                    class="layui-input">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 编辑器模式 -->
-            <div id="editor-mode" class="mode-container">
-                <div class="editor-mode-content">
-                    <div id="valid-result" class="es-empty"></div>
-                    <div class="search-bar hidden" id="editorSearchBar">
-                        <input type="text" id="editorSearchInput" placeholder="搜索 key 或 value..." />
-                        <button class="search-btn" id="editorCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
-                        <button class="search-btn" id="editorUseRegex" title="正则表达式 (Alt+R)">.*</button>
-                        <div class="search-separator"></div>
-                        <span class="search-count" id="editorSearchCount"></span>
-                        <button class="search-btn" id="editorSearchPrev" title="上一个 (Shift+Enter)">
-                            <i class="layui-icon layui-icon-up"></i>
-                        </button>
-                        <button class="search-btn" id="editorSearchNext" title="下一个 (Enter)">
-                            <i class="layui-icon layui-icon-down"></i>
-                        </button>
-                        <button class="search-btn" id="editorSearchClear" title="关闭 (Esc)">
-                            <i class="layui-icon layui-icon-close"></i>
-                        </button>
-                    </div>
-                    <div id="json-display"></div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-
-    <!-- 分屏模式 -->
-    <div id="split-mode" class="mode-container hidden">
-        <!-- 标题区域 -->
-        <div class="drag-region split-title">
+    <main class="container workbench-shell no-drag" id="workbenchShell" data-layout="split">
+        <header class="drag-region split-title workbench-titlebar">
             <fieldset class="layui-elem-field layui-field-title">
                 <legend><span>JSON FORMATTER</span><small>验证、格式化并浏览复杂数据</small></legend>
             </fieldset>
-        </div>
-        <div class="split-view" id="splitViewContainer">
-            <div class="split-left" id="splitLeftPanel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="layui-icon layui-icon-form"></i> JSON 编辑器</span>
-                    <div class="split-toolbar no-drag">
+            <div class="version-display no-drag" id="mainVersion">版本: <span id="version">--</span></div>
+        </header>
 
-                        <button class="split-btn view-mode-btn" data-mode="editor" title="切换到编辑器模式"><i
-                                class="layui-icon layui-icon-form"></i></button>
-                        <button class="split-btn" id="splitFormatBtn" title="格式化"><i
-                                class="layui-icon layui-icon-release"></i></button>
-                        <button class="split-btn" id="splitPasteBtn" title="粘贴"><i
-                                class="layui-icon layui-icon-read"></i></button>
-                        <button class="split-btn" id="splitClearBtn" title="清空"><i
-                                class="layui-icon layui-icon-delete"></i></button>
-                        <label class="html-render-toggle" title="在严格沙箱中预览图片和表格，不执行脚本"><input type="checkbox"
-                                id="splitRenderHtml"> 富内容</label>
-                        <label class="html-render-toggle" title="仅解析最外层 JSON 字符串一次"><input type="checkbox"
-                                id="splitParseJsonString"> 解析字符串类型json</label>
-                        <button class="split-btn" id="splitCheckUpdate" title="检查更新"><i
-                                class="layui-icon layui-icon-radio"></i></button>
-                        <button class="split-btn" id="splitThemeToggle" title="切换主题"><i
-                                class="layui-icon layui-icon-moon"></i></button>
-                        <button class="split-btn" id="splitMinimize" title="最小化"><i
-                                class="layui-icon layui-icon-eye-invisible"></i></button>
-                        <button class="split-btn" id="splitMaximize" title="最大化"><i
-                                class="layui-icon layui-icon-screen-full"></i></button>
-                        <button class="split-btn" id="splitClose" title="关闭"><i
-                                class="layui-icon layui-icon-close"></i></button>
+        <div class="layui-form no-drag workbench-form">
+            <section id="main-toolbar" class="workbench-toolbar no-drag" aria-label="工作台工具栏">
+                <div class="toolbar-row workbench-primary-row">
+                    <div class="toolbar-cluster" aria-label="JSON 操作">
+                        <button id="pasteBtn" class="toolbar-button" title="从剪贴板读取"><i
+                                class="layui-icon layui-icon-read"></i><span>粘贴</span></button>
+                        <button id="formatBtn" class="toolbar-button primary"><i
+                                class="layui-icon layui-icon-release"></i><span>格式化</span></button>
+                        <button id="clearBtn" class="toolbar-button" title="清空"><i
+                                class="layui-icon layui-icon-delete"></i><span>清空</span></button>
+                    </div>
+
+                    <div class="toolbar-cluster layout-mode-group" aria-label="布局">
+                        <span class="toolbar-label">布局</span>
+                        <button class="toolbar-button layout-mode-btn" data-layout="editor" title="仅显示编辑器"><i
+                                class="layui-icon layui-icon-form"></i><span>编辑</span></button>
+                        <button class="toolbar-button layout-mode-btn active" data-layout="split" title="同时显示编辑器和结果"><i
+                                class="layui-icon layui-icon-senior"></i><span>双栏</span></button>
+                        <button class="toolbar-button layout-mode-btn" data-layout="result" title="仅显示结果"><i
+                                class="layui-icon layui-icon-template-1"></i><span>结果</span></button>
+                    </div>
+
+                    <div class="toolbar-cluster window-actions" aria-label="应用与窗口操作">
+                        <button id="checkUpdate" class="toolbar-button" title="检查更新"><i
+                                class="layui-icon layui-icon-radio"></i><span>更新</span></button>
+                        <button id="themeToggle" class="toolbar-button theme-toggle" title="切换主题"><i
+                                class="layui-icon layui-icon-moon"></i><span>夜间</span></button>
+                        <button id="minimize" class="toolbar-button" title="最小化"><i
+                                class="layui-icon layui-icon-eye-invisible"></i><span>最小化</span></button>
+                        <button id="maximizeBtn" class="toolbar-button" title="最大化"><i
+                                class="layui-icon layui-icon-screen-full"></i><span>最大化</span></button>
+                        <button id="close" class="toolbar-button danger" title="关闭"><i
+                                class="layui-icon layui-icon-close"></i><span>关闭</span></button>
                     </div>
                 </div>
-                <div class="editor-container">
-                    <textarea id="splitSourceText" placeholder="请输入JSON字符串" class="layui-textarea"></textarea>
-                </div>
-            </div>
-            <div class="split-resizer" id="splitResizer"></div>
-            <div class="split-right" id="splitRightPanel">
-                <div class="panel-header">
-                    <span class="panel-title"><i class="layui-icon layui-icon-tree"></i> 树形视图</span>
-                    <div class="split-toolbar no-drag">
-                        <button class="split-btn" id="treeSearchToggle" title="搜索"><i
-                                class="layui-icon layui-icon-search"></i></button>
-                        <button class="split-btn" id="splitTopBtn" title="置顶"><i
-                                class="layui-icon layui-icon-top"></i></button>
-                        <button class="split-btn" id="splitExplainBtn" title="转义"><i
-                                class="layui-icon layui-icon-fonts-u"></i></button>
-                        <button class="split-btn" id="splitExpandAll" title="展开全部"><i
-                                class="layui-icon layui-icon-spread-left"></i></button>
-                        <button class="split-btn" id="splitCollapseAll" title="折叠全部"><i
-                                class="layui-icon layui-icon-shrink-right"></i></button>
-                        <select id="splitCopyFormat" class="split-copy-format-select" title="复制格式">
-                            <option value="default">["key"]</option>
-                            <option value="dot">.key</option>
-                            <option value="jsonpath">$.key</option>
-                            <option value="bracket">['key']</option>
-                            <option value="python">.get</option>
-                        </select>
+
+                <div class="toolbar-row settings-row">
+                    <div class="setting-group workbench-options">
+                        <label>选项</label>
+                        <input type="checkbox" lay-filter="explain" id="explain" title="转义" class="no-drag">
+                        <span title="仅解析最外层 JSON 字符串一次">
+                            <input type="checkbox" lay-filter="parseJsonString" id="parseJsonString"
+                                title="解析字符串类型json" class="no-drag">
+                        </span>
+                        <span title="在严格沙箱中预览图片和表格，不执行脚本">
+                            <input type="checkbox" lay-filter="renderHtml" id="renderHtml" title="富内容" class="no-drag">
+                        </span>
+                        <input type="checkbox" lay-filter="topCheck" id="topCheck" title="置顶" class="no-drag">
+                        <input type="checkbox" lay-filter="autoStart" id="autoStart" title="开机自启" class="no-drag">
+                        <input type="checkbox" lay-filter="disableUpdate" id="disableUpdate" title="禁用更新"
+                            class="no-drag">
+                    </div>
+
+                    <div class="setting-group copy-format-setting">
+                        <label for="copyFormat">复制格式</label>
+                        <div class="layui-input-inline">
+                            <select name="copyFormat" id="copyFormat" lay-filter="copyFormat">
+                                <option value="default">默认 ["key"]</option>
+                                <option value="dot">点号 .key</option>
+                                <option value="jsonpath">JSONPath $.key</option>
+                                <option value="bracket">方括号 ['key']</option>
+                                <option value="python">Python .get</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <div id="split-valid-result" class="status-empty" aria-live="polite">等待输入 JSON</div>
-                <div class="search-bar hidden" id="treeSearchBar">
-                    <input type="text" id="treeSearchInput" placeholder="搜索 key 或 value..." />
-                    <button class="search-btn" id="treeCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
-                    <button class="search-btn" id="treeUseRegex" title="正则表达式 (Alt+R)">.*</button>
-                    <div class="search-separator"></div>
-                    <span class="search-count" id="treeSearchCount"></span>
-                    <button class="search-btn" id="treeSearchPrev" title="上一个 (Shift+Enter)">
-                        <i class="layui-icon layui-icon-up"></i>
-                    </button>
-                    <button class="search-btn" id="treeSearchNext" title="下一个 (Enter)">
-                        <i class="layui-icon layui-icon-down"></i>
-                    </button>
-                    <button class="search-btn" id="treeSearchClear" title="关闭 (Esc)">
-                        <i class="layui-icon layui-icon-close"></i>
-                    </button>
-                </div>
-                <div id="tree-view"></div>
-            </div>
-        </div>
-        <!-- 分屏模式版本号 -->
-        <div class="version-display split-version">版本: <span id="splitVersionText">--</span></div>
-    </div>
 
-    <!-- 版本号 -->
-    <div class="version-display" id="mainVersion">版本: <span id="version">--</span></div>
+                <div id="customFormatContainer" class="custom-format-row hidden">
+                    <label for="customKeyFormat">自定义格式</label>
+                    <span>键</span>
+                    <input type="text" id="customKeyFormat" value=".{key}" placeholder="如: .{key}" class="layui-input">
+                    <span>索引</span>
+                    <input type="text" id="customIndexFormat" value="[{index}]" placeholder="如: [{index}]"
+                        class="layui-input">
+                </div>
+            </section>
+
+            <section class="split-view workbench-content" id="splitViewContainer">
+                <section class="split-left workbench-panel" id="splitLeftPanel" aria-label="JSON 编辑器">
+                    <div class="panel-header">
+                        <span class="panel-title"><i class="layui-icon layui-icon-form"></i> JSON 编辑器</span>
+                        <span class="panel-hint">唯一输入源</span>
+                    </div>
+                    <div class="editor-container">
+                        <textarea id="sourceText" placeholder="请输入JSON字符串" class="layui-textarea"
+                            spellcheck="false"></textarea>
+                    </div>
+                </section>
+
+                <div class="split-resizer" id="splitResizer" role="separator" aria-orientation="vertical"
+                    aria-label="调整编辑器和结果面板宽度"></div>
+
+                <section class="split-right workbench-panel" id="splitRightPanel" aria-label="JSON 结果">
+                    <div class="panel-header result-header">
+                        <div class="result-view-tabs" role="tablist" aria-label="结果视图">
+                            <button id="treeViewBtn" class="result-view-btn active" data-result-view="tree" role="tab"
+                                aria-selected="true"><i class="layui-icon layui-icon-tree"></i> 树形</button>
+                            <button id="highlightViewBtn" class="result-view-btn" data-result-view="highlight" role="tab"
+                                aria-selected="false"><i class="layui-icon layui-icon-code-circle"></i> 高亮</button>
+                        </div>
+                        <div class="result-tools" data-result-tools="tree">
+                            <button class="split-btn" id="treeSearchToggle" title="搜索树形结果"><i
+                                    class="layui-icon layui-icon-search"></i></button>
+                            <button class="split-btn" id="splitExpandAll" title="展开已加载节点"><i
+                                    class="layui-icon layui-icon-spread-left"></i></button>
+                            <button class="split-btn" id="splitCollapseAll" title="折叠全部"><i
+                                    class="layui-icon layui-icon-shrink-right"></i></button>
+                        </div>
+                        <div class="result-tools hidden" data-result-tools="highlight">
+                            <button class="split-btn" id="editorSearchToggle" title="搜索高亮结果"><i
+                                    class="layui-icon layui-icon-search"></i></button>
+                        </div>
+                    </div>
+
+                    <div id="valid-result" class="status-empty" aria-live="polite">等待输入 JSON</div>
+                    <div id="resultWorkspace" class="result-workspace" data-result-view="tree">
+                        <div id="tree-result" class="result-view-panel" role="tabpanel" aria-labelledby="treeViewBtn">
+                            <div class="search-bar hidden" id="treeSearchBar">
+                                <input type="text" id="treeSearchInput" placeholder="搜索 key 或 value..." />
+                                <button class="search-btn" id="treeCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
+                                <button class="search-btn" id="treeUseRegex" title="正则表达式 (Alt+R)">.*</button>
+                                <div class="search-separator"></div>
+                                <span class="search-count" id="treeSearchCount"></span>
+                                <button class="search-btn" id="treeSearchPrev" title="上一个 (Shift+Enter)"><i
+                                        class="layui-icon layui-icon-up"></i></button>
+                                <button class="search-btn" id="treeSearchNext" title="下一个 (Enter)"><i
+                                        class="layui-icon layui-icon-down"></i></button>
+                                <button class="search-btn" id="treeSearchClear" title="关闭 (Esc)"><i
+                                        class="layui-icon layui-icon-close"></i></button>
+                            </div>
+                            <div id="tree-view"></div>
+                        </div>
+
+                        <div id="highlight-result" class="result-view-panel hidden" role="tabpanel"
+                            aria-labelledby="highlightViewBtn">
+                            <div class="search-bar hidden" id="editorSearchBar">
+                                <input type="text" id="editorSearchInput" placeholder="搜索 key 或 value..." />
+                                <button class="search-btn" id="editorCaseSensitive" title="大小写敏感 (Alt+C)">Aa</button>
+                                <button class="search-btn" id="editorUseRegex" title="正则表达式 (Alt+R)">.*</button>
+                                <div class="search-separator"></div>
+                                <span class="search-count" id="editorSearchCount"></span>
+                                <button class="search-btn" id="editorSearchPrev" title="上一个 (Shift+Enter)"><i
+                                        class="layui-icon layui-icon-up"></i></button>
+                                <button class="search-btn" id="editorSearchNext" title="下一个 (Enter)"><i
+                                        class="layui-icon layui-icon-down"></i></button>
+                                <button class="search-btn" id="editorSearchClear" title="关闭 (Esc)"><i
+                                        class="layui-icon layui-icon-close"></i></button>
+                            </div>
+                            <div id="json-display"></div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </div>
+    </main>
     <script type="module" src="./main.ts"></script>
 </body>
 

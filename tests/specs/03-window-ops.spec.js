@@ -2,6 +2,8 @@ import { safeClick, elementExists, getControlValue, setInputValue, switchToEdito
 
 describe('窗口操作 (TODO #2)', () => {
   let initialMaximizeIconClass;
+  let sizeBeforeExpand;
+  let sizeAfterExpand;
 
   before(async () => {
     await switchToEditor();
@@ -37,18 +39,23 @@ describe('窗口操作 (TODO #2)', () => {
   });
 
   it('最大化按钮应可点击', async () => {
+    await browser.setWindowSize(900, 700);
+    sizeBeforeExpand = await browser.getWindowSize();
     await safeClick('#maximizeBtn');
-    await browser.pause(1000);
-    const editorClass = await $('#maximizeBtn i').getAttribute('class');
-    const splitClass = await $('#splitMaximize i').getAttribute('class');
-    expect(splitClass).toBe(editorClass);
+    await browser.waitUntil(async () => {
+      const current = await browser.getWindowSize();
+      return current.width !== sizeBeforeExpand.width || current.height !== sizeBeforeExpand.height;
+    }, { timeout: 5000, timeoutMsg: '点击最大化后窗口尺寸未变化' });
+    sizeAfterExpand = await browser.getWindowSize();
   });
 
   it('再次点击最大化应还原窗口', async () => {
     await safeClick('#maximizeBtn');
-    await browser.pause(1000);
+    await browser.waitUntil(async () => {
+      const current = await browser.getWindowSize();
+      return current.width !== sizeAfterExpand.width || current.height !== sizeAfterExpand.height;
+    }, { timeout: 5000, timeoutMsg: '再次点击最大化后窗口未离开全屏尺寸' });
     expect(await $('#maximizeBtn i').getAttribute('class')).toBe(initialMaximizeIconClass);
-    expect(await $('#splitMaximize i').getAttribute('class')).toBe(initialMaximizeIconClass);
   });
 
   it('置顶复选框应存在', async () => {

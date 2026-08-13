@@ -1,64 +1,46 @@
-import { getControlValue, safeClick, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
+import { getControlValue, resetWorkspace, safeClick, setInputValue, waitForText } from '../helpers/utils.js';
 
-describe('分屏模式基础功能', () => {
-  before(async () => {
-    await browser.pause(2000);
-    await switchToSplit();
-  });
-
-  after(async () => {
-    await switchToEditor();
-  });
-
+describe('统一工作台基础功能', () => {
   beforeEach(async () => {
-    await safeClick('#splitClearBtn');
-    await browser.pause(500);
+    await resetWorkspace('split');
   });
 
-  it('分屏模式输入框可编辑', async () => {
-    await setInputValue('#splitSourceText', '{"test": "hello"}');
-    const value = await getControlValue('#splitSourceText');
-    expect(value).toContain('test');
+  it('唯一输入框可编辑', async () => {
+    await setInputValue('#sourceText', '{"test":"hello"}');
+    expect(await getControlValue('#sourceText')).toContain('test');
   });
 
-  it('分屏模式格式化正确 JSON', async () => {
-    await setInputValue('#splitSourceText', '{"name":"Alice","age":30}');
-    await safeClick('#splitFormatBtn');
-    await browser.pause(1000);
-    const treeView = await $('#tree-view');
-    const text = await treeView.getText();
-    expect(text).toContain('Alice');
+  it('正确 JSON 同时更新源码、状态和树形结果', async () => {
+    await setInputValue('#sourceText', '{"name":"Alice","age":30}');
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', '格式正确');
+    await waitForText('#tree-view', 'Alice');
     expect((await $$('#tree-view .tree-key')).length).toBeGreaterThan(0);
+    expect(await getControlValue('#sourceText')).toContain('\n');
   });
 
-  it('分屏模式格式化错误 JSON 显示错误信息', async () => {
-    await setInputValue('#splitSourceText', '{invalid}');
-    await safeClick('#splitFormatBtn');
-    await browser.pause(1000);
-    const validResult = await $('#split-valid-result');
-    const text = await validResult.getText();
-    expect(text).toContain('JSON 格式错误');
+  it('错误 JSON 显示统一错误状态', async () => {
+    await setInputValue('#sourceText', '{invalid}');
+    await safeClick('#formatBtn');
+    await waitForText('#valid-result', 'JSON');
   });
 
-  it('分屏模式清空按钮清除输入和 TreeView', async () => {
-    await setInputValue('#splitSourceText', '{"a":1}');
-    await safeClick('#splitFormatBtn');
-    await browser.pause(500);
-    await safeClick('#splitClearBtn');
-    await browser.pause(500);
-    const value = await getControlValue('#splitSourceText');
-    expect(value).toBe('');
+  it('清空按钮清除输入和两种结果', async () => {
+    await setInputValue('#sourceText', '{"a":1}');
+    await safeClick('#formatBtn');
+    await safeClick('#clearBtn');
+    expect(await getControlValue('#sourceText')).toBe('');
     expect(await $('#tree-view').getText()).toBe('');
-    expect(await $('#split-valid-result').getText()).toContain('等待输入');
+    expect(await $('#json-display').getText()).toBe('');
+    expect(await $('#valid-result').getText()).toContain('等待输入');
   });
 
-  it('分屏模式格式化空输入不崩溃', async () => {
-    await setInputValue('#splitSourceText', '{"stale":true}');
-    await safeClick('#splitFormatBtn');
-    expect(await $('#tree-view').getText()).toContain('stale');
-    await setInputValue('#splitSourceText', '');
-    await safeClick('#splitFormatBtn');
+  it('格式化空输入不崩溃且清除旧结果', async () => {
+    await setInputValue('#sourceText', '{"stale":true}');
+    await safeClick('#formatBtn');
+    await setInputValue('#sourceText', '');
+    await safeClick('#formatBtn');
     expect(await $('#tree-view').getText()).toBe('');
-    expect(await $('#split-valid-result').getText()).toContain('等待输入');
+    expect(await $('#valid-result').getText()).toContain('等待输入');
   });
 });

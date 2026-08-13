@@ -84,21 +84,28 @@ export async function waitForText(selector, expected, timeout = 5000) {
 }
 
 export async function switchToEditor() {
-  if (await isElementVisible('#editor-mode')) return;
-  await safeClick('#split-mode [data-mode="editor"]');
-  await waitForVisibility('#sourceText');
+  await setWorkbenchLayout('split');
+  if (!(await isElementVisible('#highlight-result'))) await safeClick('#highlightViewBtn');
+  if (!(await isElementVisible('#highlight-result'))) await setWorkbenchLayout('result');
+  await waitForVisibility('#highlight-result');
 }
 
 export async function switchToSplit() {
-  if (await isElementVisible('#split-mode')) return;
-  await safeClick('#main-toolbar [data-mode="split"]');
-  await waitForVisibility('#splitSourceText');
+  await setWorkbenchLayout('split');
+  if (!(await isElementVisible('#tree-result'))) await safeClick('#treeViewBtn');
+  if (!(await isElementVisible('#tree-result'))) await setWorkbenchLayout('result');
+  await waitForVisibility('#tree-result');
+}
+
+export async function setWorkbenchLayout(layout) {
+  const current = await browser.execute(() => document.querySelector('#workbenchShell')?.getAttribute('data-layout'));
+  if (current !== layout) await safeClick(`.layout-mode-btn[data-layout="${layout}"]`);
 }
 
 export async function resetWorkspace(mode = 'editor') {
   if (mode === 'split') {
     await switchToSplit();
-    await safeClick('#splitClearBtn');
+    await safeClick('#clearBtn');
   } else {
     await switchToEditor();
     await safeClick('#clearBtn');
@@ -114,6 +121,10 @@ export async function toggleLayuiCheckbox(id) {
   });
 }
 
+export async function setLayuiCheckbox(id, enabled) {
+  if ((await isChecked(`#${id}`)) !== enabled) await toggleLayuiCheckbox(id);
+}
+
 export async function formatInEditor(value) {
   await switchToEditor();
   await setInputValue('#sourceText', value);
@@ -122,8 +133,8 @@ export async function formatInEditor(value) {
 
 export async function formatInSplit(value) {
   await switchToSplit();
-  await setInputValue('#splitSourceText', value);
-  await safeClick('#splitFormatBtn');
+  await setInputValue('#sourceText', value);
+  await safeClick('#formatBtn');
 }
 
 /**

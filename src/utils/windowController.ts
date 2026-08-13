@@ -11,19 +11,9 @@ export const createWindowController = (showMessage: ShowMessage) => {
   const maximizeActionQueue = new AsyncActionQueue();
 
   const updateMaximizeButton = (isMaximized: boolean, isFullscreen = false) => {
-    const selectors = ['#maximizeBtn', '#splitMaximize'];
     const icon = isMaximized ? 'layui-icon-screen-restore' : 'layui-icon-screen-full';
     const text = isMaximized ? '还原' : isFullscreen ? '全屏' : '最大化';
-
-    selectors.forEach(selector => {
-      const $button = $(selector);
-      if (!$button.length) return;
-      if (selector === '#maximizeBtn') {
-        $button.html(`<i class="layui-icon ${icon}"></i> ${text}`);
-      } else {
-        $button.html(`<i class="layui-icon ${icon}"></i>`).attr('title', text);
-      }
-    });
+    $('#maximizeBtn').html(`<i class="layui-icon ${icon}"></i> ${text}`).attr('title', text);
   };
 
   const toggleMaximize = (): Promise<void> => maximizeActionQueue.run(async () => {

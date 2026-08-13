@@ -1,10 +1,11 @@
-import type { WorkbenchMode } from './workbenchController';
+import type { WorkbenchLayout, WorkbenchResultView } from './workbenchController';
 
 export type AppTheme = 'light' | 'dark';
 
 export interface SettingsStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
 }
 
 export interface SettingsLogger {
@@ -13,7 +14,9 @@ export interface SettingsLogger {
 
 const SETTINGS_KEYS = {
   theme: 'json_formatter_theme',
-  viewMode: 'json_formatter_view_mode',
+  layout: 'json_formatter_layout',
+  resultView: 'json_formatter_result_view',
+  legacyViewMode: 'json_formatter_view_mode',
   updateDisabled: 'json_formatter_update_disabled'
 } as const;
 
@@ -30,6 +33,8 @@ const getBrowserStorage = (): SettingsStorage | null => {
 };
 
 export class SettingsStore {
+  private viewSettings?: { layout: WorkbenchLayout; resultView: WorkbenchResultView };
+
   constructor(
     private readonly storage: SettingsStorage | null = getBrowserStorage(),
     private readonly logger: SettingsLogger = defaultLogger
@@ -44,13 +49,21 @@ export class SettingsStore {
     this.write(SETTINGS_KEYS.theme, theme);
   }
 
-  getViewMode(): WorkbenchMode {
-    const value = this.read(SETTINGS_KEYS.viewMode);
-    return value === 'split' ? 'split' : 'editor';
+  getWorkbenchView(): Readonly<{ layout: WorkbenchLayout; resultView: WorkbenchResultView }> {
+    if (!this.viewSettings) this.viewSettings = this.loadWorkbenchView();
+    return { ...this.viewSettings };
   }
 
-  setViewMode(mode: WorkbenchMode): void {
-    this.write(SETTINGS_KEYS.viewMode, mode);
+  setLayout(layout: WorkbenchLayout): void {
+    const current = this.getWorkbenchView();
+    this.viewSettings = { ...current, layout };
+    this.write(SETTINGS_KEYS.layout, layout);
+  }
+
+  setResultView(resultView: WorkbenchResultView): void {
+    const current = this.getWorkbenchView();
+    this.viewSettings = { ...current, resultView };
+    this.write(SETTINGS_KEYS.resultView, resultView);
   }
 
   getUpdateDisabled(): boolean {
@@ -59,6 +72,23 @@ export class SettingsStore {
 
   setUpdateDisabled(disabled: boolean): void {
     this.write(SETTINGS_KEYS.updateDisabled, String(disabled));
+  }
+
+  private loadWorkbenchView(): { layout: WorkbenchLayout; resultView: WorkbenchResultView } {
+    const storedLayout = this.read(SETTINGS_KEYS.layout);
+    const storedResultView = this.read(SETTINGS_KEYS.resultView);
+    const legacyViewMode = this.read(SETTINGS_KEYS.legacyViewMode);
+    const layout: WorkbenchLayout = storedLayout === 'editor' || storedLayout === 'result'
+      ? storedLayout
+      : 'split';
+    const resultView: WorkbenchResultView = storedResultView === 'highlight' || storedResultView === 'tree'
+      ? storedResultView
+      : legacyViewMode === 'editor' ? 'highlight' : 'tree';
+
+    if (storedLayout !== layout) this.write(SETTINGS_KEYS.layout, layout);
+    if (storedResultView !== resultView) this.write(SETTINGS_KEYS.resultView, resultView);
+    this.remove(SETTINGS_KEYS.legacyViewMode);
+    return { layout, resultView };
   }
 
   private read(key: string): string | null {
@@ -77,6 +107,15 @@ export class SettingsStore {
       this.storage.setItem(key, value);
     } catch (error) {
       this.logger.warn(`保存设置 ${key} 失败`, error);
+    }
+  }
+
+  private remove(key: string): void {
+    if (!this.storage?.removeItem) return;
+    try {
+      this.storage.removeItem(key);
+    } catch (error) {
+      this.logger.warn(`删除旧设置 ${key} 失败`, error);
     }
   }
 }

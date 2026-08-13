@@ -37,7 +37,7 @@ describe('基础 JSON 功能', () => {
     await safeClick('#formatBtn');
     expect(await getControlValue('#sourceText')).toBe('');
     expect(await $('#json-display').getText()).toBe('');
-    expect(await $('#valid-result').getText()).toBe('');
+    expect(await $('#valid-result').getText()).toContain('等待输入');
   });
 
   it('格式化非 JSON 文本应报错', async () => {

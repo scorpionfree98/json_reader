@@ -4,11 +4,13 @@ import {
   type JsonParseResult
 } from './jsonParser';
 
-export type WorkbenchMode = 'editor' | 'split';
+export type WorkbenchLayout = 'editor' | 'split' | 'result';
+export type WorkbenchResultView = 'tree' | 'highlight';
 
 export interface WorkbenchState {
   source: string;
-  mode: WorkbenchMode;
+  layout: WorkbenchLayout;
+  resultView: WorkbenchResultView;
   parseJsonString: boolean;
   richContent: boolean;
   explain: boolean;
@@ -28,7 +30,8 @@ export class WorkbenchController {
   constructor(options: WorkbenchOptions = {}) {
     this.state = {
       source: options.source ?? '',
-      mode: options.mode ?? 'editor',
+      layout: options.layout ?? 'split',
+      resultView: options.resultView ?? 'tree',
       parseJsonString: options.parseJsonString ?? false,
       richContent: options.richContent ?? false,
       explain: options.explain ?? false
@@ -44,8 +47,12 @@ export class WorkbenchController {
     return this.state.source;
   }
 
-  get mode(): WorkbenchMode {
-    return this.state.mode;
+  get layout(): WorkbenchLayout {
+    return this.state.layout;
+  }
+
+  get resultView(): WorkbenchResultView {
+    return this.state.resultView;
   }
 
   get renderOptions(): Readonly<Pick<WorkbenchState, 'explain' | 'richContent'>> {
@@ -61,8 +68,12 @@ export class WorkbenchController {
     this.parseCache = undefined;
   }
 
-  setMode(mode: WorkbenchMode): void {
-    this.state.mode = mode;
+  setLayout(layout: WorkbenchLayout): void {
+    this.state.layout = layout;
+  }
+
+  setResultView(resultView: WorkbenchResultView): void {
+    this.state.resultView = resultView;
   }
 
   setParseJsonString(enabled: boolean): void {

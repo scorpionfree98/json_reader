@@ -1,11 +1,11 @@
-import { isElementVisible, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
+import { isElementVisible, setInputValue, switchToEditor } from '../helpers/utils.js';
 
 describe('复制格式功能', () => {
   before(async () => {
     await browser.pause(2000);
   });
 
-  describe('编辑器模式复制格式', () => {
+  describe('统一复制格式', () => {
     before(async () => {
       await switchToEditor();
     });
@@ -57,28 +57,4 @@ describe('复制格式功能', () => {
     });
   });
 
-  describe('分屏模式复制格式', () => {
-    before(async () => {
-      await switchToSplit();
-    });
-
-    after(async () => {
-      await switchToEditor();
-    });
-
-    it('分屏模式复制格式与编辑器同步', async () => {
-      await browser.execute(() => {
-        const select = document.querySelector('#splitCopyFormat');
-        select.value = 'python';
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-      await browser.pause(300);
-
-      const values = await browser.execute(() => ({
-        split: document.querySelector('#splitCopyFormat').value,
-        editor: document.querySelector('#copyFormat').value,
-      }));
-      expect(values).toEqual({ split: 'python', editor: 'python' });
-    });
-  });
 });

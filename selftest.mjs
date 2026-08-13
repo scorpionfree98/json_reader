@@ -24,17 +24,17 @@ async function run() {
     catch (e) { console.log(`❌ ${name}\n   ${e.message.split('\n')[0]}`); fail++; failures.push(name); }
   }
 
-  // 辅助：切换到编辑器模式
+  // 辅助：切换到高亮结果
   async function toEditor() {
-    if (await page.locator('#split-mode').isVisible()) {
-      await page.locator('.split-toolbar [data-mode="editor"]').first().click();
+    if (!(await page.locator('#highlight-result').isVisible())) {
+      await page.locator('#highlightViewBtn').click();
       await sleep(500);
     }
   }
-  // 辅助：切换到分屏模式
+  // 辅助：切换到树形结果
   async function toSplit() {
-    if (!(await page.locator('#split-mode').isVisible())) {
-      await page.locator('#main-toolbar [data-mode="split"]').click();
+    if (!(await page.locator('#tree-result').isVisible())) {
+      await page.locator('#treeViewBtn').click();
       await sleep(500);
     }
   }
@@ -90,31 +90,31 @@ async function run() {
       if (!html.includes('→')) throw new Error('缺少错误标记');
     });
 
-    // ========== 第 3 组：视图模式切换 ==========
-    console.log('\n【3】视图模式切换');
+    // ========== 第 3 组：结果视图切换 ==========
+    console.log('\n【3】结果视图切换');
     console.log('-'.repeat(80));
 
-    await t('3.1 切换到分屏模式', async () => {
+    await t('3.1 切换到树形结果', async () => {
       await page.fill('#sourceText', '{"test":"view"}');
       await page.click('#formatBtn');
       await sleep(500);
       await toSplit();
-      if (!(await page.locator('#split-mode').isVisible())) throw new Error('分屏未显示');
+      if (!(await page.locator('#tree-result').isVisible())) throw new Error('树形结果未显示');
     });
 
-    await t('3.2 分屏输入框应同步内容', async () => {
-      const v = await page.inputValue('#splitSourceText');
+    await t('3.2 唯一输入框应保留内容', async () => {
+      const v = await page.inputValue('#sourceText');
       if (!v.includes('test')) throw new Error('内容未同步');
     });
 
-    await t('3.3 切回编辑器模式', async () => {
+    await t('3.3 切换到高亮结果', async () => {
       await toEditor();
-      if (!(await page.locator('#editor-mode').isVisible())) throw new Error('编辑器未显示');
+      if (!(await page.locator('#highlight-result').isVisible())) throw new Error('高亮结果未显示');
     });
 
-    await t('3.4 再切回分屏模式', async () => {
+    await t('3.4 再切回树形结果', async () => {
       await toSplit();
-      if (!(await page.locator('#split-mode').isVisible())) throw new Error('分屏未显示');
+      if (!(await page.locator('#tree-result').isVisible())) throw new Error('树形结果未显示');
     });
 
     // ========== 第 4 组：TreeView 显示 ==========
@@ -122,8 +122,8 @@ async function run() {
     console.log('-'.repeat(80));
 
     await t('4.1 分屏模式输入 JSON 后 TreeView 应渲染', async () => {
-      await page.fill('#splitSourceText', '{"user":{"name":"Bob","age":25}}');
-      await page.click('#splitFormatBtn');
+      await page.fill('#sourceText', '{"user":{"name":"Bob","age":25}}');
+      await page.click('#formatBtn');
       await sleep(1000);
       const text = await page.locator('#tree-view').textContent();
       if (!text.includes('Bob')) throw new Error('TreeView 未渲染');
@@ -161,20 +161,16 @@ async function run() {
     console.log('\n【5】TreeView 换行符');
     console.log('-'.repeat(80));
 
-    await t('5.1 勾选转义（通过分屏按钮）', async () => {
-      const btn = page.locator('#splitExplainBtn');
-      if (!(await btn.evaluate(el => el.classList.contains('active')))) {
-        await btn.click();
-        await sleep(300);
-      }
-      const isActive = await btn.evaluate(el => el.classList.contains('active'));
-      if (!isActive) throw new Error('转义按钮未激活');
+    await t('5.1 勾选统一转义复选框', async () => {
+      const checkbox = page.locator('#explain');
+      if (!(await checkbox.isChecked())) await clickLayuiCheckbox('转义');
+      if (!(await checkbox.isChecked())) throw new Error('转义未激活');
     });
 
     await t('5.2 输入含换行符 JSON 并格式化', async () => {
       const json = JSON.stringify({ message: "第一行\\n第二行\\n第三行" }, null, 2);
-      await page.fill('#splitSourceText', json);
-      await page.click('#splitFormatBtn');
+      await page.fill('#sourceText', json);
+      await page.click('#formatBtn');
       await sleep(1000);
     });
 
@@ -201,7 +197,7 @@ async function run() {
 
     await t('6.1 分屏模式主题切换', async () => {
       const before = await page.evaluate(() => document.body.classList.contains('dark-mode'));
-      await page.click('#splitThemeToggle');
+      await page.click('#themeToggle');
       await sleep(500);
       const after = await page.evaluate(() => document.body.classList.contains('dark-mode'));
       if (before === after) throw new Error('主题未切换');
@@ -265,22 +261,24 @@ async function run() {
       if (!(await page.locator('#close').isVisible())) throw new Error('不可见');
     });
 
-    await t('8.4 分屏模式窗口按钮', async () => {
-      await toSplit();
-      await sleep(300);
-      if (!(await page.locator('#splitMinimize').isVisible())) throw new Error('分屏最小化不可见');
-      if (!(await page.locator('#splitMaximize').isVisible())) throw new Error('分屏最大化不可见');
-      if (!(await page.locator('#splitClose').isVisible())) throw new Error('分屏关闭不可见');
+    await t('8.4 窗口按钮只保留一套', async () => {
+      if (await page.locator('#minimize').count() !== 1) throw new Error('最小化按钮重复');
+      if (await page.locator('#maximizeBtn').count() !== 1) throw new Error('最大化按钮重复');
+      if (await page.locator('#close').count() !== 1) throw new Error('关闭按钮重复');
     });
 
     // ========== 第 9 组：复制格式 ==========
     console.log('\n【9】复制格式');
     console.log('-'.repeat(80));
 
-    await t('9.1 分屏复制格式选择器可用', async () => {
-      const copyFormat = page.locator('#splitCopyFormat');
-      if (!(await copyFormat.isVisible())) throw new Error('不可见');
-      await copyFormat.selectOption('python');
+    await t('9.1 统一复制格式选择器可用', async () => {
+      const copyFormat = page.locator('#copyFormat');
+      if (!(await copyFormat.count())) throw new Error('不存在');
+      await page.evaluate(() => {
+        const select = document.querySelector('#copyFormat');
+        select.value = 'python';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+      });
       if (await copyFormat.inputValue() !== 'python') throw new Error('无法切换格式');
     });
 
@@ -332,8 +330,8 @@ async function run() {
     await t('10.5 分屏模式直接输入并格式化', async () => {
       await toSplit();
       await sleep(300);
-      await page.fill('#splitSourceText', '{"direct":"input","in":"split"}');
-      await page.click('#splitFormatBtn');
+      await page.fill('#sourceText', '{"direct":"input","in":"split"}');
+      await page.click('#formatBtn');
       await sleep(1000);
       const text = await page.locator('#tree-view').textContent();
       if (!text.includes('direct')) throw new Error('分屏直接输入格式化失败');
@@ -341,16 +339,16 @@ async function run() {
     });
 
     await t('10.6 分屏清空按钮', async () => {
-      await page.click('#splitClearBtn');
+      await page.click('#clearBtn');
       await sleep(300);
-      if ((await page.inputValue('#splitSourceText')) !== '') throw new Error('未清空');
+      if ((await page.inputValue('#sourceText')) !== '') throw new Error('未清空');
     });
 
     console.log('\n等待 2 秒后关闭...');
     await sleep(2000);
 
   } finally {
-    await browser.close();
+    await Promise.race([browser.close(), sleep(5000)]);
   }
 
   console.log('\n' + '='.repeat(80));

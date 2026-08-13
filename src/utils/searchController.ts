@@ -138,7 +138,7 @@ export class SearchController {
     $(document).on('keydown.jsonSearch', event => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
         event.preventDefault();
-        this.toggle($('#editor-mode').hasClass('hidden') ? 'tree' : 'editor', true);
+        this.toggle($('#resultWorkspace').attr('data-result-view') === 'tree' ? 'tree' : 'editor', true);
       }
     });
   }

@@ -1,4 +1,4 @@
-import { formatInSplit, isElementVisible, resetWorkspace, safeClick, waitForText } from '../helpers/utils.js';
+import { formatInSplit, isChecked, isElementVisible, resetWorkspace, safeClick, toggleLayuiCheckbox, waitForText } from '../helpers/utils.js';
 import { serializeCase, validCases } from '../fixtures/json-cases.js';
 
 describe('TreeView 功能 (TODO #1)', () => {
@@ -81,8 +81,7 @@ describe('TreeView 功能 (TODO #1)', () => {
       description: '多行\\n文本'
     }, null, 2);
 
-    const explainBtn = await $('#splitExplainBtn');
-    if (!(await explainBtn.getAttribute('class')).includes('active')) await safeClick('#splitExplainBtn');
+    if (!(await isChecked('#explain'))) await toggleLayuiCheckbox('explain');
     await formatInSplit(jsonWithNewlines);
     await waitForText('#tree-view', '第三行');
 
@@ -103,8 +102,7 @@ describe('TreeView 功能 (TODO #1)', () => {
 
   it('TreeView 应显示换行后的文本内容', async () => {
     await formatInSplit(serializeCase(validCases.escapedContent));
-    const explainBtn = await $('#splitExplainBtn');
-    if (!(await explainBtn.getAttribute('class')).includes('active')) await safeClick('#splitExplainBtn');
+    if (!(await isChecked('#explain'))) await toggleLayuiCheckbox('explain');
     await formatInSplit(serializeCase(validCases.escapedContent));
     const treeView = await $('#tree-view');
     const text = await treeView.getText();

@@ -9,6 +9,7 @@ test.describe('基础 JSON 功能', () => {
     await page.waitForLoadState('networkidle');
     // 等待 LayUI 初始化
     await page.waitForTimeout(500);
+    await page.locator('#highlightViewBtn').click();
   });
 
   test('页面标题正确', async ({ page }) => {
@@ -109,6 +110,7 @@ test.describe('编辑器模式 JSON 渲染', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
+    await page.locator('#highlightViewBtn').click();
   });
 
   test('格式化后显示 JSON 树', async ({ page }) => {
@@ -163,41 +165,43 @@ test.describe('编辑器模式 JSON 渲染', () => {
   });
 });
 
-test.describe('视图模式切换', () => {
+test.describe('统一工作台布局与结果视图', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
   });
 
-  test('默认为编辑器模式', async ({ page }) => {
-    await expect(page.locator('#editor-mode')).toBeVisible();
-    await expect(page.locator('#split-mode')).toBeHidden();
+  test('默认显示双栏和树形结果', async ({ page }) => {
+    await expect(page.locator('#workbenchShell')).toHaveAttribute('data-layout', 'split');
+    await expect(page.locator('#splitLeftPanel')).toBeVisible();
+    await expect(page.locator('#splitRightPanel')).toBeVisible();
+    await expect(page.locator('#tree-result')).toBeVisible();
   });
 
-  test('切换到分屏模式', async ({ page }) => {
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('#split-mode')).toBeVisible();
+  test('只保留一个输入和一套主按钮', async ({ page }) => {
+    await expect(page.locator('textarea')).toHaveCount(1);
+    await expect(page.locator('#formatBtn')).toHaveCount(1);
+    await expect(page.locator('#pasteBtn')).toHaveCount(1);
+    await expect(page.locator('#clearBtn')).toHaveCount(1);
+    await expect(page.locator('#valid-result')).toHaveCount(1);
   });
 
-  test('从分屏切回编辑器模式', async ({ page }) => {
-    // 先切到分屏
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-    // 再切回编辑器（分屏模式内的按钮）
-    await page.locator('#split-mode .view-mode-btn[data-mode="editor"]').click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('#editor-mode')).toBeVisible();
+  test('高亮和树形结果可切换', async ({ page }) => {
+    await page.locator('#highlightViewBtn').click();
+    await expect(page.locator('#highlight-result')).toBeVisible();
+    await expect(page.locator('#tree-result')).toBeHidden();
+    await page.locator('#treeViewBtn').click();
+    await expect(page.locator('#tree-result')).toBeVisible();
   });
 
-  test('切换模式时内容同步', async ({ page }) => {
+  test('切换结果视图时保留唯一输入内容', async ({ page }) => {
     await page.locator('#sourceText').fill('{"sync":"test"}');
-    // 切到分屏
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-    const splitValue = await page.locator('#splitSourceText').inputValue();
-    expect(splitValue).toContain('sync');
+    await page.locator('#formatBtn').click();
+    const formatted = await page.locator('#sourceText').inputValue();
+    await page.locator('#highlightViewBtn').click();
+    await page.locator('#treeViewBtn').click();
+    await expect(page.locator('#sourceText')).toHaveValue(formatted);
   });
 });
 
@@ -206,14 +210,13 @@ test.describe('分屏模式', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
-    // 切到分屏模式
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
+    await page.locator('#treeViewBtn').click();
     await page.waitForTimeout(300);
   });
 
   test('分屏模式输入并格式化', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"hello":"world"}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{"hello":"world"}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     // tree-view 应有内容
     const treeView = page.locator('#tree-view');
@@ -221,24 +224,24 @@ test.describe('分屏模式', () => {
   });
 
   test('分屏模式树形视图显示 key', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"name":"Alice","age":30}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{"name":"Alice","age":30}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     const keys = page.locator('#tree-view .tree-key');
     expect(await keys.count()).toBeGreaterThan(0);
   });
 
   test('分屏模式树形视图正确渲染 null', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"x":null}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{"x":null}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     const nullEl = page.locator('#tree-view .tree-null');
     await expect(nullEl.first()).toContainText('null');
   });
 
   test('分屏模式展开/折叠全部', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"a":{"b":{"c":1}}}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{"a":{"b":{"c":1}}}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     // 折叠全部
     await page.locator('#splitCollapseAll').click();
@@ -253,15 +256,15 @@ test.describe('分屏模式', () => {
   });
 
   test('分屏模式清空按钮', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"a":1}');
-    await page.locator('#splitClearBtn').click();
+    await page.locator('#sourceText').fill('{"a":1}');
+    await page.locator('#clearBtn').click();
     await page.waitForTimeout(300);
-    await expect(page.locator('#splitSourceText')).toHaveValue('');
+    await expect(page.locator('#sourceText')).toHaveValue('');
     await expect(page.locator('#tree-view')).toBeEmpty();
   });
 
-  test('分屏模式实时同步到编辑器', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{"realtime":"sync"}');
+  test('唯一输入源实时更新', async ({ page }) => {
+    await page.locator('#sourceText').fill('{"realtime":"sync"}');
     await page.waitForTimeout(500);
     // 编辑器的 sourceText 应该被同步
     const editorValue = await page.locator('#sourceText').inputValue();
@@ -269,10 +272,10 @@ test.describe('分屏模式', () => {
   });
 
   test('分屏模式错误 JSON 显示错误信息', async ({ page }) => {
-    await page.locator('#splitSourceText').fill('{invalid json}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{invalid json}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
-    const result = page.locator('#split-valid-result');
+    const result = page.locator('#valid-result');
     await expect(result).toBeVisible();
   });
 });
@@ -282,6 +285,7 @@ test.describe('搜索功能', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
+    await page.locator('#highlightViewBtn').click();
   });
 
   test('编辑器模式搜索 - 找到匹配项', async ({ page }) => {
@@ -329,11 +333,10 @@ test.describe('搜索功能', () => {
   });
 
   test('分屏模式搜索 - 找到匹配项', async ({ page }) => {
-    // 切到分屏
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
+    await page.locator('#treeViewBtn').click();
     await page.waitForTimeout(300);
-    await page.locator('#splitSourceText').fill('{"name":"Alice","age":30}');
-    await page.locator('#splitFormatBtn').click();
+    await page.locator('#sourceText').fill('{"name":"Alice","age":30}');
+    await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     await page.locator('#treeSearchToggle').click();
     await page.waitForTimeout(200);
@@ -346,15 +349,15 @@ test.describe('搜索功能', () => {
   });
 
   test('分屏内容刷新后清理旧搜索结果', async ({ page }) => {
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.locator('#splitSourceText').fill('{"name":"Alice"}');
+    await page.locator('#treeViewBtn').click();
+    await page.locator('#sourceText').fill('{"name":"Alice"}');
     await page.waitForTimeout(500);
     await page.locator('#treeSearchToggle').click();
     await page.locator('#treeSearchInput').fill('Alice');
     await page.waitForTimeout(500);
     await expect(page.locator('#treeSearchCount')).toContainText('1/');
 
-    await page.locator('#splitSourceText').fill('{"name":"Bob"}');
+    await page.locator('#sourceText').fill('{"name":"Bob"}');
     await page.waitForTimeout(500);
 
     await expect(page.locator('#treeSearchInput')).toHaveValue('');
@@ -423,11 +426,9 @@ test.describe('主题切换', () => {
     await expect(page.locator('body')).not.toHaveClass(/dark-mode/);
   });
 
-  test('分屏模式主题切换', async ({ page }) => {
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-    await page.locator('#splitThemeToggle').click();
-    await page.waitForTimeout(300);
+  test('主题按钮在树形结果下仍可用', async ({ page }) => {
+    await page.locator('#treeViewBtn').click();
+    await page.locator('#themeToggle').click();
     await expect(page.locator('body')).toHaveClass(/dark-mode/);
   });
 });
@@ -451,15 +452,16 @@ test.describe('大型 JSON 和边界情况', () => {
 
   test('超大节点集应提示切换分屏而不是一次性创建全部 DOM', async ({ page }) => {
     const values = Array.from({ length: 10_050 }, (_, index) => index);
+    await page.locator('#highlightViewBtn').click();
     await page.locator('#sourceText').fill(JSON.stringify(values));
     await page.locator('#formatBtn').click();
 
     await expect(page.locator('#valid-result')).toContainText('格式正确');
-    await expect(page.locator('.json-render-limit')).toContainText('已暂停编辑器完整渲染');
+    await expect(page.locator('.json-render-limit')).toContainText('已暂停高亮完整渲染');
     await expect(page.locator('#json-display .json-number')).toHaveCount(0);
 
     await page.locator('.json-render-limit-action').click();
-    await expect(page.locator('#split-mode')).toBeVisible();
+    await expect(page.locator('#tree-result')).toBeVisible();
     await expect(page.locator('#tree-view .tree-value')).toHaveCount(500);
     await expect(page.locator('#tree-view .tree-load-more')).toBeVisible();
   });
@@ -486,7 +488,7 @@ test.describe('大型 JSON 和边界情况', () => {
     await page.locator('#formatBtn').click();
     await page.waitForTimeout(500);
     await expect(page.locator('#valid-result')).toContainText('格式正确');
-    const display = page.locator('#json-display');
+    const display = page.locator('#tree-view');
     const text = await display.textContent();
     expect(text).toContain('🎉');
     expect(text).toContain('你好');
@@ -512,11 +514,8 @@ test.describe('复制格式', () => {
     await expect(selector).toBeAttached();
   });
 
-  test('分屏模式复制格式选择器存在', async ({ page }) => {
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-    const selector = page.locator('#splitCopyFormat');
-    await expect(selector).toBeAttached();
+  test('复制格式选择器只有一个', async ({ page }) => {
+    await expect(page.locator('#copyFormat')).toHaveCount(1);
   });
 });
 
@@ -527,25 +526,16 @@ test.describe('新功能验证', () => {
     await page.waitForTimeout(500);
   });
 
-  test('分屏模式转义按钮功能', async ({ page }) => {
+  test('树形结果使用统一转义复选框', async ({ page }) => {
     // 输入包含转义字符的 JSON
     const testJson = JSON.stringify({ text: 'Hello\\nWorld' });
     await page.locator('#sourceText').fill(testJson);
 
-    // 切换到分屏模式
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
-
-    // 检查转义按钮存在
-    const explainBtn = page.locator('#splitExplainBtn');
-    await expect(explainBtn).toBeVisible();
-
-    // 点击转义按钮
-    await explainBtn.click();
-    await page.waitForTimeout(200);
-
-    // 验证按钮状态变化
-    await expect(explainBtn).toHaveClass(/active/);
+    await page.locator('#treeViewBtn').click();
+    const explain = page.locator('#explain');
+    await expect(explain).toBeAttached();
+    await page.locator('#explain + .layui-form-checkbox').click();
+    await expect(explain).toBeChecked();
   });
 
   test('搜索功能找到所有匹配项', async ({ page }) => {
@@ -588,24 +578,17 @@ test.describe('新功能验证', () => {
     const textBefore = await page.locator('#sourceText').inputValue();
     expect(textBefore).toContain('data');
 
-    // 使用 JavaScript 切换到分屏模式（绕过可见性问题）
-    await page.evaluate(() => {
-      const btn = document.querySelector('.view-mode-btn[data-mode="split"]') as HTMLElement;
-      if (btn) btn.click();
-    });
-    await page.waitForTimeout(500);
-
-    // 检查分屏输入框是否同步
-    const splitText = await page.locator('#splitSourceText').inputValue();
-    expect(splitText).toBe(textBefore);
+    await page.locator('#highlightViewBtn').click();
+    await page.locator('#treeViewBtn').click();
+    await expect(page.locator('#sourceText')).toHaveValue(textBefore);
   });
 
   test('分屏模式双击复制有提示', async ({ page }) => {
     // 输入 JSON 并切换到分屏模式
     const testJson = '{"key":"value"}';
     await page.locator('#sourceText').fill(testJson);
-    await page.locator('.view-mode-btn[data-mode="split"]').first().click();
-    await page.waitForTimeout(300);
+    await page.locator('#treeViewBtn').click();
+    await page.locator('#formatBtn').click();
 
     // 双击树视图中的 key
     const treeKey = page.locator('#tree-view .tree-key').first();

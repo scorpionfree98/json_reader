@@ -8,15 +8,21 @@ describe('WorkbenchController', () => {
     expect(workbench.getParseCount()).toBe(1);
   });
 
-  test('模式和纯渲染选项变化不会使解析缓存失效', () => {
+  test('布局、结果视图和纯渲染选项变化不会使解析缓存失效', () => {
     const workbench = new WorkbenchController({ source: '{"value":1}' });
     workbench.parse();
-    workbench.setMode('split');
+    workbench.setLayout('result');
+    workbench.setResultView('highlight');
     workbench.setExplain(true);
     workbench.setRichContent(true);
     workbench.parse();
     expect(workbench.getParseCount()).toBe(1);
-    expect(workbench.snapshot).toMatchObject({ mode: 'split', explain: true, richContent: true });
+    expect(workbench.snapshot).toMatchObject({
+      layout: 'result',
+      resultView: 'highlight',
+      explain: true,
+      richContent: true
+    });
   });
 
   test('输入变化会使解析缓存失效', () => {
@@ -57,13 +63,15 @@ describe('WorkbenchController', () => {
   test('公开状态与渲染选项来自同一状态源', () => {
     const workbench = new WorkbenchController({
       source: '{"value":1}',
-      mode: 'split',
+      layout: 'editor',
+      resultView: 'highlight',
       explain: true,
       richContent: true
     });
 
     expect(workbench.source).toBe('{"value":1}');
-    expect(workbench.mode).toBe('split');
+    expect(workbench.layout).toBe('editor');
+    expect(workbench.resultView).toBe('highlight');
     expect(workbench.renderOptions).toEqual({ explain: true, richContent: true });
   });
 });

@@ -1,96 +1,39 @@
-import { safeClick, setInputValue, switchToEditor, switchToSplit } from '../helpers/utils.js';
+import { formatInSplit, isChecked, resetWorkspace, safeClick, toggleLayuiCheckbox } from '../helpers/utils.js';
 
-describe('分屏模式控件', () => {
-  before(async () => {
-    await browser.pause(2000);
-    await switchToSplit();
+describe('统一工作台控件', () => {
+  beforeEach(async () => {
+    await resetWorkspace('split');
   });
 
-  after(async () => {
-    await switchToEditor();
+  it('置顶使用唯一复选框切换', async () => {
+    const initial = await isChecked('#topCheck');
+    await toggleLayuiCheckbox('topCheck');
+    expect(await isChecked('#topCheck')).not.toBe(initial);
+    await toggleLayuiCheckbox('topCheck');
+    expect(await isChecked('#topCheck')).toBe(initial);
   });
 
-  it('分屏模式置顶按钮切换', async () => {
-    const topBtn = await $('#splitTopBtn');
-    const initialClassName = await topBtn.getAttribute('class');
-    const initiallyActive = initialClassName.includes('active');
-
-    await safeClick('#splitTopBtn');
-    await browser.waitUntil(async () => {
-      const className = await topBtn.getAttribute('class');
-      return className.includes('active') !== initiallyActive;
-    }, { timeout: 3000, timeoutMsg: '分屏置顶状态未切换' });
-
-    await safeClick('#splitTopBtn');
-    await browser.waitUntil(async () => {
-      const className = await topBtn.getAttribute('class');
-      return className.includes('active') === initiallyActive;
-    }, { timeout: 3000, timeoutMsg: '分屏置顶状态未恢复' });
+  it('转义使用唯一复选框切换', async () => {
+    const initial = await isChecked('#explain');
+    await toggleLayuiCheckbox('explain');
+    expect(await isChecked('#explain')).not.toBe(initial);
+    await toggleLayuiCheckbox('explain');
+    expect(await isChecked('#explain')).toBe(initial);
   });
 
-  it('分屏模式转义按钮切换', async () => {
-    const explainBtn = await $('#splitExplainBtn');
-
-    // Click to activate
-    await safeClick('#splitExplainBtn');
-    await browser.pause(300);
-    let className = await explainBtn.getAttribute('class');
-    expect(className).toContain('active');
-
-    // Click to deactivate
-    await safeClick('#splitExplainBtn');
-    await browser.pause(300);
-    className = await explainBtn.getAttribute('class');
-    expect(className).not.toContain('active');
+  it('主题使用唯一按钮切换并恢复', async () => {
+    const initial = await $('body').getAttribute('class');
+    await safeClick('#themeToggle');
+    expect(await $('body').getAttribute('class')).not.toBe(initial);
+    await safeClick('#themeToggle');
+    expect(await $('body').getAttribute('class')).toBe(initial);
   });
 
-  it('分屏模式主题切换', async () => {
-    const htmlElement = await $('html');
-    const bodyElement = await $('body');
-
-    // Get initial class
-    let initialHtmlClass = await htmlElement.getAttribute('class');
-    let initialBodyClass = await bodyElement.getAttribute('class');
-
-    // Click theme toggle
-    await safeClick('#splitThemeToggle');
-    await browser.pause(500);
-
-    // Get new class
-    let newHtmlClass = await htmlElement.getAttribute('class');
-    let newBodyClass = await bodyElement.getAttribute('class');
-
-    // Verify they differ
-    const htmlChanged = initialHtmlClass !== newHtmlClass;
-    const bodyChanged = initialBodyClass !== newBodyClass;
-    expect(htmlChanged || bodyChanged).toBe(true);
-
-    // Click again to restore
-    await safeClick('#splitThemeToggle');
-    await browser.pause(500);
-  });
-
-  it('分屏模式展开/折叠全部', async () => {
-    // Format a nested JSON
-    const testJson = '{"a":{"b":{"c":1}}}';
-    await setInputValue('#splitSourceText', testJson);
-    await safeClick('#splitFormatBtn');
-    await browser.pause(500);
-
-    // Click collapse all
+  it('树形结果可展开和折叠已加载节点', async () => {
+    await formatInSplit('{"a":{"b":{"c":1}}}');
     await safeClick('#splitCollapseAll');
-    await browser.pause(500);
-
-    // Verify collapsed state exists
-    const collapsedToggles = await $$('.tree-toggle[data-collapsed="true"]');
-    expect(collapsedToggles.length).toBeGreaterThan(0);
-
-    // Click expand all
+    expect((await $$('.tree-toggle[data-collapsed="true"]')).length).toBeGreaterThan(0);
     await safeClick('#splitExpandAll');
-    await browser.pause(500);
-
-    // Verify expanded state (no collapsed toggles)
-    const expandedToggles = await $$('.tree-toggle[data-collapsed="false"]');
-    expect(expandedToggles.length).toBeGreaterThan(0);
+    expect((await $$('.tree-toggle[data-collapsed="false"]')).length).toBeGreaterThan(0);
   });
 });

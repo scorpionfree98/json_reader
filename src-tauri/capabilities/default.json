@@ -34,6 +34,7 @@
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-is-maximized",
+    "core:window:allow-set-fullscreen",
     "process:allow-exit",
     "process:allow-restart",
     "core:tray:default",

@@ -225,7 +225,7 @@ Expected: all checks pass.
 
 Suggested commit: `refactor: isolate settings updater and tray services`
 
-### Task 5: Merge the Two UI Modes Into One Workbench
+### Task 5: Merge the Two UI Modes Into One Workbench（已完成）
 
 **Files:**
 - Modify: `src/index.html`
@@ -258,6 +258,15 @@ Run the full Tauri suite at the normal window size, then add a narrow-window UI 
 **Step 6: Commit checkpoint**
 
 Suggested commit: `refactor: unify editor and result workspace`
+
+**Completion record:**
+
+- 页面只保留一个 `#sourceText`、一个 `#valid-result` 和一组格式化、粘贴、清空、主题及窗口按钮。
+- 工作台状态拆分为布局（编辑/双栏/结果）和结果视图（树形/高亮）；旧模式偏好自动迁移后删除。
+- 结果标签切换复用解析缓存，不修改输入；大数据高亮限制直接引导到树形结果。
+- 桌面双栏支持拖动分隔线，760px 以下使用编辑/结果布局切换，主按钮不隐藏。
+- 补齐 macOS `setFullscreen` capability，并将最大化测试升级为真实窗口尺寸断言。
+- 190 项 Jest、48 项 Playwright、110 项真实 Tauri E2E、35 项浏览器自测全部通过；语句覆盖率 97.3%，分支覆盖率 91.74%。
 
 ### Task 6: Security and Performance Hardening（已完成）
 
